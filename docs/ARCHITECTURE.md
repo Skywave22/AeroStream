@@ -200,11 +200,23 @@ cleanup are tested without a network.
 | Repositories, installed plugins | SQLite (`aerostream.db`), `PRAGMA user_version` migrations | queries, ordering, atomic updates |
 | Plugin artifacts | `<appSupport>/plugins/<ecosystem>/<id>/<version>/` | one shape for every ecosystem |
 | Preferences, library, history, download queue, plugin settings | `shared_preferences` | small values, no schema |
+| Chosen mirror / sub-provider | `shared_preferences`, `plugin.endpoint.<id>` | a user decision about a plugin, not a property of the install |
 | Downloaded media | `<appSupport>/downloads/` | app-private; deleted with the app |
 
 Installs are staged into a sibling directory and swapped with `rename`, so a
 failed update leaves the previous version runnable. `previousArtifactPath`
 keeps exactly one rollback available.
+
+## Two seams that exist to stay honest
+
+* `PluginRuntimeFactory` is where an installed plugin becomes a runnable
+  `MediaProvider`. It also applies the user's mirror choice
+  (`PluginEndpointStore`) on the way into the sandbox, so adapters never read
+  that setting themselves.
+* `ecosystemStatuses()` (`lib/core/platform/ecosystem_status.dart`) is the
+  support matrix as a value: platform plus the CloudStream host handshake in,
+  one sentence per ecosystem out. Settings and Extensions both read it, so they
+  cannot disagree about what this device can run.
 
 ## Failure model
 
@@ -213,7 +225,7 @@ keeps exactly one rollback available.
 | plugin hangs | "The plugin took too long to answer", retry |
 | plugin throws | "The plugin stopped unexpectedly", retry |
 | plugin asks for something outside its box | "The plugin tried to leave its sandbox" |
-| ecosystem cannot run here | "not available on this platform", install disabled |
+| ecosystem cannot run here | the sentence from `ecosystemStatuses()` — "Android only", or "this build has no CloudStream host" |
 | no plugins installed | an explanation and a link to Extensions |
 
 ## What is deliberately absent
