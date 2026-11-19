@@ -16,11 +16,30 @@ cd "$(dirname "$0")/.."
 REPORT=/tmp/ci-report.md
 PART_CHARS=48000
 
+# GitHub rejects a comment body that is not valid UTF-8, which `tail -c` can
+# produce by cutting a multi-byte character in half. Every snippet goes through
+# this first, and a failure to post is what the caller must notice.
+sanitize() {
+  if command -v iconv >/dev/null 2>&1; then
+    iconv -f UTF-8 -t UTF-8 -c 2>/dev/null || cat
+  else
+    cat
+  fi
+}
+
 post() {
   local file="$1"
   if [ -n "${CI_REPORT_ISSUE:-}" ]; then
+    sanitize < "$file" > "$file.utf8"
+    mv "$file.utf8" "$file"
+    if [ "$(wc -c < "$file")" -gt 65000 ]; then
+      head -c 60000 "$file" > "$file.cut"
+      printf '\n\n_(truncated)_\n' >> "$file.cut"
+      mv "$file.cut" "$file"
+    fi
     gh issue comment "$CI_REPORT_ISSUE" --body-file "$file" || {
-      echo "Could not post $file (non-fatal)"
+      echo "::warning::Could not post $file; the report is in this step's log"
+      cat "$file"
     }
   else
     cat "$file"
@@ -83,6 +102,15 @@ fi
   if [ "${FORMAT_RESULT:-}" = "failure" ]; then
     echo "Formatting needs the patch parts posted just above."
     echo
+    if [ -s /tmp/format.log ]; then
+      echo "<details><summary>dart format</summary>"
+      echo
+      echo '```'
+      tail -c 8000 /tmp/format.log
+      echo '```'
+      echo "</details>"
+      echo
+    fi
   fi
 
   if [ "${JS_RESULT:-unknown}" != "success" ] && [ -s /tmp/js.log ]; then
