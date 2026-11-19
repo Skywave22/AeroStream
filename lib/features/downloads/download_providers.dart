@@ -361,7 +361,6 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
       // The container is gone; the queue in memory was already correct.
     }
   }
-
 }
 
 /// Only finished downloads that are still on disk.
