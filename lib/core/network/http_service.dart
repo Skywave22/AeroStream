@@ -4,8 +4,8 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 
 import '../errors/plugin_error.dart';
-import 'redirect_location.dart';
 import '../result.dart';
+import 'redirect_location.dart';
 
 /// Limits applied to every download AeroStream performs.
 final class HttpLimits {

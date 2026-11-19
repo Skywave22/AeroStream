@@ -1,5 +1,4 @@
 import '../../core/errors/plugin_error.dart';
-import '../../core/network/redirect_location.dart';
 import '../../core/result.dart';
 
 /// What the user typed into "Add repository", after resolution.
@@ -62,7 +61,7 @@ enum RepositoryInputKind {
 
 /// Resolves raw user input into fetchable URLs.
 ///
-/// [followRedirect] is injected so this stays a pure function of its inputs and
+/// `followRedirect` is injected so this stays a pure function of its inputs and
 /// can be tested without a network. It should return the target of [url] when
 /// the server answers with a redirect, and null when it does not.
 final class RepositoryInputResolver {
@@ -249,10 +248,12 @@ final class RepositoryInputResolver {
       );
     }
     return Ok<RepositoryInput>(
-      primary: uri,
-      fallbacks: <Uri>[base.resolve('manifest.json')],
-      display: display,
-      kind: RepositoryInputKind.vegaFolder,
+      RepositoryInput(
+        primary: uri,
+        fallbacks: <Uri>[base.resolve('manifest.json')],
+        display: display,
+        kind: RepositoryInputKind.vegaFolder,
+      ),
     );
   }
 
