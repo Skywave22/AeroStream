@@ -207,6 +207,7 @@ jobs:
         run: echo "value=$(grep '^version:' pubspec.yaml | cut -d' ' -f2 | cut -d+ -f1)" >> "$GITHUB_OUTPUT"
 
       - name: Build
+        shell: bash
         run: |
           set +e
           flutter build windows --release > /tmp/build-windows.log 2>&1
@@ -312,8 +313,11 @@ jobs:
           echo "Bundling $app"
           # `ditto` keeps the bundle's symlinks and permissions, which zip does
           # not do reliably for .app directories.
+          # Absolute destination: the working directory here is four levels
+          # below the repository root, and a miscounted `../` silently loses the
+          # artifact (`upload-artifact` then fails with "no files found").
           ditto -c -k --sequesterRsrc --keepParent "$app" \
-            "../../../../../dist/AeroStream-$version-macos-universal.zip"
+            "$GITHUB_WORKSPACE/build/dist/AeroStream-$version-macos-universal.zip"
           cd -
           ls -lh build/dist
 
