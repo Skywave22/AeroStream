@@ -78,6 +78,7 @@ jobs:
           git diff > /tmp/format.patch
           if [ -s /tmp/format.patch ]; then
             echo "::error::dart format changed files; see the report comment"
+            python3 scripts/annotate_log.py /tmp/format.log format
             exit 1
           fi
           exit 0
@@ -90,6 +91,10 @@ jobs:
           flutter analyze --fatal-infos > /tmp/analyze.log 2>&1
           status=$?
           cat /tmp/analyze.log
+          # Readable from the sandbox even when issue comments are throttled.
+          if [ $status -ne 0 ]; then
+            python3 scripts/annotate_log.py /tmp/analyze.log analyze
+          fi
           exit $status
 
       - name: Test
@@ -100,6 +105,9 @@ jobs:
           flutter test --reporter expanded --coverage > /tmp/test.log 2>&1
           status=$?
           tail -60 /tmp/test.log
+          if [ $status -ne 0 ]; then
+            python3 scripts/annotate_log.py /tmp/test.log test
+          fi
           exit $status
 
       - name: Report

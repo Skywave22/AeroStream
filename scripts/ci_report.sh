@@ -37,10 +37,21 @@ post() {
       printf '\n\n_(truncated)_\n' >> "$file.cut"
       mv "$file.cut" "$file"
     fi
-    gh issue comment "$CI_REPORT_ISSUE" --body-file "$file" || {
-      echo "::warning::Could not post $file; the report is in this step's log"
+    local error
+    if error=$(gh issue comment "$CI_REPORT_ISSUE" --body-file "$file" 2>&1); then
+      printf '%s\n' "$error"
+    else
+      # The step log is unreadable from the development sandbox, but check-run
+      # annotations are not: raise the failure reason as one so it can be read
+      # back with `gh api .../check-runs/<id>/annotations`.
+      local message
+      message=$(printf '%s' "$error" | tr '\n' ' ' | cut -c1-900)
+      message=${message//%/%25}
+      message=${message//$'\r'/%0D}
+      message=${message//$'\n'/%0A}
+      echo "::error title=ci-report(${file##*/})::${message}"
       cat "$file"
-    }
+    fi
   else
     cat "$file"
   fi
