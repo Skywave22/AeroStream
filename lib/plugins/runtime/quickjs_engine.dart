@@ -84,8 +84,7 @@ final class QuickJsRuntime implements JsRuntime {
 
     if (result.isError) {
       final error = result.rawResult;
-      final message =
-          error is JSError ? error.message : result.stringResult;
+      final message = error is JSError ? error.message : result.stringResult;
       throw JsEvalException(
         message,
         stack: error is JSError ? error.stack : null,
