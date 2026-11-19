@@ -114,29 +114,28 @@ class _SavedTab extends StatelessWidget {
   Widget build(BuildContext context) {
     if (items.isEmpty) return const _EmptyLibrary();
     return LayoutBuilder(
-              builder: (context, constraints) {
-                final columns =
-                    (constraints.maxWidth / 150).floor().clamp(2, 8);
-                return GridView.builder(
-                  padding: const EdgeInsets.all(16),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: columns,
-                    mainAxisSpacing: 16,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 0.52,
-                  ),
-                  itemCount: items.length,
-                  itemBuilder: (context, index) {
-                    final item = items[index];
-                    return MediaPosterCard(
-                      item: item,
-                      width: double.infinity,
-                      onTap: () => context.push('/details', extra: item),
-                    );
-                  },
-                );
-              },
+      builder: (context, constraints) {
+        final columns = (constraints.maxWidth / 150).floor().clamp(2, 8);
+        return GridView.builder(
+          padding: const EdgeInsets.all(16),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            mainAxisSpacing: 16,
+            crossAxisSpacing: 12,
+            childAspectRatio: 0.52,
+          ),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            return MediaPosterCard(
+              item: item,
+              width: double.infinity,
+              onTap: () => context.push('/details', extra: item),
             );
+          },
+        );
+      },
+    );
   }
 }
 
@@ -252,9 +251,8 @@ class _HistoryTab extends ConsumerWidget {
     final remaining = entry.duration - entry.position;
     final minutes = (remaining.inSeconds / 60).ceil().clamp(0, 1 << 20);
     final episode = entry.episode;
-    final label = episode == null
-        ? ''
-        : 'S${episode.seasonNumber}E${episode.number} · ';
+    final label =
+        episode == null ? '' : 'S${episode.seasonNumber}E${episode.number} · ';
     if (entry.isFinished) return '${label}Finished';
     if (minutes <= 0) return '${label}Watched';
     return '$label$minutes min left';

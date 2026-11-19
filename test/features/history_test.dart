@@ -11,12 +11,12 @@ import 'package:flutter_test/flutter_test.dart';
 import '../support/fakes.dart';
 
 MediaItem item({String id = 'p:1', String title = 'Night Train'}) => MediaItem(
-  id: id,
-  pluginId: 'p',
-  title: title,
-  type: MediaType.movie,
-  url: 'https://example.test/$id',
-);
+      id: id,
+      pluginId: 'p',
+      title: title,
+      type: MediaType.movie,
+      url: 'https://example.test/$id',
+    );
 
 Episode episode({String id = 'e1', int number = 1}) =>
     Episode(id: id, url: 'https://example.test/$id', number: number);
@@ -64,15 +64,18 @@ void main() {
 
       expect(at(Duration.zero, const Duration(minutes: 60)).isResumable, false);
       expect(
-        at(const Duration(seconds: 10), const Duration(minutes: 60)).isResumable,
+        at(const Duration(seconds: 10), const Duration(minutes: 60))
+            .isResumable,
         false,
       );
       expect(
-        at(const Duration(minutes: 20), const Duration(minutes: 60)).isResumable,
+        at(const Duration(minutes: 20), const Duration(minutes: 60))
+            .isResumable,
         true,
       );
       expect(
-        at(const Duration(minutes: 59), const Duration(minutes: 60)).isResumable,
+        at(const Duration(minutes: 59), const Duration(minutes: 60))
+            .isResumable,
         false,
       );
     });

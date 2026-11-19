@@ -47,21 +47,22 @@ final class WatchHistoryEntry {
     Duration? position,
     Duration? duration,
     DateTime? updatedAt,
-  }) => WatchHistoryEntry(
-    item: item,
-    position: position ?? this.position,
-    duration: duration ?? this.duration,
-    updatedAt: updatedAt ?? this.updatedAt,
-    episode: episode,
-  );
+  }) =>
+      WatchHistoryEntry(
+        item: item,
+        position: position ?? this.position,
+        duration: duration ?? this.duration,
+        updatedAt: updatedAt ?? this.updatedAt,
+        episode: episode,
+      );
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'item': item.toJson(),
-    'positionMs': position.inMilliseconds,
-    'durationMs': duration.inMilliseconds,
-    'updatedAt': updatedAt.toIso8601String(),
-    if (episode != null) 'episode': episode!.toJson(),
-  };
+        'item': item.toJson(),
+        'positionMs': position.inMilliseconds,
+        'durationMs': duration.inMilliseconds,
+        'updatedAt': updatedAt.toIso8601String(),
+        if (episode != null) 'episode': episode!.toJson(),
+      };
 
   factory WatchHistoryEntry.fromJson(Map<String, Object?> json) {
     final episodeJson = json['episode'];
@@ -71,15 +72,15 @@ final class WatchHistoryEntry {
       duration: Duration(milliseconds: readInt(json['durationMs']) ?? 0),
       updatedAt:
           readDate(json['updatedAt']) ?? DateTime.fromMillisecondsSinceEpoch(0),
-      episode: episodeJson is Map
-          ? Episode.fromJson(readMap(episodeJson))
-          : null,
+      episode:
+          episodeJson is Map ? Episode.fromJson(readMap(episodeJson)) : null,
     );
   }
 }
 
 /// Watch history, newest first.
-final historyProvider = NotifierProvider<HistoryController, List<WatchHistoryEntry>>(
+final historyProvider =
+    NotifierProvider<HistoryController, List<WatchHistoryEntry>>(
   HistoryController.new,
 );
 
@@ -162,9 +163,7 @@ class HistoryController extends Notifier<List<WatchHistoryEntry>> {
   }
 
   Future<void> _persist() async {
-    await ref
-        .read(settingsStoreProvider)
-        .setString(
+    await ref.read(settingsStoreProvider).setString(
           storageKey,
           jsonEncode(
             state.map((entry) => entry.toJson()).toList(growable: false),
