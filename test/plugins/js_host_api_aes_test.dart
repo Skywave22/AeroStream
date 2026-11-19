@@ -71,7 +71,8 @@ void main() {
     expect(result, isA<Result<String>>());
   });
 
-  test('a wrong-length key is a plugin error with a readable message', () async {
+  test('a wrong-length key is a plugin error with a readable message',
+      () async {
     final result = await _decrypt(<String, Object?>{
       'data': _base64Cipher,
       'key': 'short',

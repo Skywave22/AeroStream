@@ -343,10 +343,13 @@ final class PluginEndpoint {
   final bool isSubProvider;
 
   /// What the manifest must say for this endpoint to be the active one.
-  Map<String, Object?> get manifestOverrides => <String, Object?>{
-        if (baseUrl != null && baseUrl!.isNotEmpty) 'baseUrl': baseUrl,
-        if (isSubProvider) 'providerId': id,
-      };
+  Map<String, Object?> get manifestOverrides {
+    final url = baseUrl;
+    return <String, Object?>{
+      if (url != null && url.isNotEmpty) 'baseUrl': url,
+      if (isSubProvider) 'providerId': id,
+    };
+  }
 
   /// Parses SkyStream's two endpoint shapes out of one manifest.
   static List<PluginEndpoint> parseAll(Map<String, Object?> manifest) {

@@ -390,7 +390,8 @@ final class JsHostApi {
         'crypto.decryptAES needs base64 or hex data',
       );
     }
-    if (key == null || (key.length != 16 && key.length != 24 && key.length != 32)) {
+    if (key == null ||
+        (key.length != 16 && key.length != 24 && key.length != 32)) {
       throw const PluginParseError(
         'crypto.decryptAES needs a 16, 24 or 32 byte key',
       );
@@ -434,23 +435,30 @@ final class JsHostApi {
     );
   }
 
-  /// Decodes base64, then hex, then UTF-8 text, depending on what it looks like.
+  /// True when [text] is already a usable AES key or iv as written.
+  ///
+  /// A passphrase like `0123456789abcdef` is both 16 characters *and* valid hex,
+  /// so guessing by shape alone picks the wrong one. Text that is exactly the
+  /// right length for AES wins; anything else is decoded.
+  bool _fitsAsText(String text) {
+    final length = utf8.encode(text).length;
+    return length == 16 || length == 24 || length == 32;
+  }
+
+  /// Decodes a payload field: text first when [preferText], then base64, hex,
+  /// and finally the raw bytes.
   Uint8List? _bytesFrom(Object? value, {bool preferText = true}) {
     final text = value?.toString() ?? '';
     if (text.isEmpty) return null;
 
-    if (!preferText) {
-      final base64Bytes = _tryBase64(text);
-      if (base64Bytes != null) return base64Bytes;
-      final hexBytes = _tryHex(text);
-      if (hexBytes != null) return hexBytes;
+    if (preferText && _fitsAsText(text)) {
       return Uint8List.fromList(utf8.encode(text));
     }
 
-    final hexBytes = _tryHex(text);
-    if (hexBytes != null) return hexBytes;
     final base64Bytes = _tryBase64(text);
     if (base64Bytes != null) return base64Bytes;
+    final hexBytes = _tryHex(text);
+    if (hexBytes != null) return hexBytes;
     return Uint8List.fromList(utf8.encode(text));
   }
 
@@ -490,12 +498,6 @@ final class JsHostApi {
       return const JsHostReply.error('Invalid base64 input');
     }
   }
-
-  JsHostReply _unsupported(String message) => JsHostReply(
-        jsonEncode(
-            <String, Object?>{'message': message, 'kind': 'unsupported'}),
-        isError: true,
-      );
 
   // ---- storage -----------------------------------------------------------
 
