@@ -344,9 +344,9 @@ final class PluginEndpoint {
 
   /// What the manifest must say for this endpoint to be the active one.
   Map<String, Object?> get manifestOverrides => <String, Object?>{
-    if (baseUrl != null && baseUrl!.isNotEmpty) 'baseUrl': baseUrl,
-    if (isSubProvider) 'providerId': id,
-  };
+        if (baseUrl != null && baseUrl!.isNotEmpty) 'baseUrl': baseUrl,
+        if (isSubProvider) 'providerId': id,
+      };
 
   /// Parses SkyStream's two endpoint shapes out of one manifest.
   static List<PluginEndpoint> parseAll(Map<String, Object?> manifest) {
@@ -399,22 +399,24 @@ final class PluginEndpoint {
   }
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'id': id,
-    'name': name,
-    if (baseUrl != null) 'baseUrl': baseUrl,
-    if (isSubProvider) 'isSubProvider': true,
-  };
+        'id': id,
+        'name': name,
+        if (baseUrl != null) 'baseUrl': baseUrl,
+        if (isSubProvider) 'isSubProvider': true,
+      };
 
   factory PluginEndpoint.fromJson(Map<String, Object?> json) => PluginEndpoint(
-    id: readString(json['id']) ?? '',
-    name: readString(json['name']) ?? readString(json['id']) ?? '',
-    baseUrl: readString(json['baseUrl']),
-    isSubProvider: readBool(json['isSubProvider']),
-  );
+        id: readString(json['id']) ?? '',
+        name: readString(json['name']) ?? readString(json['id']) ?? '',
+        baseUrl: readString(json['baseUrl']),
+        isSubProvider: readBool(json['isSubProvider']),
+      );
 
   @override
   bool operator ==(Object other) =>
-      other is PluginEndpoint && other.id == id && other.isSubProvider == isSubProvider;
+      other is PluginEndpoint &&
+      other.id == id &&
+      other.isSubProvider == isSubProvider;
 
   @override
   int get hashCode => Object.hash(id, isSubProvider);

@@ -44,6 +44,5 @@ final class PluginEndpointStore {
     await _settings.setString(keyFor(pluginId), endpoint.id);
   }
 
-  Future<void> forget(String pluginId) =>
-      _settings.remove(keyFor(pluginId));
+  Future<void> forget(String pluginId) => _settings.remove(keyFor(pluginId));
 }

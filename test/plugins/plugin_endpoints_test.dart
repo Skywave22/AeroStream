@@ -96,7 +96,8 @@ void main() {
       expect(store.manifestFor(info, manifest), manifest);
     });
 
-    test('a chosen mirror overrides baseUrl and persists across reads', () async {
+    test('a chosen mirror overrides baseUrl and persists across reads',
+        () async {
       final settings = InMemorySettingsStore();
       final store = PluginEndpointStore(settings);
       final info = _info(
@@ -115,7 +116,8 @@ void main() {
       final reopened = PluginEndpointStore(settings);
       expect(reopened.selected(info)?.baseUrl, 'https://mirror');
       expect(
-        reopened.manifestFor(info, <String, Object?>{'baseUrl': 'https://primary'}),
+        reopened
+            .manifestFor(info, <String, Object?>{'baseUrl': 'https://primary'}),
         <String, Object?>{'baseUrl': 'https://mirror'},
       );
     });

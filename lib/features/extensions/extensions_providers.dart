@@ -59,9 +59,10 @@ final class ExtensionActions {
   }
 
   /// The endpoint [plugin] currently runs on, if the user picked one.
-  PluginEndpoint? selectedEndpoint(InstalledPlugin plugin) => PluginEndpointStore(
-    _ref.read(settingsStoreProvider),
-  ).selected(plugin.info);
+  PluginEndpoint? selectedEndpoint(InstalledPlugin plugin) =>
+      PluginEndpointStore(
+        _ref.read(settingsStoreProvider),
+      ).selected(plugin.info);
 
   Future<void> removeRepository(PluginRepository repository) async {
     await _ref.read(repositoryServiceProvider).remove(repository);
