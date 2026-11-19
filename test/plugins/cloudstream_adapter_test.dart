@@ -17,7 +17,7 @@ const PluginInfo _info = PluginInfo(
 /// A host that answers from a script instead of a DEX file.
 final class _ScriptedBridge implements CloudStreamBridge {
   _ScriptedBridge({Map<String, Map<String, Object?>>? replies})
-    : replies = replies ?? const <String, Map<String, Object?>>{};
+      : replies = replies ?? const <String, Map<String, Object?>>{};
 
   final Map<String, Map<String, Object?>> replies;
   final List<String> commands = <String>[];
@@ -43,18 +43,18 @@ final class _ScriptedBridge implements CloudStreamBridge {
 }
 
 CloudStreamAdapter _adapter(CloudStreamBridge bridge) => CloudStreamAdapter(
-  info: _info,
-  bridge: bridge,
-  artifactPath: '/plugins/cloudstream/com.example/1/plugin.cs3',
-);
+      info: _info,
+      bridge: bridge,
+      artifactPath: '/plugins/cloudstream/com.example/1/plugin.cs3',
+    );
 
 MediaItem _item() => MediaItem(
-  id: 'com.example:item',
-  pluginId: _info.id,
-  title: 'Dune',
-  type: MediaType.movie,
-  url: 'https://example.com/dune',
-);
+      id: 'com.example:item',
+      pluginId: _info.id,
+      title: 'Dune',
+      type: MediaType.movie,
+      url: 'https://example.com/dune',
+    );
 
 void main() {
   group('CloudStreamAdapter mapping', () {

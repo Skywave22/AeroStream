@@ -35,12 +35,12 @@ VegaAdapter _adapter({Future<String?> Function(String script)? onEvaluate}) {
 }
 
 MediaItem _item({String? url}) => MediaItem(
-  id: 'example:item',
-  pluginId: _info.id,
-  title: 'Dune',
-  type: MediaType.movie,
-  url: url,
-);
+      id: 'example:item',
+      pluginId: _info.id,
+      title: 'Dune',
+      type: MediaType.movie,
+      url: url,
+    );
 
 void main() {
   group('VegaAdapter.getHome', () {
@@ -147,7 +147,8 @@ void main() {
         ],
       });
 
-      expect(sources, hasLength(3), reason: 'a scheme-less link is not playable');
+      expect(sources, hasLength(3),
+          reason: 'a scheme-less link is not playable');
       expect(sources.first.isHls, isTrue);
       expect(sources.first.quality, '1080p');
       expect(sources[1].isDash, isTrue);
