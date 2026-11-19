@@ -39,7 +39,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # Fail fast on the common Flutter footguns rather than waiting out a build.
+  # Pinned: flutter_qjs 0.3.7's FFI binding does not survive AOT compilation on
+  # the newest SDK (`Pointer.fromFunction` with an IntPtr), so every target is
+  # built with the version the CI AOT job has proven. See docs/BUILDING.md.
+  FLUTTER_VERSION: '3.24.5'
   FLUTTER_SUPPRESS_ANALYTICS: 'true'
   CI: 'true'
   CI_REPORT_ISSUE: '1'
@@ -64,7 +67,7 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
       - name: Resolve dependencies
@@ -131,7 +134,7 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
       - name: Native build dependencies
@@ -192,7 +195,7 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
       - name: Resolve dependencies
@@ -278,7 +281,7 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
       - name: Resolve dependencies
@@ -340,7 +343,7 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
       - name: Resolve dependencies
