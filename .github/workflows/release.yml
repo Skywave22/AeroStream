@@ -1,0 +1,486 @@
+name: Release builds
+
+# Produces the installable artifacts for every supported platform.
+#
+# It runs where the toolchains are: a Linux sandbox cannot synthesise an APK, a
+# .exe or an .ipa. Runners have Android, MSVC and Xcode, so this workflow is the
+# only honest way to hand someone a binary.
+#
+# Triggers:
+#   * manual (Actions → Release builds → Run workflow), optionally publishing a
+#     GitHub Release with the artifacts attached;
+#   * a pushed tag `v*`, which always publishes.
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Attach the artifacts to a GitHub Release'
+        type: boolean
+        default: false
+      tag:
+        description: 'Release tag (defaults to v<version from pubspec>)'
+        type: string
+        required: false
+      prerelease:
+        description: 'Mark the release as a pre-release'
+        type: boolean
+        default: true
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # Fail fast on the common Flutter footguns rather than waiting out a build.
+  FLUTTER_SUPPRESS_ANALYTICS: 'true'
+  CI: 'true'
+  CI_REPORT_ISSUE: '1'
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Android: the three ABIs AeroStream ships, plus one universal APK.
+  # `--split-per-abi` gives arm64-v8a and armeabi-v7a (and x86_64, which is kept
+  # for emulators); a second, unsplit build is the universal one.
+  # ---------------------------------------------------------------------------
+  android:
+    name: Android APKs
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Scaffold platform runners
+        run: bash scripts/scaffold_platforms.sh
+
+      - name: Version
+        id: version
+        run: echo "value=$(grep '^version:' pubspec.yaml | cut -d' ' -f2 | cut -d+ -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Build split APKs
+        run: |
+          set +e
+          flutter build apk --release --split-per-abi > /tmp/build-android-split.log 2>&1
+          status=$?
+          tail -40 /tmp/build-android-split.log
+          if [ $status -ne 0 ]; then
+            python3 scripts/annotate_log.py /tmp/build-android-split.log android-split
+          fi
+          exit $status
+
+      - name: Build universal APK
+        run: |
+          set +e
+          flutter build apk --release > /tmp/build-android-universal.log 2>&1
+          status=$?
+          tail -40 /tmp/build-android-universal.log
+          if [ $status -ne 0 ]; then
+            python3 scripts/annotate_log.py /tmp/build-android-universal.log android-universal
+          fi
+          exit $status
+
+      - name: Name the artifacts
+        run: |
+          version="${{ steps.version.outputs.value }}"
+          out=build/dist
+          mkdir -p "$out"
+          src=build/app/outputs/flutter-apk
+          cp "$src/app-arm64-v8a-release.apk"     "$out/AeroStream-$version-android-arm64-v8a.apk"
+          cp "$src/app-armeabi-v7a-release.apk"   "$out/AeroStream-$version-android-armeabi-v7a.apk"
+          cp "$src/app-x86_64-release.apk"        "$out/AeroStream-$version-android-x86_64.apk"
+          cp "$src/app-release.apk"               "$out/AeroStream-$version-android-universal.apk"
+          ls -lh "$out"
+
+      - name: Publish artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: build/dist/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  # ---------------------------------------------------------------------------
+  # Linux: one portable tarball of the release bundle.
+  # ---------------------------------------------------------------------------
+  linux:
+    name: Linux bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev \
+            libstdc++-12-dev libmpv-dev mpv
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Scaffold platform runners
+        run: bash scripts/scaffold_platforms.sh
+
+      - name: Version
+        id: version
+        run: echo "value=$(grep '^version:' pubspec.yaml | cut -d' ' -f2 | cut -d+ -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: |
+          set +e
+          flutter build linux --release > /tmp/build-linux.log 2>&1
+          status=$?
+          tail -40 /tmp/build-linux.log
+          if [ $status -ne 0 ]; then
+            python3 scripts/annotate_log.py /tmp/build-linux.log linux
+          fi
+          exit $status
+
+      - name: Package
+        run: |
+          version="${{ steps.version.outputs.value }}"
+          mkdir -p build/dist
+          tar -C build/linux/x64/release -czf \
+            "build/dist/AeroStream-$version-linux-x64.tar.gz" bundle
+          ls -lh build/dist
+
+      - name: Publish artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: build/dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
+  # ---------------------------------------------------------------------------
+  # Windows: portable zip (the whole Release folder) and, when Inno Setup is
+  # available, a real installer .exe. The installer is allowed to fail without
+  # taking the portable build with it.
+  # ---------------------------------------------------------------------------
+  windows:
+    name: Windows build
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Scaffold platform runners
+        shell: bash
+        run: bash scripts/scaffold_platforms.sh
+
+      - name: Version
+        id: version
+        shell: bash
+        run: echo "value=$(grep '^version:' pubspec.yaml | cut -d' ' -f2 | cut -d+ -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: |
+          set +e
+          flutter build windows --release > /tmp/build-windows.log 2>&1
+          status=$?
+          tail -40 /tmp/build-windows.log
+          if [ $status -ne 0 ]; then
+            python3 scripts/annotate_log.py /tmp/build-windows.log windows
+          fi
+          exit $status
+
+      - name: Portable zip
+        shell: bash
+        run: |
+          version="${{ steps.version.outputs.value }}"
+          mkdir -p build/dist
+          cd build/windows/x64/runner/Release
+          7z a -tzip "../../../../../dist/AeroStream-$version-windows-x64-portable.zip" . > /dev/null
+          cd -
+          ls -lh build/dist
+
+      - name: Installer (best effort)
+        continue-on-error: true
+        shell: bash
+        run: |
+          choco install innosetup --no-progress -y
+          version="${{ steps.version.outputs.value }}"
+          # A minimal, self-contained script: one icon-less shortcut, no registry.
+          cat > build/installer.iss <<ISS
+          [Setup]
+          AppName=AeroStream
+          AppVersion=${version}
+          DefaultDirName={autopf}\\AeroStream
+          DefaultGroupName=AeroStream
+          OutputBaseFilename=AeroStream-${version}-windows-x64-setup
+          OutputDir=$(cygpath -w "$PWD/build/dist")
+          Compression=lzma
+          SolidCompression=yes
+          ArchitecturesAllowed=x64
+          ArchitecturesInstallIn64BitMode=x64
+          [Files]
+          Source: "$(cygpath -w "$PWD/build/windows/x64/runner/Release")\\*"; DestDir: "{app}"; Flags: recursesubdirs
+          [Icons]
+          Name: "{group}\\AeroStream"; Filename: "{app}\\aerostream.exe"
+          ISS
+          "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" build/installer.iss
+          ls -lh build/dist
+
+      - name: Publish artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            build/dist/*.zip
+            build/dist/*.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  # ---------------------------------------------------------------------------
+  # macOS: zipped .app bundle. The bundle is unsigned; macOS will require a
+  # right-click → Open on first launch.
+  # ---------------------------------------------------------------------------
+  macos:
+    name: macOS app
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Scaffold platform runners
+        run: bash scripts/scaffold_platforms.sh
+
+      - name: Version
+        id: version
+        run: echo "value=$(grep '^version:' pubspec.yaml | cut -d' ' -f2 | cut -d+ -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: |
+          set +e
+          flutter build macos --release > /tmp/build-macos.log 2>&1
+          status=$?
+          tail -40 /tmp/build-macos.log
+          if [ $status -ne 0 ]; then
+            python3 scripts/annotate_log.py /tmp/build-macos.log macos
+          fi
+          exit $status
+
+      - name: Package
+        run: |
+          version="${{ steps.version.outputs.value }}"
+          mkdir -p build/dist
+          cd build/macos/Build/Products/Release
+          # The bundle is named after the Flutter project (`aerostream.app`),
+          # not after the display name, so find it rather than assume.
+          app=$(ls -d ./*.app | head -1)
+          echo "Bundling $app"
+          # `ditto` keeps the bundle's symlinks and permissions, which zip does
+          # not do reliably for .app directories.
+          ditto -c -k --sequesterRsrc --keepParent "$app" \
+            "../../../../../dist/AeroStream-$version-macos-universal.zip"
+          cd -
+          ls -lh build/dist
+
+      - name: Publish artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: build/dist/*.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  # ---------------------------------------------------------------------------
+  # iOS: an unsigned .ipa — the shape a sideloading tool (AltStore, Sideloadly)
+  # takes. Signing needs the user's own team and certificate, so it cannot be
+  # done here.
+  # ---------------------------------------------------------------------------
+  ios:
+    name: iOS unsigned ipa
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Scaffold platform runners
+        run: bash scripts/scaffold_platforms.sh
+
+      - name: Version
+        id: version
+        run: echo "value=$(grep '^version:' pubspec.yaml | cut -d' ' -f2 | cut -d+ -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Build (no codesign)
+        run: |
+          set +e
+          flutter build ios --release --no-codesign > /tmp/build-ios.log 2>&1
+          status=$?
+          tail -40 /tmp/build-ios.log
+          if [ $status -ne 0 ]; then
+            python3 scripts/annotate_log.py /tmp/build-ios.log ios
+          fi
+          exit $status
+
+      - name: Package as ipa
+        run: |
+          version="${{ steps.version.outputs.value }}"
+          mkdir -p build/dist Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/Runner.app
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName AeroStream" \
+            Payload/Runner.app/Info.plist || true
+          zip -qry "build/dist/AeroStream-$version-ios-unsigned.ipa" Payload
+          rm -rf Payload
+          ls -lh build/dist
+
+      - name: Publish artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios
+          path: build/dist/*.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+  # ---------------------------------------------------------------------------
+  # One summary comment in the report issue, so the build results are readable
+  # from anywhere — including a sandbox that cannot fetch run logs or artifacts.
+  # ---------------------------------------------------------------------------
+  report:
+    name: Report
+    needs: [android, linux, windows, macos, ios]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Comment the outcome
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ANDROID: ${{ needs.android.result }}
+          LINUX: ${{ needs.linux.result }}
+          WINDOWS: ${{ needs.windows.result }}
+          MACOS: ${{ needs.macos.result }}
+          IOS: ${{ needs.ios.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          {
+            echo "### Release builds — \`${GITHUB_SHA:0:8}\`"
+            echo
+            echo "| Target | Result |"
+            echo "| --- | --- |"
+            echo "| Android APKs (arm64-v8a, armeabi-v7a, x86_64, universal) | $ANDROID |"
+            echo "| Linux x64 tarball | $LINUX |"
+            echo "| Windows portable zip (+ installer) | $WINDOWS |"
+            echo "| macOS .app zip | $MACOS |"
+            echo "| iOS unsigned .ipa | $IOS |"
+            echo
+            echo "Download from the run: $RUN_URL"
+            echo
+            echo "Unsigned builds: Windows SmartScreen and macOS Gatekeeper will both"
+            echo "warn, iOS needs sideloading, and Android APKs are signed with the"
+            echo "debug key because no release keystore exists in this repository."
+          } > /tmp/release-report.md
+          gh issue comment "$CI_REPORT_ISSUE" --body-file /tmp/release-report.md || \
+            echo "::warning::could not comment; outcome is ${ANDROID}/${LINUX}/${WINDOWS}/${MACOS}/${IOS}"
+
+  # ---------------------------------------------------------------------------
+  # Optional GitHub Release. Triggered by a tag, or by the manual `publish`
+  # input. The tag defaults to the version in pubspec.yaml.
+  # ---------------------------------------------------------------------------
+  publish:
+    name: Publish release
+    needs: [android, linux, windows, macos, ios]
+    if: |
+      always() &&
+      (startsWith(github.ref, 'refs/tags/v') ||
+       (github.event_name == 'workflow_dispatch' && inputs.publish)) &&
+      needs.android.result == 'success' && needs.linux.result == 'success' &&
+      needs.windows.result == 'success' && needs.macos.result == 'success' &&
+      needs.ios.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download every artifact
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Tag name
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.tag }}" ]; then
+            echo "value=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ github.ref_name }}" ] && [ "${GITHUB_REF#refs/tags/}" != "$GITHUB_REF" ]; then
+            echo "value=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=v$(grep '^version:' pubspec.yaml | cut -d' ' -f2 | cut -d+ -f1)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=""
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.prerelease }}" = "true" ]; then
+            prerelease="--prerelease"
+          fi
+          if [ -n "$prerelease" ]; then
+            echo "Publishing ${{ steps.tag.outputs.value }} as a pre-release"
+          fi
+
+          gh release create "${{ steps.tag.outputs.value }}" \
+            --title "AeroStream ${{ steps.tag.outputs.value }}" \
+            --notes "Builds for Android, Linux, Windows, macOS and iOS.
+
+          Nothing here is signed: Android APKs use the debug key, the Windows
+          installer and the macOS bundle are unsigned, and the iOS .ipa needs
+          sideloading with your own signing identity. AeroStream ships no
+          content — install plugins from repositories you choose." \
+            $prerelease \
+            dist/* \
+          || gh release upload "${{ steps.tag.outputs.value }}" dist/* --clobber
