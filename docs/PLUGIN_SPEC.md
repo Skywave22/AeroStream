@@ -71,13 +71,17 @@ the repository listed; a mismatch is a parse error and the install is rejected.
 
 Two further manifest keys exist and are handled:
 
-* `domains` — mirrors. Published either as strings or as `{name, url}` objects;
-  the app is expected to let the user pick one and inject it as
-  `manifest.baseUrl`. *AeroStream parses and keeps them but does not yet offer
-  the picker* — see "Not implemented" at the end.
-* `providers` — sub-providers of one JS bundle. Each entry (`{id, name,
-  baseUrl?}`) becomes a provider instance with `manifest.baseUrl` or
-  `manifest.providerId` injected. *Same status: parsed, not yet selectable.*
+* `domains` — mirrors, published either as strings or as `{name, url}` objects.
+* `providers` — sub-providers of one JS bundle: `{id, name, baseUrl?}`.
+
+Both are parsed into `PluginEndpoint`s at install and shown in Extensions ›
+Installed › the tune button. Choosing one stores it per plugin
+(`plugin.endpoint.<id>`) and the runtime injects `manifest.baseUrl` (mirror, or
+a provider that declares a URL) and/or `manifest.providerId` (a provider
+resolved at runtime), so plugin code never learns the user switched. Two
+deliberate restrictions: **one endpoint is active at a time** (SkyStream can
+enable several sub-providers at once; this app does not yet) and a mirror that
+disappears in a new version silently falls back to the manifest default.
 
 `plugin.js` runs with these globals available:
 
@@ -235,7 +239,8 @@ the adapter is identical; where none exists the ecosystem is simply absent.
 
 | Capability | Where it would go |
 | --- | --- |
-| SkyStream `domains` mirror picker and `providers` sub-provider toggles | parsed from the manifest, no settings UI yet |
+| Enabling several SkyStream sub-providers at once | one endpoint per plugin is selectable |
+| Plugin `settings` values (declared in `plugin.json`) | parsed and stored, no editing UI yet |
 | Byte proxy (`MAGIC_PROXY_v1`, `magic_m3u8:`) | reported as unavailable, never silently dropped |
 | DRM (Widevine/PlayReady: `drmKid`, `licenseUrl`, Vega `StreamDrm`) | flagged on the source; the bundled player has no CDM |
 | `solveCaptcha`, `parse_html`, `getAndUnpack`, `http_parallel` host helpers | not exposed to plugins yet; plugins that need them fail with a clear error |

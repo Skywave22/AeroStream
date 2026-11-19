@@ -453,6 +453,7 @@ final class ExtensionManager {
       language: languages.isEmpty ? listed.language : languages.first,
       supportedTypes: types,
       settings: _settingsFromManifest(manifest['settings']),
+      endpoints: PluginEndpoint.parseAll(manifest),
     );
   }
 

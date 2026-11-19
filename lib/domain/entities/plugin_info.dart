@@ -146,6 +146,7 @@ final class PluginInfo {
     this.sizeBytes,
     this.requiresProxy = false,
     this.settings = const <PluginSetting>[],
+    this.endpoints = const <PluginEndpoint>[],
   });
 
   /// The manifest's own identifier (`packageName`, provider value, …).
@@ -184,6 +185,9 @@ final class PluginInfo {
   /// Static settings the plugin declares; dynamic ones are asked at runtime.
   final List<PluginSetting> settings;
 
+  /// Mirrors and sub-providers this plugin offers, if any.
+  final List<PluginEndpoint> endpoints;
+
   bool get isJavaScript =>
       ecosystem == PluginEcosystem.skystream ||
       ecosystem == PluginEcosystem.vega;
@@ -212,6 +216,7 @@ final class PluginInfo {
     int? sizeBytes,
     bool? requiresProxy,
     List<PluginSetting>? settings,
+    List<PluginEndpoint>? endpoints,
   }) =>
       PluginInfo(
         id: id ?? this.id,
@@ -233,6 +238,7 @@ final class PluginInfo {
         sizeBytes: sizeBytes ?? this.sizeBytes,
         requiresProxy: requiresProxy ?? this.requiresProxy,
         settings: settings ?? this.settings,
+        endpoints: endpoints ?? this.endpoints,
       );
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -259,6 +265,10 @@ final class PluginInfo {
         'settings': settings.map((setting) => setting.toJson()).toList(
               growable: false,
             ),
+        if (endpoints.isNotEmpty)
+          'endpoints': endpoints.map((endpoint) => endpoint.toJson()).toList(
+                growable: false,
+              ),
       };
 
   factory PluginInfo.fromJson(Map<String, Object?> json) => PluginInfo(
@@ -286,6 +296,9 @@ final class PluginInfo {
         settings: readMapList(json['settings'])
             .map(PluginSetting.fromJson)
             .toList(growable: false),
+        endpoints: readMapList(json['endpoints'])
+            .map(PluginEndpoint.fromJson)
+            .toList(growable: false),
       );
 
   @override
@@ -301,6 +314,113 @@ final class PluginInfo {
 
   @override
   String toString() => 'PluginInfo($id, $name, ${version.raw})';
+}
+
+/// One selectable face of a plugin: a mirror domain, or a sub-provider of a
+/// bundle that serves several feeds from one script.
+///
+/// SkyStream puts both in `plugin.json` — `domains` as either strings or
+/// `{name, url}` objects, `providers` as `{id, name, baseUrl?}` — and injects the
+/// chosen value as `manifest.baseUrl` (mirror, or a provider with a static URL)
+/// or `manifest.providerId` (a provider resolved at runtime).
+final class PluginEndpoint {
+  const PluginEndpoint({
+    required this.id,
+    required this.name,
+    this.baseUrl,
+    this.isSubProvider = false,
+  });
+
+  /// The mirror URL, or the sub-provider id. Both are unique within a plugin.
+  final String id;
+
+  final String name;
+
+  /// Static URL for a mirror or a provider entry that declares one.
+  final String? baseUrl;
+
+  /// True for a `providers` entry, false for a `domains` entry.
+  final bool isSubProvider;
+
+  /// What the manifest must say for this endpoint to be the active one.
+  Map<String, Object?> get manifestOverrides => <String, Object?>{
+    if (baseUrl != null && baseUrl!.isNotEmpty) 'baseUrl': baseUrl,
+    if (isSubProvider) 'providerId': id,
+  };
+
+  /// Parses SkyStream's two endpoint shapes out of one manifest.
+  static List<PluginEndpoint> parseAll(Map<String, Object?> manifest) {
+    final endpoints = <PluginEndpoint>[];
+
+    for (final entry in readList(manifest['domains'])) {
+      if (entry is String) {
+        final url = entry.trim();
+        if (url.isEmpty) continue;
+        endpoints.add(
+          PluginEndpoint(id: url, name: _hostOf(url) ?? url, baseUrl: url),
+        );
+        continue;
+      }
+      final map = readMap(entry);
+      final url = readString(map['url']) ?? readString(map['baseUrl']);
+      if (url == null || url.isEmpty) continue;
+      endpoints.add(
+        PluginEndpoint(
+          id: url,
+          name: readString(map['name']) ?? _hostOf(url) ?? url,
+          baseUrl: url,
+        ),
+      );
+    }
+
+    for (final entry in readMapList(manifest['providers'])) {
+      final id = readString(entry['id']);
+      if (id == null || id.isEmpty) continue;
+      endpoints.add(
+        PluginEndpoint(
+          id: id,
+          name: readString(entry['name']) ?? id,
+          baseUrl: readString(entry['baseUrl']),
+          isSubProvider: true,
+        ),
+      );
+    }
+
+    // One entry per id: a manifest that repeats a mirror is a copy-paste slip.
+    final seen = <String>{};
+    return List<PluginEndpoint>.unmodifiable(
+      endpoints.where((endpoint) => seen.add(endpoint.id)),
+    );
+  }
+
+  static String? _hostOf(String url) {
+    final host = Uri.tryParse(url)?.host;
+    return (host == null || host.isEmpty) ? null : host;
+  }
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'id': id,
+    'name': name,
+    if (baseUrl != null) 'baseUrl': baseUrl,
+    if (isSubProvider) 'isSubProvider': true,
+  };
+
+  factory PluginEndpoint.fromJson(Map<String, Object?> json) => PluginEndpoint(
+    id: readString(json['id']) ?? '',
+    name: readString(json['name']) ?? readString(json['id']) ?? '',
+    baseUrl: readString(json['baseUrl']),
+    isSubProvider: readBool(json['isSubProvider']),
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      other is PluginEndpoint && other.id == id && other.isSubProvider == isSubProvider;
+
+  @override
+  int get hashCode => Object.hash(id, isSubProvider);
+
+  @override
+  String toString() => 'PluginEndpoint($id)';
 }
 
 /// A control a plugin declares, rendered by the settings screen.

@@ -5,7 +5,10 @@ import '../../core/errors/plugin_error.dart';
 import '../../core/platform/platform_profile.dart';
 import '../../core/result.dart';
 import '../../domain/entities/installed_plugin.dart';
+import '../../domain/entities/plugin_info.dart';
 import '../../domain/entities/plugin_repository.dart';
+import '../../plugins/manager/plugin_endpoint_store.dart';
+import '../home/home_providers.dart';
 
 /// Plugins a repository offers.
 final repositoryPluginsProvider = FutureProvider.autoDispose
@@ -42,6 +45,23 @@ final class ExtensionActions {
     _ref.invalidate(repositoriesProvider);
     return result;
   }
+
+  /// Picks a mirror / sub-provider for [plugin], then reloads the plugin so the
+  /// new `baseUrl` is what the next call sees.
+  Future<void> selectEndpoint(
+    InstalledPlugin plugin,
+    PluginEndpoint? endpoint,
+  ) async {
+    await PluginEndpointStore(
+      _ref.read(settingsStoreProvider),
+    ).select(plugin.info.id, endpoint);
+    _refreshInstalled();
+  }
+
+  /// The endpoint [plugin] currently runs on, if the user picked one.
+  PluginEndpoint? selectedEndpoint(InstalledPlugin plugin) => PluginEndpointStore(
+    _ref.read(settingsStoreProvider),
+  ).selected(plugin.info);
 
   Future<void> removeRepository(PluginRepository repository) async {
     await _ref.read(repositoryServiceProvider).remove(repository);
@@ -122,7 +142,10 @@ final class ExtensionActions {
 
   void _refreshInstalled() {
     _ref.invalidate(installedPluginsProvider);
+    // Providers carry their manifest; dropping them is what makes a changed
+    // mirror take effect instead of silently reusing the old base URL.
     _ref.invalidate(mediaProvidersProvider);
+    _ref.invalidate(homeFeedProvider);
   }
 
   /// Human-readable reason an ecosystem cannot run here, if any.

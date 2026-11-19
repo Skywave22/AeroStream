@@ -6,6 +6,7 @@ import '../../app/providers.dart';
 import '../../core/result.dart';
 import '../../core/utils/version.dart';
 import '../../domain/entities/installed_plugin.dart';
+import '../../domain/entities/plugin_info.dart';
 import '../../domain/entities/plugin_repository.dart';
 import 'extensions_providers.dart';
 
@@ -72,6 +73,70 @@ class _InstalledTab extends ConsumerWidget {
   }
 }
 
+/// Mirrors and sub-providers, as one list.
+///
+/// SkyStream declares both in `plugin.json`; the app injects the chosen value as
+/// `manifest.baseUrl` (a mirror) or `manifest.providerId` (a sub-provider), so
+/// the plugin's own code does not change when the user switches.
+Future<void> _showEndpoints(
+  BuildContext context,
+  WidgetRef ref,
+  InstalledPlugin plugin,
+) async {
+  final actions = ExtensionActions(ref);
+  final selected = actions.selectedEndpoint(plugin);
+  final chosen = await showModalBottomSheet<Object?>(
+    context: context,
+    builder: (context) => SafeArea(
+      child: ListView(
+        shrinkWrap: true,
+        children: [
+          const ListTile(
+            title: Text('Mirrors and providers'),
+            subtitle: Text(
+              'Where this plugin connects. The plugin sees the choice as its '
+              'base URL; nothing else changes.',
+            ),
+          ),
+          const Divider(height: 1),
+          RadioListTile<String?>(
+            value: null,
+            groupValue: selected?.id,
+            onChanged: (value) => Navigator.of(context).pop('__default__'),
+            title: const Text('Plugin default'),
+          ),
+          for (final endpoint in plugin.info.endpoints)
+            RadioListTile<String?>(
+              value: endpoint.id,
+              groupValue: selected?.id,
+              onChanged: (value) => Navigator.of(context).pop(endpoint),
+              title: Text(endpoint.name),
+              subtitle: endpoint.baseUrl == null
+                  ? const Text('resolved by the plugin at runtime')
+                  : Text(endpoint.baseUrl!),
+            ),
+        ],
+      ),
+    ),
+  );
+
+  if (chosen == null) return;
+  await actions.selectEndpoint(
+    plugin,
+    chosen is PluginEndpoint ? chosen : null,
+  );
+  if (!context.mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(
+        chosen is PluginEndpoint
+            ? 'Using ${chosen.name}. Reload the feed to see it.'
+            : 'Back to the plugin default.',
+      ),
+    ),
+  );
+}
+
 class _InstalledTile extends ConsumerWidget {
   const _InstalledTile({required this.plugin});
 
@@ -122,6 +187,12 @@ class _InstalledTile extends ConsumerWidget {
           : Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (runsHere && plugin.info.endpoints.isNotEmpty)
+                  IconButton(
+                    tooltip: 'Mirrors and providers',
+                    icon: const Icon(Icons.tune),
+                    onPressed: () => _showEndpoints(context, ref, plugin),
+                  ),
                 if (runsHere)
                   Switch(
                     value: plugin.info.enabled,

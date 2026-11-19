@@ -17,6 +17,7 @@ import '../adapters/vega/vega_adapter.dart';
 import '../runtime/js_host_api.dart';
 import '../runtime/js_plugin_host.dart';
 import '../runtime/js_runtime.dart';
+import 'plugin_endpoint_store.dart';
 
 /// Creates a JavaScript engine. Injected so the app can use QuickJS while tests
 /// use a scripted runtime.
@@ -124,12 +125,17 @@ final class PluginRuntimeFactory {
       }
     }
 
+    // A user-chosen mirror (or sub-provider) is applied here, on the way into
+    // the sandbox, so plugin code never has to know it was chosen.
+    final effective = PluginEndpointStore(_settings).manifestFor(
+      plugin.info,
+      manifest.isEmpty ? plugin.info.toJson() : manifest,
+    );
+
     final host = _newHost(
       plugin: plugin,
       pluginSource: source,
-      manifestJson: jsonEncode(
-        manifest.isEmpty ? plugin.info.toJson() : manifest,
-      ),
+      manifestJson: jsonEncode(effective),
     );
 
     return Ok<MediaProvider>(
