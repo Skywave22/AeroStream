@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../domain/entities/stream_source.dart';
 import '../details/details_providers.dart';
+import '../library/history_providers.dart';
 import '../settings/settings_providers.dart';
 import 'playback_engine.dart';
 
@@ -78,17 +81,35 @@ class _WatchScreenState extends ConsumerState<WatchScreen> {
           message: '$error',
           onRetry: () => ref.invalidate(streamsProvider(widget.request)),
         ),
-        data: (result) => _Body(
-          result: result,
-          sources: result.preferredSources(
-            preferredQuality: preferences.preferredQuality,
-            preferHls: preferences.preferHls,
-          ),
-          selected: _selected,
-          showSources: _showSources,
-          onSelect: (source) => setState(() => _selected = source),
-          engine: engine,
-        ),
+        data: (result) {
+          final request = widget.request;
+          final history = ref.read(historyProvider.notifier);
+          return _Body(
+            result: result,
+            sources: result.preferredSources(
+              preferredQuality: preferences.preferredQuality,
+              preferHls: preferences.preferHls,
+            ),
+            selected: _selected,
+            showSources: _showSources,
+            onSelect: (source) => setState(() => _selected = source),
+            engine: engine,
+            // Resume where the user left off, and keep the record current
+            // while they watch.
+            startAt: history.resumePosition(
+              request.item,
+              episode: request.episode,
+            ),
+            onProgress: (position, duration) => unawaited(
+              history.record(
+                item: request.item,
+                episode: request.episode,
+                position: position,
+                duration: duration,
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -102,6 +123,8 @@ class _Body extends StatelessWidget {
     required this.showSources,
     required this.onSelect,
     required this.engine,
+    required this.startAt,
+    required this.onProgress,
   });
 
   final StreamResult result;
@@ -110,13 +133,21 @@ class _Body extends StatelessWidget {
   final bool showSources;
   final ValueChanged<StreamSource> onSelect;
   final PlaybackEngine? engine;
+  final Duration? startAt;
+  final ProgressCallback onProgress;
 
   @override
   Widget build(BuildContext context) {
     final source = selected ?? (sources.isEmpty ? null : sources.first);
     final engineSurface = source == null || !(engine?.supports(source) ?? false)
         ? null
-        : engine!.buildSurface(context, source, subtitles: result.subtitles);
+        : engine!.buildSurface(
+            context,
+            source,
+            subtitles: result.subtitles,
+            startAt: startAt,
+            onProgress: onProgress,
+          );
 
     return Column(
       children: [

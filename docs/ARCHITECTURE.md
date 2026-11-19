@@ -156,6 +156,22 @@ Where the native libraries are absent (unit tests), `playerEngineProvider` stays
 null and the watch screen explains that this build cannot decode the link and
 offers to copy it instead.
 
+## History and resume
+
+`HistoryController` (`lib/features/library/history_providers.dart`) keeps one
+entry per *item and episode*: a snapshot of the `MediaItem`, the position, the
+duration and when it was last touched, newest first, capped at 100, stored as
+JSON in `shared_preferences`. A snapshot rather than a reference, because
+history should still make sense after the plugin that produced it is gone.
+
+The surface reports position at most every five seconds and once more when it
+is disposed, so leaving mid-episode records where the user was. The watch
+screen asks for a resume point before building the surface and seeks there;
+"Continue watching" on Home and the History tab in Library read the same list.
+An entry counts as resumable between 2% and 95% — before that there is nothing
+to resume, after that the user has finished and being offered the credits again
+is noise. Writes are best-effort: history never blocks or fails playback.
+
 ## Storage
 
 | What | Where | Why |

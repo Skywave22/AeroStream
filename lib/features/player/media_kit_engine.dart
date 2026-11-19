@@ -23,12 +23,16 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     BuildContext context,
     StreamSource source, {
     List<SubtitleTrack> subtitles = const <SubtitleTrack>[],
+    Duration? startAt,
+    ProgressCallback? onProgress,
   }) {
     if (!supports(source)) return null;
     return MediaKitSurface(
       key: ValueKey<String>(source.url),
       source: source,
       subtitles: subtitles,
+      startAt: startAt,
+      onProgress: onProgress,
     );
   }
 
@@ -48,25 +52,60 @@ class MediaKitSurface extends StatefulWidget {
   const MediaKitSurface({
     required this.source,
     this.subtitles = const <SubtitleTrack>[],
+    this.startAt,
+    this.onProgress,
     super.key,
   });
 
   final StreamSource source;
   final List<SubtitleTrack> subtitles;
 
+  /// Where to resume from, when the user has been here before.
+  final Duration? startAt;
+
+  /// Called every few seconds, and once more when the surface goes away.
+  final ProgressCallback? onProgress;
+
   @override
   State<MediaKitSurface> createState() => _MediaKitSurfaceState();
 }
 
 class _MediaKitSurfaceState extends State<MediaKitSurface> {
+  /// How often progress is reported; frequent enough for a useful resume
+  /// point, rare enough not to write settings every frame.
+  static const Duration _reportEvery = Duration(seconds: 5);
+
   late final mk.Player _player = mk.Player();
   late final VideoController _controller = VideoController(_player);
+  StreamSubscription<Duration>? _positionSubscription;
+  StreamSubscription<Duration>? _durationSubscription;
+  Duration _position = Duration.zero;
+  Duration _duration = Duration.zero;
+  DateTime _lastReport = DateTime.fromMillisecondsSinceEpoch(0);
   Object? _error;
 
   @override
   void initState() {
     super.initState();
+    _positionSubscription = _player.stream.position.listen((position) {
+      _position = position;
+      final now = DateTime.now();
+      if (now.difference(_lastReport) >= _reportEvery) {
+        _lastReport = now;
+        _report();
+      }
+    });
+    _durationSubscription = _player.stream.duration.listen((duration) {
+      _duration = duration;
+    });
     unawaited(_open());
+  }
+
+  void _report() {
+    final callback = widget.onProgress;
+    if (callback == null) return;
+    if (_position <= Duration.zero || _duration <= Duration.zero) return;
+    callback(_position, _duration);
   }
 
   Future<void> _open() async {
@@ -76,6 +115,10 @@ class _MediaKitSurfaceState extends State<MediaKitSurface> {
       await _player.open(
         mk.Media(widget.source.url, httpHeaders: widget.source.headers),
       );
+      final resume = widget.startAt;
+      if (resume != null && resume > Duration.zero) {
+        await _player.seek(resume);
+      }
       await _player.play();
       await _loadSubtitle();
     } on Object catch (error) {
@@ -106,6 +149,11 @@ class _MediaKitSurfaceState extends State<MediaKitSurface> {
 
   @override
   void dispose() {
+    // One last report before the decoder goes away, so leaving mid-episode
+    // still records where the user was.
+    _report();
+    unawaited(_positionSubscription?.cancel());
+    unawaited(_durationSubscription?.cancel());
     unawaited(_player.dispose());
     super.dispose();
   }

@@ -18,11 +18,16 @@ abstract interface class PlaybackEngine {
     BuildContext context,
     StreamSource source, {
     List<SubtitleTrack> subtitles = const <SubtitleTrack>[],
+    Duration? startAt,
+    ProgressCallback? onProgress,
   });
 
   /// Releases decoder resources when the user leaves the player.
   Future<void> dispose();
 }
+
+/// Reports playback progress, throttled by the surface: `(position, duration)`.
+typedef ProgressCallback = void Function(Duration position, Duration duration);
 
 /// The playback engine for this build, or null when there is none.
 ///

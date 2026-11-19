@@ -7,6 +7,7 @@ import '../../domain/entities/enums.dart';
 import '../../domain/entities/home_section.dart';
 import '../../domain/entities/media_item.dart';
 import '../common/media_card.dart';
+import '../library/history_providers.dart';
 import 'home_providers.dart';
 
 /// The home feed.
@@ -57,13 +58,13 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class _Feed extends StatelessWidget {
+class _Feed extends ConsumerWidget {
   const _Feed({required this.sections});
 
   final List<HomeSection> sections;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final hero = sections.firstWhere(
       (section) => section.layout == HomeSectionLayout.carousel,
       orElse: () => sections.first,
@@ -73,6 +74,7 @@ class _Feed extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.only(bottom: 32),
       children: [
+        const _ContinueWatching(),
         if (hero.items.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -274,6 +276,51 @@ class _FeedError extends StatelessWidget {
         PluginErrorBanner(
           message: 'The feed could not be built: $error',
           onRetry: () => ref.invalidate(homeFeedProvider),
+        ),
+      ],
+    );
+  }
+}
+
+/// A shelf of half-watched titles, above everything else.
+///
+/// This is the one row that is about the user rather than the plugin, so it
+/// comes first — and it disappears entirely on a fresh install instead of
+/// showing an empty header.
+class _ContinueWatching extends ConsumerWidget {
+  const _ContinueWatching();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final entries = ref.watch(continueWatchingProvider);
+    if (entries.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: 'Continue watching',
+          onSeeAll: () => context.go('/library'),
+        ),
+        SizedBox(
+          height: 252,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: entries.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              final entry = entries[index];
+              return MediaPosterCard(
+                item: entry.item,
+                progress: entry.progress,
+                onTap: () => context.push(
+                  '/watch',
+                  extra: (item: entry.item, episode: entry.episode),
+                ),
+              );
+            },
+          ),
         ),
       ],
     );

@@ -11,12 +11,16 @@ class MediaPosterCard extends StatelessWidget {
     required this.item,
     this.onTap,
     this.width = 136,
+    this.progress,
     super.key,
   });
 
   final MediaItem item;
   final VoidCallback? onTap;
   final double width;
+
+  /// 0..1 watched fraction; draws a bar along the bottom of the poster.
+  final double? progress;
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +38,21 @@ class MediaPosterCard extends StatelessWidget {
               aspectRatio: 2 / 3,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: _Poster(item: item),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    MediaPoster(item: item),
+                    if (progress != null)
+                      Align(
+                        alignment: Alignment.bottomCenter,
+                        child: LinearProgressIndicator(
+                          value: progress!.clamp(0.0, 1.0),
+                          minHeight: 3,
+                          backgroundColor: Colors.black45,
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 8),
@@ -67,8 +85,10 @@ class MediaPosterCard extends StatelessWidget {
   }
 }
 
-class _Poster extends StatelessWidget {
-  const _Poster({required this.item});
+/// Just the artwork, with the placeholder and header handling every screen
+/// needs; sized by its parent.
+class MediaPoster extends StatelessWidget {
+  const MediaPoster({required this.item, super.key});
 
   final MediaItem item;
 
