@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +13,7 @@ import 'core/platform/platform_profile.dart';
 import 'data/storage/file_artifact_store.dart';
 import 'data/storage/prefs_settings_store.dart';
 import 'data/storage/sqlite_extension_store.dart';
+import 'features/downloads/download_providers.dart';
 import 'features/player/media_kit_engine.dart';
 import 'features/player/playback_engine.dart';
 import 'plugins/adapters/cloudstream/cloudstream_bridge.dart';
@@ -54,6 +57,9 @@ Future<void> main() async {
           createPlatformEngineFactory(),
         ),
         playerEngineProvider.overrideWithValue(createPlaybackEngine()),
+        downloadDirectoryProvider.overrideWithValue(
+          Directory('${support.path}/downloads'),
+        ),
         if (cloudStream != null)
           cloudStreamBridgeProvider.overrideWithValue(cloudStream),
       ],
