@@ -16,6 +16,12 @@ A repository always answers with the same outer manifest:
 }
 ```
 
+`manifestVersion` is a contract version, not a plugin version: a repository
+that asks for one newer than this build understands is refused by name
+("needs a newer AeroStream: it asks for manifest version 2"), the way
+CloudStream refuses an incompatible repository, rather than being half-read
+with unknown fields quietly dropped.
+
 `pluginLists` may be relative; entries are resolved against the manifest URL.
 CloudStream's own `Repository` data class is exactly these five fields
 (`iconUrl`, `name`, `description`, `manifestVersion`, `pluginLists`) — there is
@@ -149,7 +155,12 @@ CommonJS:
 
 Vega's own downloader fetches `posts`, `meta`, `stream`, `catalog` (required)
 and `episodes`, `settings` (optional), so those six names are the ones that can
-exist in a bundle.
+exist in a bundle — plus `headers` and `providerContext`, which its newer
+providers import. AeroStream installs all eight and **refuses a bundle that is
+missing one of the four required modules**, naming them, instead of installing
+half a provider that fails on first playback. Modules are fetched with
+`?v=<version>&t=<timestamp>`, the same cache-busting Vega uses, because these
+files come straight from `raw.githubusercontent.com`.
 
 Each module must export the function it is called for. AeroStream checks with
 `__vegaHas(module, fn)` before calling `__vegaCall(module, fn, optionsJson)`,

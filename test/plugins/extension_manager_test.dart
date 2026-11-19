@@ -172,11 +172,18 @@ void main() {
   });
 
   group('Vega install', () {
-    test('installs the provider modules that exist', () async {
-      http.routes['https://example.com/dist/example/posts.js'] =
-          'exports.getPosts = () => [];';
-      http.routes['https://example.com/dist/example/stream.js'] =
-          'exports.getStream = () => [];';
+    /// The four modules Vega's own loader requires before it will run anything.
+    void publishRequiredBundle() {
+      for (final module in ExtensionManager.requiredVegaModules) {
+        http.routes['https://example.com/dist/example/$module'] =
+            'exports.x = () => [];';
+      }
+    }
+
+    test('installs the required modules plus any optional ones', () async {
+      publishRequiredBundle();
+      http.routes['https://example.com/dist/example/episodes.js'] =
+          'exports.getEpisodes = () => [];';
 
       final result = await manager().install(
         listing(ecosystem: PluginEcosystem.vega, id: 'example'),
@@ -185,17 +192,41 @@ void main() {
       expect(result.isOk, isTrue, reason: result.errorOrNull?.toString());
       expect(
         artifacts.installed.values.single.keys,
-        containsAll(<String>['posts.js', 'stream.js']),
+        containsAll(<String>[
+          'posts.js',
+          'meta.js',
+          'stream.js',
+          'catalog.js',
+          'episodes.js',
+        ]),
       );
       expect(result.valueOrNull!.info.capabilities.catalogs, isTrue);
     });
 
-    test('refuses a bundle with no entry module', () async {
+    test('busts the CDN cache the way Vega does', () async {
+      publishRequiredBundle();
+
+      await manager().install(
+        listing(ecosystem: PluginEcosystem.vega, id: 'example'),
+      );
+
+      final first = http.requested.first.toString();
+      expect(first, contains('?v=2&t='));
+    });
+
+    test('refuses a bundle that is missing a required module', () async {
+      // posts.js alone: enough to look installed, not enough to work.
+      http.routes['https://example.com/dist/example/posts.js'] =
+          'exports.getPosts = () => [];';
+
       final result = await manager().install(
         listing(ecosystem: PluginEcosystem.vega, id: 'example'),
       );
+
       expect(result.isErr, isTrue);
-      expect(result.errorOrNull!.message, contains('posts.js'));
+      expect(result.errorOrNull!.message, contains('meta.js'));
+      expect(result.errorOrNull!.message, contains('stream.js'));
+      expect(artifacts.installed, isEmpty);
     });
   });
 

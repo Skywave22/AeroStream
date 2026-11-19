@@ -28,7 +28,12 @@ final class FakeHttpService implements HttpService {
     Map<String, String>? headers,
   }) async {
     requested.add(url.toString());
-    final body = routes[url.toString()];
+    // Exact URL first, then the same URL without its query: providers that
+    // bust their own cache (?v=…&t=…) would otherwise need a fixture per run.
+    // The query is cut from the text because `Uri.replace(query: '')` leaves a
+    // stray `?` behind.
+    final withoutQuery = url.toString().split('?').first;
+    final body = routes[url.toString()] ?? routes[withoutQuery];
     if (body == null) {
       return Err<HttpPayload>(
         PluginNetworkError(

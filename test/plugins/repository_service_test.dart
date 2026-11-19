@@ -49,6 +49,27 @@ void main() {
       expect(await store.repositories(), hasLength(1));
     });
 
+    test('refuses a manifest version this build cannot read', () async {
+      const future = 'https://example.com/future.json';
+      final http = FakeHttpService(<String, Object>{
+        future: '{"name":"Future","manifestVersion":2,'
+            '"pluginLists":["https://example.com/plugins.json"]}',
+        _listUrl: _skyPlugins,
+      });
+      final store = InMemoryExtensionStore();
+      final service = RepositoryService(http: http, store: store);
+
+      final result = await service.addRepository(future);
+
+      expect(result.isErr, isTrue);
+      expect(result.errorOrNull!.message, contains('manifest version 2'));
+      expect(
+        await store.repositories(),
+        isEmpty,
+        reason: 'a repository it cannot read must not be stored',
+      );
+    });
+
     test('detects a CloudStream repository from .cs3 entries', () async {
       final http = FakeHttpService(<String, Object>{
         _repoUrl: _repoJson,

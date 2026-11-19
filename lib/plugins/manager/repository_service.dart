@@ -96,6 +96,9 @@ final class RepositoryService {
     return result is Ok<Uri> ? result.value : null;
   }
 
+  /// The newest repository `manifestVersion` this build understands.
+  static const int supportedManifestVersion = 1;
+
   Future<Result<PluginRepository>> _storeRepository(
     RepositoryManifest parsed, {
     required String sourceUrl,
@@ -105,6 +108,19 @@ final class RepositoryService {
         PluginParseError(
           'The repository lists no plugins and points at no other repository',
           field: 'pluginLists',
+        ),
+      );
+    }
+
+    if (parsed.manifestVersion > supportedManifestVersion) {
+      // CloudStream does the same: a newer manifest may mean fields this build
+      // would silently ignore, so it is refused by name rather than half-read.
+      return Err<PluginRepository>(
+        PluginParseError(
+          'This repository needs a newer AeroStream: it asks for manifest '
+          'version ${parsed.manifestVersion} and this build reads '
+          '$supportedManifestVersion',
+          field: 'manifestVersion',
         ),
       );
     }

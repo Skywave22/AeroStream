@@ -48,9 +48,20 @@ final class ExtensionManager {
     'stream.js',
     'meta.js',
     'catalog.js',
+    'episodes.js',
     'settings.js',
     'headers.js',
     'providerContext.js',
+  ];
+
+  /// Modules Vega's own loader treats as mandatory: a bundle missing one of
+  /// these is half a provider, and installing it only moves the failure to the
+  /// first playback attempt.
+  static const List<String> requiredVegaModules = <String>[
+    'posts.js',
+    'meta.js',
+    'stream.js',
+    'catalog.js',
   ];
 
   /// Downloads and installs [listed].
@@ -349,26 +360,35 @@ final class ExtensionManager {
         ? listed.downloadUrl
         : '${listed.downloadUrl}/';
     final files = <String, List<int>>{};
-    Object? lastError;
+    final errors = <String, Object>{};
+
+    // Vega busts caches with the provider version and a timestamp, because
+    // these files are served straight from raw.githubusercontent.com.
+    final stamp = DateTime.now().millisecondsSinceEpoch;
+    final query = 'v=${Uri.encodeQueryComponent(listed.version.raw)}&t=$stamp';
 
     for (final module in vegaModules) {
-      final uri = Uri.tryParse('$base$module');
+      final uri = Uri.tryParse('$base$module?$query');
       if (uri == null) continue;
       final response = await _http.get(uri);
       switch (response) {
         case Ok<HttpPayload>(:final value):
           files[module] = value.bytes.toList(growable: false);
         case Err<HttpPayload>(:final error):
-          // A missing optional module is normal; a missing entry module is not.
-          if (module == 'posts.js' || module == 'catalog.js') lastError = error;
+          errors[module] = error;
       }
     }
 
-    if (!files.containsKey('posts.js') && !files.containsKey('catalog.js')) {
+    final missing = requiredVegaModules
+        .where((module) => !files.containsKey(module))
+        .toList(growable: false);
+    if (missing.isNotEmpty) {
+      final because = missing
+          .map((module) => '$module (${errors[module] ?? 'not found'})')
+          .join(', ');
       return _artifactError(
         listed,
-        'No posts.js or catalog.js in the provider bundle'
-        '${lastError == null ? '' : ' ($lastError)'}',
+        'The provider bundle is missing $because',
       );
     }
 
