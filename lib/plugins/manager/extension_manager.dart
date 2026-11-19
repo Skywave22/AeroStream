@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../../core/archive/zip_utils.dart';
 import '../../core/errors/plugin_error.dart';
 import '../../core/json/json_read.dart';
 import '../../core/logging/app_log.dart';
@@ -13,7 +14,6 @@ import '../../domain/entities/plugin_info.dart';
 import '../../domain/entities/plugin_repository.dart';
 import '../../domain/media_provider.dart';
 import '../../domain/repositories/extension_store.dart';
-import '../../core/archive/zip_utils.dart';
 
 /// Builds a runnable provider for an installed plugin.
 ///

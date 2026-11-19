@@ -1,7 +1,6 @@
 import 'package:aerostream/core/result.dart';
 import 'package:aerostream/core/utils/version.dart';
 import 'package:aerostream/domain/entities/enums.dart';
-import 'package:aerostream/domain/entities/plugin_repository.dart';
 import 'package:aerostream/plugins/manifest/plugin_list_parser.dart';
 import 'package:aerostream/plugins/manifest/repository_manifest.dart';
 import 'package:flutter_test/flutter_test.dart';

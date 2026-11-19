@@ -7,14 +7,13 @@ import 'package:aerostream/core/utils/version.dart';
 import 'package:aerostream/domain/entities/enums.dart';
 import 'package:aerostream/domain/entities/episode.dart';
 import 'package:aerostream/domain/entities/home_section.dart';
+import 'package:aerostream/domain/entities/installed_plugin.dart';
 import 'package:aerostream/domain/entities/media_details.dart';
 import 'package:aerostream/domain/entities/media_item.dart';
-import 'package:aerostream/domain/entities/stream_source.dart';
-import 'package:aerostream/domain/entities/installed_plugin.dart';
 import 'package:aerostream/domain/entities/plugin_info.dart';
 import 'package:aerostream/domain/entities/plugin_repository.dart';
+import 'package:aerostream/domain/entities/stream_source.dart';
 import 'package:aerostream/domain/media_provider.dart';
-import 'package:aerostream/domain/repositories/extension_store.dart';
 import 'package:aerostream/plugins/manager/extension_manager.dart';
 import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
@@ -50,7 +49,7 @@ List<int> buildSkyPackage({
   final archive = Archive()
     ..addFile(ArchiveFile('plugin.json', manifest.length, utf8.encode(manifest)))
     ..addFile(ArchiveFile('plugin.js', code.length, utf8.encode(code)));
-  return ZipEncoder().encode(archive);
+  return ZipEncoder().encode(archive)!;
 }
 
 AvailablePlugin listing({
@@ -127,7 +126,7 @@ void main() {
       final archive = Archive()
         ..addFile(ArchiveFile('plugin.js', 4, utf8.encode('//js')));
       http.routes['https://example.com/dev.example.plugin.bin'] =
-          ZipEncoder().encode(archive);
+          ZipEncoder().encode(archive)!;
 
       final result = await manager().install(listing());
       expect(result.isErr, isTrue);

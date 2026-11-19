@@ -4,7 +4,7 @@ import 'package:archive/archive.dart';
 
 import '../errors/plugin_error.dart';
 import '../result.dart';
-import 'safe_paths.dart';
+import '../utils/safe_paths.dart';
 
 /// A tiny zip reader for plugin packages.
 ///

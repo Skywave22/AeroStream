@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:aerostream/core/archive/zip_utils.dart';
-import 'package:aerostream/core/result.dart';
 import 'package:aerostream/data/storage/file_artifact_store.dart';
 import 'package:aerostream/domain/entities/enums.dart';
 import 'package:archive/archive.dart';
@@ -16,7 +15,7 @@ List<int> buildZip(Map<String, String> files) {
     final bytes = utf8.encode(entry.value);
     archive.addFile(ArchiveFile(entry.key, bytes.length, bytes));
   }
-  return ZipEncoder().encode(archive);
+  return ZipEncoder().encode(archive)!;
 }
 
 void main() {
@@ -62,7 +61,7 @@ void main() {
     });
 
     test('rejects an empty archive', () {
-      final bytes = ZipEncoder().encode(Archive());
+      final bytes = ZipEncoder().encode(Archive())!;
       expect(ZipUtils.extract(bytes).isErr, isTrue);
     });
 
