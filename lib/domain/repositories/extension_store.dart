@@ -1,6 +1,12 @@
 import '../../core/result.dart';
+import '../entities/enums.dart';
 import '../entities/installed_plugin.dart';
 import '../entities/plugin_repository.dart';
+
+/// Composite identity for a plugin: the same manifest id can exist in two
+/// ecosystems, and both installs must survive independently.
+String pluginKey(PluginEcosystem ecosystem, String id) =>
+    '${ecosystem.name}:$id';
 
 /// Persistence contract for repositories and installed plugins.
 ///
@@ -19,16 +25,18 @@ abstract interface class ExtensionStore {
 
   Future<List<InstalledPlugin>> installedPlugins();
 
-  Future<InstalledPlugin?> installedPlugin(String id);
+  /// Lookup by [pluginKey].
+  Future<InstalledPlugin?> installedPlugin(String key);
 
   Future<void> upsertInstalledPlugin(InstalledPlugin plugin);
 
-  Future<void> deleteInstalledPlugin(String id);
+  /// Removes by [pluginKey].
+  Future<void> deleteInstalledPlugin(String key);
 
   /// Persists enable/disable and ordering without touching the artifact.
-  Future<void> setEnabled(String id, {required bool enabled});
+  Future<void> setEnabled(String key, {required bool enabled});
 
-  Future<void> setPriority(String id, {required int priority});
+  Future<void> setPriority(String key, {required int priority});
 }
 
 /// Key/value settings (app preferences, per-plugin option values, secrets
@@ -54,39 +62,53 @@ abstract interface class SettingsStore {
 }
 
 /// Storage for plugin artifacts on disk.
+///
+/// Every ecosystem ends up as a directory of files so the runtime has one shape
+/// to load: a `.sky` archive is extracted, a Vega provider keeps its modules,
+/// a `.cs3` keeps its single DEX. The original archive is retained alongside
+/// for hash re-verification and for exports.
 abstract interface class ArtifactStore {
   /// Directory that holds every installed artifact.
   Future<String> pluginsRoot();
 
-  /// Installs [bytes] as [id]@[version] and returns the artifact path.
+  /// Installs [files] (relative path -> bytes) as `<ecosystem>/<id>/<version>/`.
+  ///
+  /// The write is staged in a sibling directory and swapped in, so a failure
+  /// never leaves the previous install destroyed. When [expectedSha256] is
+  /// given it is checked against [originalArchive] (or the concatenation of
+  /// [files] when there is no archive) before anything is swapped.
   Future<Result<String>> install({
+    required PluginEcosystem ecosystem,
     required String id,
     required String version,
-    required List<int> bytes,
-    required ArtifactFormat format,
+    required Map<String, List<int>> files,
+    List<int>? originalArchive,
     String? expectedSha256,
   });
 
-  /// Removes an installed artifact, bounding the delete to the plugin root.
+  /// Removes an installed artifact, bounded to the plugin root.
   Future<void> remove(String artifactPath);
 
-  /// Reads a small file out of an installed artifact (manifest lookup).
+  /// Reads a file out of an installed artifact (`plugin.json`, `posts.js`, …).
   Future<String?> readEntry(String artifactPath, String entryName);
 
-  /// Lists the entries of an installed archive artifact.
+  /// Lists the files of an installed artifact, relative to its root.
   Future<List<String>> listEntries(String artifactPath);
+
+  /// Whether an artifact directory still exists and is non-empty.
+  Future<bool> exists(String artifactPath);
 
   Future<int> totalSize();
 }
 
-/// How an ecosystem's artifact is stored on disk.
+/// How an ecosystem's artifact arrives on the wire.
 enum ArtifactFormat {
-  /// `.sky`: a zip archive, extracted next to a copy of the original.
+  /// `.sky`: a zip archive.
   skyArchive,
 
-  /// Vega: a directory of `.js` modules + `manifest.json`.
+  /// Vega: a directory of `.js` modules described by `manifest.json`.
   vegaBundle,
 
-  /// `.cs3`: a single DEX file, loaded by the Android host.
+  /// `.cs3`: a single DEX file.
   cs3File,
 }

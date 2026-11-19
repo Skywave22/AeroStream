@@ -19,6 +19,9 @@ final class InstalledPlugin {
 
   String get id => info.id;
 
+  /// Composite identity used by the store: `<ecosystem>:<id>`.
+  String get key => '${info.ecosystem.name}:${info.id}';
+
   InstalledPlugin copyWith({
     PluginInfo? info,
     String? artifactPath,

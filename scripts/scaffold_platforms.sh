@@ -17,8 +17,9 @@ flutter create \
   --description "AeroStream - plugin-driven media client" \
   .
 
-# Web is only a build target for the settings/docs shell: the JavaScript
-# sandbox cannot run there. Keep it out of the analyzer's way.
-rm -rf web/icons/Icon-192.png.tmp
+# `flutter create` also drops a counter-app smoke test that references a
+# `MyApp` this project does not have. It is generated, not ours: drop it so the
+# test suite only ever runs real tests.
+rm -f test/widget_test.dart
 
 echo "==> Platform runners ready"

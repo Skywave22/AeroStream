@@ -12,9 +12,18 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  issues: write
+
+env:
+  # Comments here are how CI results reach the development sandbox: the run
+  # logs themselves are not reachable from it.
+  CI_REPORT_ISSUE: '1'
+
 jobs:
-  analyze:
-    name: Analyze
+  verify:
+    name: Verify
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,39 +36,65 @@ jobs:
       - name: Toolchain versions
         run: flutter --version
 
-      - name: Scaffold platform runners (ios, macos, windows, linux)
+      - name: Scaffold platform runners
         run: bash scripts/scaffold_platforms.sh
 
       - name: Resolve dependencies
-        run: flutter pub get
+        run: flutter pub get 2>&1 | tee /tmp/analyze.log
 
-      - name: Verify formatting
-        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Format
+        id: format
+        run: |
+          set +e
+          dart format lib test > /tmp/format.log 2>&1
+          git diff > /tmp/format.patch
+          if [ -s /tmp/format.patch ]; then
+            echo "::error::dart format changed files; see the report comment"
+            exit 1
+          fi
+          exit 0
 
       - name: Analyze
-        run: flutter analyze --fatal-infos
+        id: analyze
+        if: always()
+        run: |
+          set +e
+          flutter analyze --fatal-infos > /tmp/analyze.log 2>&1
+          status=$?
+          cat /tmp/analyze.log
+          exit $status
 
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+      - name: Test
+        id: test
+        if: always()
+        run: |
+          set +e
+          flutter test --reporter expanded --coverage > /tmp/test.log 2>&1
+          status=$?
+          tail -60 /tmp/test.log
+          exit $status
 
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
+      - name: Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FORMAT_RESULT: ${{ steps.format.outcome }}
+          ANALYZE_RESULT: ${{ steps.analyze.outcome }}
+          TEST_RESULT: ${{ steps.test.outcome }}
+        run: bash scripts/ci_report.sh
 
-      - name: Scaffold platform runners (ios, macos, windows, linux)
-        run: bash scripts/scaffold_platforms.sh
-
-      - name: Resolve dependencies
-        run: flutter pub get
-
-      - name: Run tests
-        run: flutter test --reporter expanded --coverage
+      - name: Fail if any verifier step failed
+        if: always()
+        run: |
+          if [ "${{ steps.format.outcome }}" != "success" ] || \
+             [ "${{ steps.analyze.outcome }}" != "success" ] || \
+             [ "${{ steps.test.outcome }}" != "success" ]; then
+            echo "One or more verification steps failed."
+            exit 1
+          fi
 
       - name: Upload coverage
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: coverage
