@@ -35,14 +35,20 @@ dependencies:
   crypto: ^3.0.3
   html: ^0.15.4
 
-  # The plugin sandbox. QuickJS runs on its own isolate and enforces the memory
-  # and time limits the runtime was designed around.
+  # The plugin sandbox. QuickJS, with the C sources vendored in the package and
+  # the memory and interrupt limits the runtime relies on.
   #
-  # 0.4.x is not on pub.dev and its git checkout pulls QuickJS in as a git
-  # submodule, which pub does not fetch — the native build then fails. 0.3.7 is
-  # the newest published release, ships the C sources in the archive, and has
-  # the isolate API and the memory/time limits this runtime relies on.
-  flutter_qjs: ^0.3.7
+  # Not `flutter_qjs`: 0.3.7's binding does not survive AOT compilation
+  # (`Pointer.fromFunction` returning an IntPtr) and its bundled quickjs.c does
+  # not compile with clang 16+ (implicit pointer-to-integer conversion is an
+  # error there), while 0.4.x needs QuickJS as a git submodule that pub does not
+  # fetch. This is the maintained successor with the engine compiled from
+  # source on Android, iOS, macOS, Linux and Windows, pinned to a tag so a
+  # release build is reproducible.
+  flutter_qjs_next:
+    git:
+      url: https://github.com/NanCunChild/flutter_qjs_next.git
+      ref: v1.5.2
 
   # Video playback. media_kit wraps libmpv and ships per-platform native
   # libraries, which is what makes one player work on every target.
@@ -53,14 +59,6 @@ dependencies:
   # Utilities.
   collection: ^1.18.0
   logger: ^2.2.0
-
-dependency_overrides:
-  # flutter_qjs 0.3.7 was published against ffi 1.x, and modern
-  # path_provider_windows requires ffi 2.x — the two cannot coexist by
-  # constraint. The package only uses `Utf8` and `calloc` from dart:ffi's
-  # helper package, which are unchanged in 2.x, so the newer ffi is forced on
-  # everyone. Drop this override when a released flutter_qjs moves to ffi 2.
-  ffi: ^2.1.0
 
 dev_dependencies:
   flutter_test:

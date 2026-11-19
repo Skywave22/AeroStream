@@ -1,16 +1,22 @@
 import 'dart:convert';
 
-import 'package:flutter_qjs/flutter_qjs.dart';
+import 'package:flutter_qjs_next/flutter_qjs.dart';
 
 import 'js_runtime.dart';
 
-/// [JsRuntime] over QuickJS, running on its own isolate.
+/// [JsRuntime] over QuickJS.
 ///
 /// The engine is deliberately thin. Everything AeroStream needs from
 /// JavaScript — the bridge, timers, promises, the module registries — is
 /// implemented in `assets/js/*.js` and evaluated into this context, so moving
 /// to a different engine means writing another class this small, not porting a
 /// protocol.
+///
+/// The context is created with **no web APIs installed**: no `fetch`, no
+/// `console`, no timers from the package. Every one of those is defined by the
+/// host bootstrap instead, which is what makes "the whole privileged surface is
+/// in one file" true. The engine contributes ECMAScript, a heap ceiling and an
+/// interrupt.
 ///
 /// Two limits are enforced twice on purpose: the host also applies a Dart-side
 /// timeout and kills the context when a call overruns, because an interrupt
@@ -29,7 +35,7 @@ final class QuickJsRuntime implements JsRuntime {
   /// the script by itself.
   final Duration hardTimeout;
 
-  IsolateQjs? _engine;
+  JavascriptRuntime? _engine;
   bool _disposed = false;
 
   @override
@@ -38,12 +44,14 @@ final class QuickJsRuntime implements JsRuntime {
     if (_disposed) {
       throw const JsEvalException('This JavaScript context has been disposed');
     }
-    final engine = IsolateQjs(
+    final engine = getJavascriptRuntime(
       memoryLimit: memoryLimit,
+      // Milliseconds of wall-clock JS work before the engine interrupts.
       timeout: hardTimeout.inMilliseconds,
+      webApis: const JsWebApis.none(),
     );
     _engine = engine;
-    // Force the isolate up now, so a host without a usable engine fails at
+    // Force the context up now, so a host without a usable engine fails at
     // `start()` with a clear error instead of inside the first plugin call.
     await evaluate('undefined');
   }
@@ -54,24 +62,47 @@ final class QuickJsRuntime implements JsRuntime {
     if (engine == null || _disposed) {
       throw const JsEvalException('The JavaScript engine is not running');
     }
+
+    final JsEvalResult result;
     try {
-      final result = await engine.evaluate(script, name: 'aerostream');
-      // The host protocol is string-in, string-out: every wrapper the host
-      // evaluates (`__aeroPoll`, `JSON.stringify(...)`) already returns JSON
-      // text. Anything else is encoded so the caller never sees a raw object.
-      if (result == null) return 'null';
-      if (result is String) return result;
-      try {
-        return jsonEncode(result);
-      } on JsonUnsupportedObjectError {
-        return result.toString();
-      }
-    } on JSError catch (error) {
+      result = engine.evaluate(script, sourceUrl: 'aerostream');
+      // Plugin code is asynchronous: an `await` continues on a microtask, and
+      // QuickJS only runs jobs when asked. Draining here is what lets a poll
+      // observe progress made by a promise that resolved during the last step.
+      engine.executePendingJobs();
+    } on JsEvalException {
+      rethrow;
+    } on Object catch (error) {
+      // The package throws its own error type for engine-level failures; the
+      // contract above only exposes [JsEvalException].
+      final message = error is JSError ? error.message : error.toString();
       throw JsEvalException(
-        error.message,
-        stack: error.stack,
-        isTimeout: error.message.toLowerCase().contains('interrupted'),
+        message,
+        isTimeout: message.toLowerCase().contains('interrupt'),
       );
+    }
+
+    if (result.isError) {
+      final error = result.rawResult;
+      final message =
+          error is JSError ? error.message : result.stringResult;
+      throw JsEvalException(
+        message,
+        stack: error is JSError ? error.stack : null,
+        isTimeout: message.toLowerCase().contains('interrupt'),
+      );
+    }
+
+    // The host protocol is string-in, string-out: every wrapper the host
+    // evaluates (`__aeroPoll`, `JSON.stringify(...)`) already returns JSON
+    // text. Anything else is encoded so the caller never sees a raw object.
+    final value = result.rawResult;
+    if (value == null) return 'null';
+    if (value is String) return value;
+    try {
+      return jsonEncode(value);
+    } on JsonUnsupportedObjectError {
+      return value.toString();
     }
   }
 
@@ -82,9 +113,9 @@ final class QuickJsRuntime implements JsRuntime {
     _engine = null;
     if (engine == null) return;
     try {
-      await engine.close();
+      engine.dispose();
     } on Object {
-      // The isolate is already gone (crash or timeout): nothing to release.
+      // The context is already gone (crash or interrupt): nothing to release.
     }
   }
 }
