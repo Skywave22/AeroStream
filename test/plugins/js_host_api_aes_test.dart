@@ -48,27 +48,48 @@ void main() {
     expect((result as Ok<String>).value, '{"ok":true}');
   });
 
-  test('accepts hex ciphertext and hex keys', () async {
+  test('accepts hex ciphertext', () async {
     final result = await _decrypt(<String, Object?>{
       'data': _hexCipher,
+      'dataEncoding': 'hex',
       'key': _key,
       'iv': _iv,
-      // The decoder detects hex by shape; an unknown key must not upset it.
-      'encoding': 'hex',
     });
 
     expect((result as Ok<String>).value, '{"ok":true}');
   });
 
-  test('a missing iv falls back to zeroes instead of failing', () async {
-    // Zero iv changes the first block; this asserts the call is attempted and
-    // the failure is a decoding error rather than a crash.
+  test('hex is detected without being declared', () async {
     final result = await _decrypt(<String, Object?>{
-      'data': _base64Cipher,
+      'data': _hexCipher,
       'key': _key,
+      'iv': _iv,
     });
 
-    expect(result, isA<Result<String>>());
+    expect((result as Ok<String>).value, '{"ok":true}');
+  });
+
+  test('keyEncoding settles what the shape alone cannot', () async {
+    // 32 characters are a legal AES-256 passphrase, so text is the default...
+    final asText = await _decrypt(<String, Object?>{
+      'data': _base64Cipher,
+      'key': 'fedcba9876543210fedcba9876543210',
+      'iv': _iv,
+    });
+    expect(asText, isA<Ok<String>>());
+
+    // ...and the same characters read as hex are only 8 bytes.
+    final asHex = await _decrypt(<String, Object?>{
+      'data': _base64Cipher,
+      'key': 'fedcba9876543210',
+      'keyEncoding': 'hex',
+      'iv': _iv,
+    });
+    expect(asHex, isA<Err<String>>());
+    expect(
+      (asHex as Err<String>).error.message,
+      contains('16, 24 or 32 byte key'),
+    );
   });
 
   test('a wrong-length key is a plugin error with a readable message',

@@ -381,9 +381,13 @@ final class JsHostApi {
   /// wild. PKCS#7 padding is stripped when present, and the plaintext is
   /// returned as text so `JSON.parse(await crypto.decryptAES(...))` just works.
   JsHostReply _aesDecrypt(Map<String, Object?> payload) {
-    final data = _bytesFrom(payload['data'], preferText: false);
-    final key = _bytesFrom(payload['key']);
-    final iv = _bytesFrom(payload['iv']);
+    final data = _bytesFrom(
+      payload['data'],
+      preferText: false,
+      encoding: payload['dataEncoding'],
+    );
+    final key = _bytesFrom(payload['key'], encoding: payload['keyEncoding']);
+    final iv = _bytesFrom(payload['iv'], encoding: payload['ivEncoding']);
 
     if (data == null || data.isEmpty) {
       throw const PluginParseError(
@@ -445,20 +449,40 @@ final class JsHostApi {
     return length == 16 || length == 24 || length == 32;
   }
 
-  /// Decodes a payload field: text first when [preferText], then base64, hex,
-  /// and finally the raw bytes.
-  Uint8List? _bytesFrom(Object? value, {bool preferText = true}) {
+  /// Decodes a payload field.
+  ///
+  /// Ciphertext is tried as hex before base64: hex is all base64-alphabet
+  /// characters, so the reverse order would decode hex into the wrong bytes and
+  /// then complain about the block size. Keys are text when they are already a
+  /// key length, otherwise hex, base64, then raw bytes.
+  Uint8List? _bytesFrom(
+    Object? value, {
+    bool preferText = true,
+    Object? encoding,
+  }) {
     final text = value?.toString() ?? '';
     if (text.isEmpty) return null;
+
+    // An explicit `keyEncoding`/`dataEncoding` settles every ambiguity: a
+    // 32-character hex key is indistinguishable from 32 characters of text.
+    switch (encoding?.toString().toLowerCase()) {
+      case 'hex':
+        return _tryHex(text);
+      case 'base64':
+        return _tryBase64(text);
+      case 'text':
+      case 'utf8':
+        return Uint8List.fromList(utf8.encode(text));
+    }
 
     if (preferText && _fitsAsText(text)) {
       return Uint8List.fromList(utf8.encode(text));
     }
 
-    final base64Bytes = _tryBase64(text);
-    if (base64Bytes != null) return base64Bytes;
     final hexBytes = _tryHex(text);
     if (hexBytes != null) return hexBytes;
+    final base64Bytes = _tryBase64(text);
+    if (base64Bytes != null) return base64Bytes;
     return Uint8List.fromList(utf8.encode(text));
   }
 
