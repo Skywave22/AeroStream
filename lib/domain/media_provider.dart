@@ -8,11 +8,11 @@ import 'entities/stream_source.dart';
 
 /// The one interface every ecosystem is adapted onto.
 ///
-/// Implementations must never throw: a broken plugin becomes an [Err] with a
+/// Implementations must never throw: a broken plugin becomes an `Err` with a
 /// typed error, so the UI can show a retry affordance instead of a red screen.
-/// Capability flags are authoritative — if [PluginInfo.capabilities] says a
+/// Capability flags are authoritative: when `PluginInfo.capabilities` says a
 /// method is unsupported, callers must not invoke it, and implementations
-/// return [PluginUnsupportedError] when they do.
+/// return `PluginUnsupportedError` when they do.
 abstract interface class MediaProvider {
   /// Manifest data for the plugin behind this provider.
   PluginInfo get info;

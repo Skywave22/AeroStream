@@ -21,10 +21,10 @@ final class PlatformProfile {
 
   /// The host as it actually is.
   static PlatformProfile get current => PlatformProfile(
-    target: defaultTargetPlatform,
-    operatingSystem: _detectOs(),
-    isWeb: kIsWeb,
-  );
+        target: defaultTargetPlatform,
+        operatingSystem: _detectOs(),
+        isWeb: kIsWeb,
+      );
 
   static String _detectOs() {
     if (kIsWeb) return 'web';
@@ -55,10 +55,10 @@ final class PlatformProfile {
   /// CloudStream extensions are Kotlin compiled against the CloudStream
   /// library; only the Android host can load them (see docs/PLUGIN_SPEC.md).
   bool supports(PluginEcosystem ecosystem) => switch (ecosystem) {
-    PluginEcosystem.cloudstream => isAndroid,
-    PluginEcosystem.skystream => !isWeb,
-    PluginEcosystem.vega => !isWeb,
-  };
+        PluginEcosystem.cloudstream => isAndroid,
+        PluginEcosystem.skystream => !isWeb,
+        PluginEcosystem.vega => !isWeb,
+      };
 
   /// Explanation shown next to a plugin that cannot run here.
   String? unsupportedReason(PluginEcosystem ecosystem) {
@@ -67,7 +67,8 @@ final class PlatformProfile {
       PluginEcosystem.cloudstream =>
         'CloudStream extensions are Kotlin (.cs3) and need the Android runtime.',
       PluginEcosystem.skystream ||
-      PluginEcosystem.vega => 'The JavaScript sandbox is not available on web.',
+      PluginEcosystem.vega =>
+        'The JavaScript sandbox is not available on web.',
     };
   }
 }

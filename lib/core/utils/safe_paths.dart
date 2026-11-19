@@ -27,6 +27,23 @@ String? resolveWithin(String root, String relative) {
   return resolved;
 }
 
+/// Whether [relative] is a plain, contained relative path.
+///
+/// Rejects absolute paths (which discard the root when joined), Windows
+/// separators, drive letters, and any `..` segment. Used on archive entries
+/// before they are written.
+bool isSafeRelativePath(String relative) {
+  if (relative.isEmpty) return false;
+  final normalized = relative.replaceAll(r'\', '/');
+  if (p.isAbsolute(normalized)) return false;
+  if (RegExp(r'^[A-Za-z]:').hasMatch(normalized)) return false;
+  final segments = normalized.split('/');
+  for (final segment in segments) {
+    if (segment == '..') return false;
+  }
+  return true;
+}
+
 /// Whether [candidate] is a strict child of [root].
-bool isWithin(String root, String candidate) =>
-    p.isWithin(p.normalize(p.absolute(root)), p.normalize(p.absolute(candidate)));
+bool isWithin(String root, String candidate) => p.isWithin(
+    p.normalize(p.absolute(root)), p.normalize(p.absolute(candidate)));

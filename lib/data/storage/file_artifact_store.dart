@@ -1,7 +1,5 @@
-import 'dart:convert';
 import 'dart:io';
 
-import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
 
 import '../../core/errors/plugin_error.dart';
@@ -20,7 +18,7 @@ import '../../domain/repositories/extension_store.dart';
 final class FileArtifactStore implements ArtifactStore {
   FileArtifactStore(this._root);
 
-  /// Creates a store rooted at [root] (usually `<appSupport>/plugins`).
+  /// The root directory, usually `<appSupport>/plugins`.
   final String _root;
 
   @override
@@ -166,7 +164,8 @@ final class FileArtifactStore implements ArtifactStore {
     if (!isWithin(_root, artifactPath)) return false;
     final directory = Directory(artifactPath);
     if (!await directory.exists()) return false;
-    return await directory.list().isEmpty ? false : true;
+    final children = await directory.list().take(1).toList();
+    return children.isNotEmpty;
   }
 
   @override
@@ -207,60 +206,6 @@ final class FileArtifactStore implements ArtifactStore {
       if (await directory.exists()) await directory.delete(recursive: true);
     } on FileSystemException {
       // Staging cleanup is best effort; the next install overwrites it.
-    }
-  }
-
-  /// Extracts a `.sky` archive into `relative path -> bytes`, rejecting unsafe
-  /// entries instead of writing them somewhere unexpected.
-  static Result<Map<String, List<int>>> extractSkyArchive(List<int> bytes) {
-    try {
-      final archive = ZipDecoder().decodeBytes(bytes);
-      final files = <String, List<int>>{};
-      for (final entry in archive.files) {
-        if (!entry.isFile) continue;
-        final name = entry.name;
-        if (resolveWithin('/plugins', name) == null) {
-          return Err<Map<String, List<int>>>(
-            PluginSandboxError(
-              'Archive entry escapes the plugin directory: $name',
-              violation: 'path-traversal',
-            ),
-          );
-        }
-        final content = entry.content;
-        if (content is! List<int>) continue;
-        files[name] = content;
-      }
-      if (files.isEmpty) {
-        return const Err<Map<String, List<int>>>(
-          PluginParseError('Archive is empty'),
-        );
-      }
-      return Ok<Map<String, List<int>>>(files);
-    } on Object catch (error, stack) {
-      return Err<Map<String, List<int>>>(
-        PluginParseError(
-          'Could not read the .sky archive: $error',
-          cause: error,
-          stackTrace: stack,
-        ),
-      );
-    }
-  }
-
-  /// Decodes a manifest file out of an extracted artifact.
-  static Map<String, Object?>? decodeManifest(List<int> bytes) {
-    try {
-      final decoded = jsonDecode(utf8.decode(bytes, allowMalformed: true));
-      if (decoded is Map<String, Object?>) return decoded;
-      if (decoded is Map) {
-        return decoded.map(
-          (key, value) => MapEntry(key.toString(), value as Object?),
-        );
-      }
-      return null;
-    } on FormatException {
-      return null;
     }
   }
 }

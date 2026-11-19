@@ -1,6 +1,6 @@
 import '../../core/json/json_read.dart';
-import 'media_item.dart';
 import 'enums.dart';
+import 'media_item.dart';
 
 /// A home-screen row produced by one plugin.
 final class HomeSection {
@@ -47,24 +47,24 @@ final class HomeSection {
       );
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'title': title,
-    'layout': layout.name,
-    'items': items.map((item) => item.toJson()).toList(growable: false),
-    if (pluginId != null) 'pluginId': pluginId,
-    if (catalogId != null) 'catalogId': catalogId,
-    if (canPaginate) 'canPaginate': true,
-  };
+        'title': title,
+        'layout': layout.name,
+        'items': items.map((item) => item.toJson()).toList(growable: false),
+        if (pluginId != null) 'pluginId': pluginId,
+        if (catalogId != null) 'catalogId': catalogId,
+        if (canPaginate) 'canPaginate': true,
+      };
 
   factory HomeSection.fromJson(Map<String, Object?> json) => HomeSection(
-    title: readString(json['title']) ?? 'Untitled',
-    layout: HomeSectionLayout.fromWire(json['layout']),
-    items: readMapList(json['items']).map(MediaItem.fromJson).toList(
-      growable: false,
-    ),
-    pluginId: readString(json['pluginId']),
-    catalogId: readString(json['catalogId']),
-    canPaginate: readBool(json['canPaginate']),
-  );
+        title: readString(json['title']) ?? 'Untitled',
+        layout: HomeSectionLayout.fromWire(json['layout']),
+        items: readMapList(json['items']).map(MediaItem.fromJson).toList(
+              growable: false,
+            ),
+        pluginId: readString(json['pluginId']),
+        catalogId: readString(json['catalogId']),
+        canPaginate: readBool(json['canPaginate']),
+      );
 
   @override
   bool operator ==(Object other) =>
@@ -116,20 +116,20 @@ final class SearchPage {
       );
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'items': items.map((item) => item.toJson()).toList(growable: false),
-    if (nextPage != null) 'nextPage': nextPage,
-    'hasMore': hasMore,
-    if (pluginId != null) 'pluginId': pluginId,
-  };
+        'items': items.map((item) => item.toJson()).toList(growable: false),
+        if (nextPage != null) 'nextPage': nextPage,
+        'hasMore': hasMore,
+        if (pluginId != null) 'pluginId': pluginId,
+      };
 
   factory SearchPage.fromJson(Map<String, Object?> json) => SearchPage(
-    items: readMapList(json['items']).map(MediaItem.fromJson).toList(
-      growable: false,
-    ),
-    nextPage: json['nextPage'],
-    hasMore: readBool(json['hasMore']),
-    pluginId: readString(json['pluginId']),
-  );
+        items: readMapList(json['items']).map(MediaItem.fromJson).toList(
+              growable: false,
+            ),
+        nextPage: json['nextPage'],
+        hasMore: readBool(json['hasMore']),
+        pluginId: readString(json['pluginId']),
+      );
 
   static const SearchPage empty = SearchPage();
 

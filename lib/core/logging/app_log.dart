@@ -32,7 +32,7 @@ final class LogEntry {
 ///
 /// Two sinks: the platform console (via `logger`) and a bounded in-memory ring
 /// buffer that the developer-mode debug console renders. Plugin output is
-/// namespaced by [pluginId] so a noisy plugin cannot drown the app's own logs.
+/// namespaced by plugin id, so a noisy plugin cannot drown the app's logs.
 final class AppLog {
   AppLog._();
 
@@ -107,7 +107,7 @@ final class AppLog {
     if (pluginId != null) {
       final pluginBuffer = _pluginBuffers.putIfAbsent(
         pluginId,
-        () => ListQueue<LogEntry>(),
+        ListQueue<LogEntry>.new,
       );
       pluginBuffer.addLast(entry);
       if (pluginBuffer.length > _capacity) pluginBuffer.removeFirst();

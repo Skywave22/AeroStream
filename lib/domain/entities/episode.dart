@@ -23,20 +23,20 @@ final class Season {
   String get displayName => title ?? 'Season $number';
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'number': number,
-    if (id != null) 'id': id,
-    if (title != null) 'title': title,
-    if (episodeCount != null) 'episodeCount': episodeCount,
-    if (posterUrl != null) 'posterUrl': posterUrl,
-  };
+        'number': number,
+        if (id != null) 'id': id,
+        if (title != null) 'title': title,
+        if (episodeCount != null) 'episodeCount': episodeCount,
+        if (posterUrl != null) 'posterUrl': posterUrl,
+      };
 
   factory Season.fromJson(Map<String, Object?> json) => Season(
-    number: readInt(json['number']) ?? 1,
-    id: readString(json['id']),
-    title: readString(json['title']),
-    episodeCount: readInt(json['episodeCount']),
-    posterUrl: readString(json['posterUrl']),
-  );
+        number: readInt(json['number']) ?? 1,
+        id: readString(json['id']),
+        title: readString(json['title']),
+        episodeCount: readInt(json['episodeCount']),
+        posterUrl: readString(json['posterUrl']),
+      );
 
   @override
   bool operator ==(Object other) =>
@@ -116,32 +116,33 @@ final class Episode {
       );
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'id': id,
-    'url': url,
-    'number': number,
-    'seasonNumber': seasonNumber,
-    if (title != null) 'title': title,
-    if (description != null) 'description': description,
-    if (thumbnailUrl != null) 'thumbnailUrl': thumbnailUrl,
-    if (airDate != null) 'airDate': airDate!.toIso8601String(),
-    if (runtimeMinutes != null) 'runtimeMinutes': runtimeMinutes,
-    if (headers.isNotEmpty) 'headers': headers,
-    if (extras.isNotEmpty) 'extras': extras,
-  };
+        'id': id,
+        'url': url,
+        'number': number,
+        'seasonNumber': seasonNumber,
+        if (title != null) 'title': title,
+        if (description != null) 'description': description,
+        if (thumbnailUrl != null) 'thumbnailUrl': thumbnailUrl,
+        if (airDate != null) 'airDate': airDate!.toIso8601String(),
+        if (runtimeMinutes != null) 'runtimeMinutes': runtimeMinutes,
+        if (headers.isNotEmpty) 'headers': headers,
+        if (extras.isNotEmpty) 'extras': extras,
+      };
 
   factory Episode.fromJson(Map<String, Object?> json) => Episode(
-    id: readString(json['id']) ?? readString(json['url']) ?? '',
-    url: readString(json['url']) ?? '',
-    number: readInt(json['number']) ?? readInt(json['episode']) ?? 1,
-    seasonNumber: readInt(json['seasonNumber']) ?? readInt(json['season']) ?? 1,
-    title: readString(json['title']) ?? readString(json['name']),
-    description: readString(json['description']),
-    thumbnailUrl: readString(json['thumbnailUrl']),
-    airDate: readDate(json['airDate']),
-    runtimeMinutes: readInt(json['runtimeMinutes']),
-    headers: readStringMap(json['headers']),
-    extras: readMap(json['extras']),
-  );
+        id: readString(json['id']) ?? readString(json['url']) ?? '',
+        url: readString(json['url']) ?? '',
+        number: readInt(json['number']) ?? readInt(json['episode']) ?? 1,
+        seasonNumber:
+            readInt(json['seasonNumber']) ?? readInt(json['season']) ?? 1,
+        title: readString(json['title']) ?? readString(json['name']),
+        description: readString(json['description']),
+        thumbnailUrl: readString(json['thumbnailUrl']),
+        airDate: readDate(json['airDate']),
+        runtimeMinutes: readInt(json['runtimeMinutes']),
+        headers: readStringMap(json['headers']),
+        extras: readMap(json['extras']),
+      );
 
   @override
   bool operator ==(Object other) =>

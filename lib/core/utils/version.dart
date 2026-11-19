@@ -51,9 +51,8 @@ final class PluginVersion implements Comparable<PluginVersion> {
   /// Compares numeric components, missing ones as zero (`1.2 == 1.2.0`).
   @override
   int compareTo(PluginVersion other) {
-    final length = parts.length > other.parts.length
-        ? parts.length
-        : other.parts.length;
+    final length =
+        parts.length > other.parts.length ? parts.length : other.parts.length;
     for (var i = 0; i < length; i++) {
       final a = i < parts.length ? parts[i] : 0;
       final b = i < other.parts.length ? other.parts[i] : 0;

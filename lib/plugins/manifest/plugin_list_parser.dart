@@ -90,8 +90,10 @@ abstract final class PluginListParser {
     }
 
     return Ok<ParsedPluginList>(
-      ecosystem: ecosystem,
-      plugins: List<AvailablePlugin>.unmodifiable(plugins),
+      ParsedPluginList(
+        ecosystem: ecosystem,
+        plugins: List<AvailablePlugin>.unmodifiable(plugins),
+      ),
     );
   }
 

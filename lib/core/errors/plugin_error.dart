@@ -66,12 +66,12 @@ final class PluginTimeoutError extends PluginError {
 
   @override
   PluginError copyWithPlugin(String? id) => PluginTimeoutError(
-    message,
-    pluginId: id,
-    cause: cause,
-    stackTrace: stackTrace,
-    timeout: timeout,
-  );
+        message,
+        pluginId: id,
+        cause: cause,
+        stackTrace: stackTrace,
+        timeout: timeout,
+      );
 }
 
 /// The plugin answered, but not in a shape the adapter can understand.
@@ -91,16 +91,17 @@ final class PluginParseError extends PluginError {
   String get kind => 'parse';
 
   @override
-  String get userMessage => 'The plugin returned data AeroStream could not read.';
+  String get userMessage =>
+      'The plugin returned data AeroStream could not read.';
 
   @override
   PluginError copyWithPlugin(String? id) => PluginParseError(
-    message,
-    pluginId: id,
-    cause: cause,
-    stackTrace: stackTrace,
-    field: field,
-  );
+        message,
+        pluginId: id,
+        cause: cause,
+        stackTrace: stackTrace,
+        field: field,
+      );
 }
 
 /// A request the plugin made (or AeroStream made for it) failed on the wire.
@@ -128,13 +129,13 @@ final class PluginNetworkError extends PluginError {
 
   @override
   PluginError copyWithPlugin(String? id) => PluginNetworkError(
-    message,
-    pluginId: id,
-    cause: cause,
-    stackTrace: stackTrace,
-    statusCode: statusCode,
-    url: url,
-  );
+        message,
+        pluginId: id,
+        cause: cause,
+        stackTrace: stackTrace,
+        statusCode: statusCode,
+        url: url,
+      );
 }
 
 /// The plugin tried to do something the sandbox does not allow.
@@ -158,12 +159,12 @@ final class PluginSandboxError extends PluginError {
 
   @override
   PluginError copyWithPlugin(String? id) => PluginSandboxError(
-    message,
-    pluginId: id,
-    cause: cause,
-    stackTrace: stackTrace,
-    violation: violation,
-  );
+        message,
+        pluginId: id,
+        cause: cause,
+        stackTrace: stackTrace,
+        violation: violation,
+      );
 }
 
 /// The plugin does not support the requested operation.
@@ -186,12 +187,12 @@ final class PluginUnsupportedError extends PluginError {
 
   @override
   PluginError copyWithPlugin(String? id) => PluginUnsupportedError(
-    message,
-    pluginId: id,
-    cause: cause,
-    stackTrace: stackTrace,
-    operation: operation,
-  );
+        message,
+        pluginId: id,
+        cause: cause,
+        stackTrace: stackTrace,
+        operation: operation,
+      );
 }
 
 /// The plugin runtime died (an uncaught error, a killed isolate, a crash).
@@ -218,12 +219,12 @@ final class PluginCrashError extends PluginError {
 
   @override
   PluginError copyWithPlugin(String? id) => PluginCrashError(
-    message,
-    pluginId: id,
-    cause: cause,
-    stackTrace: stackTrace,
-    restarted: restarted,
-  );
+        message,
+        pluginId: id,
+        cause: cause,
+        stackTrace: stackTrace,
+        restarted: restarted,
+      );
 }
 
 /// The plugin (or repository) is not installed.
@@ -243,11 +244,11 @@ final class PluginNotFoundError extends PluginError {
 
   @override
   PluginError copyWithPlugin(String? id) => PluginNotFoundError(
-    message,
-    pluginId: id,
-    cause: cause,
-    stackTrace: stackTrace,
-  );
+        message,
+        pluginId: id,
+        cause: cause,
+        stackTrace: stackTrace,
+      );
 }
 
 /// The user (or a policy) denied the operation.
@@ -270,12 +271,12 @@ final class PluginPermissionError extends PluginError {
 
   @override
   PluginError copyWithPlugin(String? id) => PluginPermissionError(
-    message,
-    pluginId: id,
-    cause: cause,
-    stackTrace: stackTrace,
-    permission: permission,
-  );
+        message,
+        pluginId: id,
+        cause: cause,
+        stackTrace: stackTrace,
+        permission: permission,
+      );
 }
 
 /// The operation was cancelled, usually because the user navigated away.
@@ -295,11 +296,11 @@ final class PluginCancelledError extends PluginError {
 
   @override
   PluginError copyWithPlugin(String? id) => PluginCancelledError(
-    message,
-    pluginId: id,
-    cause: cause,
-    stackTrace: stackTrace,
-  );
+        message,
+        pluginId: id,
+        cause: cause,
+        stackTrace: stackTrace,
+      );
 }
 
 /// Anything that does not fit above. Never used for control flow.
@@ -319,9 +320,9 @@ final class PluginUnknownError extends PluginError {
 
   @override
   PluginError copyWithPlugin(String? id) => PluginUnknownError(
-    message,
-    pluginId: id,
-    cause: cause,
-    stackTrace: stackTrace,
-  );
+        message,
+        pluginId: id,
+        cause: cause,
+        stackTrace: stackTrace,
+      );
 }

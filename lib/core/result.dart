@@ -1,4 +1,4 @@
-import 'plugin_error.dart';
+import 'errors/plugin_error.dart';
 
 /// The outcome of an operation that can fail for reasons the caller must see.
 ///
@@ -23,34 +23,33 @@ sealed class Result<T> {
 
   /// The success value, or `null`.
   T? get valueOrNull => switch (this) {
-    Ok<T>(:final value) => value,
-    Err<T>() => null,
-  };
+        Ok<T>(:final value) => value,
+        Err<T>() => null,
+      };
 
   /// The failure, or `null`.
   PluginError? get errorOrNull => switch (this) {
-    Ok<T>() => null,
-    Err<T>(:final error) => error,
-  };
+        Ok<T>() => null,
+        Err<T>(:final error) => error,
+      };
 
   /// Transforms a success value, leaving a failure untouched.
   Result<R> map<R>(R Function(T value) transform) => switch (this) {
-    Ok<T>(:final value) => Ok<R>(transform(value)),
-    Err<T>(:final error) => Err<R>(error),
-  };
+        Ok<T>(:final value) => Ok<R>(transform(value)),
+        Err<T>(:final error) => Err<R>(error),
+      };
 
   /// Chains another fallible step.
-  Result<R> flatMap<R>(Result<R> Function(T value) transform) =>
-      switch (this) {
+  Result<R> flatMap<R>(Result<R> Function(T value) transform) => switch (this) {
         Ok<T>(:final value) => transform(value),
         Err<T>(:final error) => Err<R>(error),
       };
 
   /// The success value, or [fallback] computed from the failure.
   T getOrElse(T Function(PluginError error) fallback) => switch (this) {
-    Ok<T>(:final value) => value,
-    Err<T>(:final error) => fallback(error),
-  };
+        Ok<T>(:final value) => value,
+        Err<T>(:final error) => fallback(error),
+      };
 }
 
 final class Ok<T> extends Result<T> {

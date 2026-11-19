@@ -4,8 +4,8 @@ import 'enums.dart';
 /// One catalogue entry, as the rest of the app sees it.
 ///
 /// A [MediaItem] is deliberately *thin*: it carries what a grid needs plus the
-/// plugin-specific [url] handle used to ask for more. Full metadata arrives
-/// later as a [MediaDetails] from the same plugin.
+/// plugin-specific `url` handle used to ask for more. Full metadata arrives
+/// later as `MediaDetails` from the same plugin.
 final class MediaItem {
   const MediaItem({
     required this.id,

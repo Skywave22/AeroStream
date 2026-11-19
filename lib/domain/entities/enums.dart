@@ -77,7 +77,9 @@ enum MediaType {
 
   /// Whether this type is expected to have seasons and episodes.
   bool get isEpisodic =>
-      this == MediaType.series || this == MediaType.anime || this == MediaType.live;
+      this == MediaType.series ||
+      this == MediaType.anime ||
+      this == MediaType.live;
 }
 
 /// How a home row should be laid out.
@@ -118,9 +120,11 @@ enum PlaybackPolicy {
     return switch (normalized) {
       'vpn recommended' || 'vpn_recommended' => PlaybackPolicy.vpnRecommended,
       'torrent' => PlaybackPolicy.torrent,
-      'externalplayeronly' || 'external_player_only' =>
+      'externalplayeronly' ||
+      'external_player_only' =>
         PlaybackPolicy.externalPlayerOnly,
-      'internalplayeronly' || 'internal_player_only' =>
+      'internalplayeronly' ||
+      'internal_player_only' =>
         PlaybackPolicy.internalPlayerOnly,
       _ => PlaybackPolicy.none,
     };

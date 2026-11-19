@@ -30,8 +30,7 @@ final class InstalledPlugin {
       InstalledPlugin(
         info: info ?? this.info,
         artifactPath: artifactPath ?? this.artifactPath,
-        previousArtifactPath:
-            previousArtifactPath ?? this.previousArtifactPath,
+        previousArtifactPath: previousArtifactPath ?? this.previousArtifactPath,
       );
 
   @override

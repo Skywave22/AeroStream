@@ -9,17 +9,17 @@ enum AppThemeVariant {
   amoled;
 
   ThemeMode get mode => switch (this) {
-    AppThemeVariant.system => ThemeMode.system,
-    AppThemeVariant.light => ThemeMode.light,
-    AppThemeVariant.dark || AppThemeVariant.amoled => ThemeMode.dark,
-  };
+        AppThemeVariant.system => ThemeMode.system,
+        AppThemeVariant.light => ThemeMode.light,
+        AppThemeVariant.dark || AppThemeVariant.amoled => ThemeMode.dark,
+      };
 
   String get label => switch (this) {
-    AppThemeVariant.system => 'Follow system',
-    AppThemeVariant.light => 'Light',
-    AppThemeVariant.dark => 'Dark',
-    AppThemeVariant.amoled => 'AMOLED black',
-  };
+        AppThemeVariant.system => 'Follow system',
+        AppThemeVariant.light => 'Light',
+        AppThemeVariant.dark => 'Dark',
+        AppThemeVariant.amoled => 'AMOLED black',
+      };
 }
 
 /// The active palette.

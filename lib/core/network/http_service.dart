@@ -73,16 +73,16 @@ abstract interface class HttpService {
 /// Dio-backed implementation with the safety rails switched on.
 final class DioHttpService implements HttpService {
   DioHttpService({Dio? dio, this.limits = const HttpLimits()})
-    : _dio = dio ?? Dio() {
+      : _dio = dio ?? Dio() {
     _dio.options
       ..connectTimeout = limits.timeout
       ..sendTimeout = limits.timeout
       ..receiveTimeout = limits.timeout
       ..followRedirects = true
       ..maxRedirects = limits.maxRedirects
-      ..validateStatus = (int? _) => true
-      ..responseType = ResponseType.bytes
-      ..headers = <String, Object?>{'Accept': '*/*'};
+      ..validateStatus = ((int? _) => true)
+        ..responseType = ResponseType.bytes
+        ..headers = <String, Object?>{'Accept': '*/*'};
   }
 
   final Dio _dio;
@@ -107,7 +107,13 @@ final class DioHttpService implements HttpService {
         body: body,
         headers: headers == null
             ? null
-            : <String, String>{...headers, if (!headers.keys.map((key) => key.toLowerCase()).contains('content-type')) 'Content-Type': 'application/x-www-form-urlencoded'},
+            : <String, String>{
+                ...headers,
+                if (!headers.keys
+                    .map((key) => key.toLowerCase())
+                    .contains('content-type'))
+                  'Content-Type': 'application/x-www-form-urlencoded'
+              },
       );
 
   Future<Result<HttpPayload>> _send(

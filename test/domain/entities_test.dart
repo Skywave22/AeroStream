@@ -1,3 +1,4 @@
+import 'package:aerostream/core/utils/version.dart';
 import 'package:aerostream/domain/entities/entities.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -74,7 +75,7 @@ void main() {
     });
 
     test('falls back to "Episode n" for untitled episodes', () {
-      final untitled = Episode(id: 'e2', url: '', number: 2);
+      const untitled = Episode(id: 'e2', url: '', number: 2);
       expect(untitled.displayName, 'Episode 2');
     });
 
@@ -97,9 +98,9 @@ void main() {
 
   group('MediaDetails', () {
     test('derives seasons from a flat episode list', () {
-      final details = MediaDetails(
-        item: const MediaItem(id: 'x', pluginId: 'p', title: 'Show'),
-        episodes: const <Episode>[
+      const details = MediaDetails(
+        item: MediaItem(id: 'x', pluginId: 'p', title: 'Show'),
+        episodes: <Episode>[
           Episode(id: 'a', url: '', number: 1, seasonNumber: 1),
           Episode(id: 'b', url: '', number: 2, seasonNumber: 1),
           Episode(id: 'c', url: '', number: 1, seasonNumber: 2),

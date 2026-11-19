@@ -13,16 +13,16 @@ final class Actor {
   final String? imageUrl;
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'name': name,
-    if (role != null) 'role': role,
-    if (imageUrl != null) 'imageUrl': imageUrl,
-  };
+        'name': name,
+        if (role != null) 'role': role,
+        if (imageUrl != null) 'imageUrl': imageUrl,
+      };
 
   factory Actor.fromJson(Map<String, Object?> json) => Actor(
-    name: readString(json['name']) ?? 'Unknown',
-    role: readString(json['role']),
-    imageUrl: readString(json['imageUrl']) ?? readString(json['image']),
-  );
+        name: readString(json['name']) ?? 'Unknown',
+        role: readString(json['role']),
+        imageUrl: readString(json['imageUrl']) ?? readString(json['image']),
+      );
 
   @override
   bool operator ==(Object other) =>
@@ -40,14 +40,14 @@ final class Trailer {
   final String? name;
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'url': url,
-    if (name != null) 'name': name,
-  };
+        'url': url,
+        if (name != null) 'name': name,
+      };
 
   factory Trailer.fromJson(Map<String, Object?> json) => Trailer(
-    url: readString(json['url']) ?? '',
-    name: readString(json['name']),
-  );
+        url: readString(json['url']) ?? '',
+        name: readString(json['name']),
+      );
 }
 
 /// Everything a details screen needs for one item.
@@ -125,60 +125,63 @@ final class MediaDetails {
     ..sort((a, b) => a.number.compareTo(b.number));
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'item': item.toJson(),
-    if (description != null) 'description': description,
-    if (genres.isNotEmpty) 'genres': genres,
-    'cast': cast.map((actor) => actor.toJson()).toList(growable: false),
-    'trailers': trailers.map((trailer) => trailer.toJson()).toList(
-      growable: false,
-    ),
-    'seasons': seasons.map((season) => season.toJson()).toList(growable: false),
-    'episodes': episodes.map((episode) => episode.toJson()).toList(
-      growable: false,
-    ),
-    'recommendations': recommendations
-        .map((item) => item.toJson())
-        .toList(growable: false),
-    if (status != null) 'status': status,
-    if (runtimeMinutes != null) 'runtimeMinutes': runtimeMinutes,
-    if (logoUrl != null) 'logoUrl': logoUrl,
-    if (contentRating != null) 'contentRating': contentRating,
-    'playbackPolicy': playbackPolicy.name,
-    'instantSources': instantSources
-        .map((source) => source.toJson())
-        .toList(growable: false),
-    if (headers.isNotEmpty) 'headers': headers,
-    if (syncData.isNotEmpty) 'syncData': syncData,
-  };
+        'item': item.toJson(),
+        if (description != null) 'description': description,
+        if (genres.isNotEmpty) 'genres': genres,
+        'cast': cast.map((actor) => actor.toJson()).toList(growable: false),
+        'trailers': trailers.map((trailer) => trailer.toJson()).toList(
+              growable: false,
+            ),
+        'seasons':
+            seasons.map((season) => season.toJson()).toList(growable: false),
+        'episodes': episodes.map((episode) => episode.toJson()).toList(
+              growable: false,
+            ),
+        'recommendations': recommendations
+            .map((item) => item.toJson())
+            .toList(growable: false),
+        if (status != null) 'status': status,
+        if (runtimeMinutes != null) 'runtimeMinutes': runtimeMinutes,
+        if (logoUrl != null) 'logoUrl': logoUrl,
+        if (contentRating != null) 'contentRating': contentRating,
+        'playbackPolicy': playbackPolicy.name,
+        'instantSources': instantSources
+            .map((source) => source.toJson())
+            .toList(growable: false),
+        if (headers.isNotEmpty) 'headers': headers,
+        if (syncData.isNotEmpty) 'syncData': syncData,
+      };
 
   factory MediaDetails.fromJson(Map<String, Object?> json) => MediaDetails(
-    item: MediaItem.fromJson(readMap(json['item'])),
-    description: readString(json['description']),
-    genres: readStringList(json['genres']),
-    cast: readMapList(json['cast']).map(Actor.fromJson).toList(growable: false),
-    trailers: readMapList(json['trailers'])
-        .map(Trailer.fromJson)
-        .toList(growable: false),
-    seasons: readMapList(json['seasons'])
-        .map(Season.fromJson)
-        .toList(growable: false),
-    episodes: readMapList(json['episodes'])
-        .map(Episode.fromJson)
-        .toList(growable: false),
-    recommendations: readMapList(
-      json['recommendations'],
-    ).map(MediaItem.fromJson).toList(growable: false),
-    status: readString(json['status']),
-    runtimeMinutes: readInt(json['runtimeMinutes']),
-    logoUrl: readString(json['logoUrl']),
-    contentRating: readString(json['contentRating']),
-    playbackPolicy: PlaybackPolicy.fromWire(json['playbackPolicy']),
-    instantSources: readMapList(
-      json['instantSources'],
-    ).map(StreamSource.fromJson).toList(growable: false),
-    headers: readStringMap(json['headers']),
-    syncData: readMap(json['syncData']),
-  );
+        item: MediaItem.fromJson(readMap(json['item'])),
+        description: readString(json['description']),
+        genres: readStringList(json['genres']),
+        cast: readMapList(json['cast'])
+            .map(Actor.fromJson)
+            .toList(growable: false),
+        trailers: readMapList(json['trailers'])
+            .map(Trailer.fromJson)
+            .toList(growable: false),
+        seasons: readMapList(json['seasons'])
+            .map(Season.fromJson)
+            .toList(growable: false),
+        episodes: readMapList(json['episodes'])
+            .map(Episode.fromJson)
+            .toList(growable: false),
+        recommendations: readMapList(
+          json['recommendations'],
+        ).map(MediaItem.fromJson).toList(growable: false),
+        status: readString(json['status']),
+        runtimeMinutes: readInt(json['runtimeMinutes']),
+        logoUrl: readString(json['logoUrl']),
+        contentRating: readString(json['contentRating']),
+        playbackPolicy: PlaybackPolicy.fromWire(json['playbackPolicy']),
+        instantSources: readMapList(
+          json['instantSources'],
+        ).map(StreamSource.fromJson).toList(growable: false),
+        headers: readStringMap(json['headers']),
+        syncData: readMap(json['syncData']),
+      );
 
   @override
   String toString() =>
