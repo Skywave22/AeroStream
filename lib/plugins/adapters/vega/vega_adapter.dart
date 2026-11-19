@@ -175,7 +175,10 @@ final class VegaAdapter implements MediaProvider {
     final available = await _host.evaluateExpression(
       '__vegaHas(${jsonEncode(module)}, ${jsonEncode(function)})',
     );
-    if (available is Ok<Object?> && available.value == 'false') {
+    // `JSON.stringify(__vegaHas(…))` decodes to a bool, but a provider that
+    // shadows the helper can hand back the string; treat both as "missing".
+    final exported = available is Ok<Object?> ? available.value : null;
+    if (exported == false || exported == 'false') {
       return Err<Object?>(
         PluginUnsupportedError(
           'This provider does not export $function',

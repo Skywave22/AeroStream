@@ -76,8 +76,9 @@ this repository.
 * No video engine is wired yet: the watch screen resolves and lists sources,
   and says so when it cannot play them. A `PlaybackEngine` implementation is
   the one missing piece (see `lib/features/player/playback_engine.dart`).
-* No JavaScript engine is bundled by default: drop a QuickJS-backed
-  `JsRuntime` into `jsEngineFactoryProvider` at boot and every JS plugin starts
-  working (see `lib/plugins/runtime/`).
+* The JavaScript engine is QuickJS, running on its own isolate per plugin
+  (`lib/plugins/runtime/quickjs_engine.dart`, selected by
+  `engine_factory.dart`). It is absent on web, where `dart:ffi` cannot exist
+  and the browser gets `UnavailableJsRuntime`.
 * CloudStream needs its Kotlin host side; the Dart half and the channel
   contract are done.

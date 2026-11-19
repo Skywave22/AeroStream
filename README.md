@@ -19,7 +19,7 @@ It runs three plugin ecosystems behind one unified interface:
 | 0 | Project foundation, CI | done |
 | 1 | Unified domain model + plugin abstraction | done |
 | 2 | Extension / repository manager | done |
-| 3 | JavaScript runtime + host API bridge | done — engine backend pending |
+| 3 | JavaScript runtime + host API bridge | done |
 | 4 | SkyStream adapter | done |
 | 5 | Vega adapter | done |
 | 6 | CloudStream adapter (Android host) | done — Kotlin host pending |
@@ -30,10 +30,11 @@ It runs three plugin ecosystems behind one unified interface:
 | 11 | Platform polish | planned |
 | 12 | Testing, performance, release | in progress |
 
-Two pieces are intentionally left as seams rather than half-built features: a
-JavaScript engine backend (`JsRuntime`) and a video engine (`PlaybackEngine`).
-Until they are supplied the app runs, browses its own UI and reports honestly
-that it cannot execute plugin code or decode video — nothing pretends to work.
+Plugins run on QuickJS, one isolate per plugin, behind a bridge that only
+exposes HTTP, HTML parsing, hashing, base64 and namespaced storage. One seam is
+still open on purpose: a video engine (`PlaybackEngine`). Until one is supplied
+the player resolves and lists sources, and says plainly that this build cannot
+decode them — nothing pretends to work.
 
 See `docs/ARCHITECTURE.md` for the layer map, `docs/PLUGIN_SPEC.md` for the
 verified on-the-wire formats of all three ecosystems, and `docs/PLATFORMS.md`

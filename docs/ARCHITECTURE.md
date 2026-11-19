@@ -65,10 +65,16 @@ abstract interface class JsRuntime {
 
 The interface is deliberately tiny: evaluate a string, get a string back.
 Everything else — the bridge protocol, timers, promises — lives in JavaScript
-(`assets/js/host_bootstrap.js`), so a different engine (QuickJS today, anything
-tomorrow) needs no Dart-side protocol work. `UnavailableJsRuntime` is the
-failsafe used by builds and tests that have no engine: it throws
-`JsEvalException`, which the host turns into a typed `PluginUnsupportedError`.
+(`assets/js/host_bootstrap.js`), so a different engine needs no Dart-side
+protocol work.
+
+`QuickJsRuntime` implements it over QuickJS on a dedicated isolate: one context
+per plugin, a memory ceiling and an interrupt timer inside the engine, and the
+host's own Dart-side timeout on top, because a Dart timeout cannot stop a loop
+that has already started in C. `UnavailableJsRuntime` is the failsafe used by
+web builds and tests: it throws `JsEvalException`, which the host turns into a
+typed `PluginUnsupportedError`. `engine_factory.dart` picks between them with a
+conditional export, which is what keeps `dart:ffi` out of a web build.
 
 ### 3. `JsPluginHost` — one plugin, one context
 
