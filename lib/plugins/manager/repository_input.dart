@@ -62,8 +62,8 @@ enum RepositoryInputKind {
 /// Resolves raw user input into fetchable URLs.
 ///
 /// `followRedirect` is injected so this stays a pure function of its inputs and
-/// can be tested without a network. It should return the target of [url] when
-/// the server answers with a redirect, and null when it does not.
+/// can be tested without a network. It should return the redirect target, or
+/// null when the server does not redirect.
 final class RepositoryInputResolver {
   const RepositoryInputResolver({required this.followRedirect});
 
@@ -261,7 +261,7 @@ final class RepositoryInputResolver {
   /// then the Vega default repository.
   Future<Result<RepositoryInput>> _fromBareToken(String token) async {
     if (!RegExp(r'^!?[A-Za-z0-9_.@-]+$').hasMatch(token)) {
-      return Err<RepositoryInput>(
+      return const Err<RepositoryInput>(
         PluginParseError(
           'That is neither a URL nor a repository code',
           field: 'url',
