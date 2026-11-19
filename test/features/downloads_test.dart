@@ -218,6 +218,8 @@ void main() {
       );
       expect(h.container.read(downloadsProvider), hasLength(1));
       await controller.cancel(h.container.read(downloadsProvider).single.id);
+      h.fetcher.gate!.complete();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
     });
 
     test('an episode is its own task', () async {
@@ -264,6 +266,9 @@ void main() {
       final paused = h.container.read(downloadsProvider).single;
       expect(paused.receivedBytes, 0);
       expect(File(controller.pathFor(paused)).existsSync(), false);
+
+      // Let the aborted transfer unwind before the container goes away.
+      await Future<void>.delayed(const Duration(milliseconds: 20));
     });
 
     test('a failed transfer keeps the reason and leaves no partial file',

@@ -57,8 +57,11 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
   /// rebuilt when a humans-noticeable amount of it changed.
   static const Duration _progressInterval = Duration(milliseconds: 400);
 
+  bool _disposed = false;
+
   @override
   List<DownloadTask> build() {
+    ref.onDispose(() => _disposed = true);
     final loaded = _load();
     // Nothing is actually running when the app starts: a task that was running
     // when the process died is a paused task.
@@ -215,6 +218,7 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
       );
     } on DownloadCancelled {
       await _deleteFile(destination);
+      if (_disposed) return;
       final cancelled = _byId(id);
       if (cancelled != null) {
         _replace(
@@ -227,6 +231,7 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
       }
     } catch (error) {
       await _deleteFile(destination);
+      if (_disposed) return;
       final failed = _byId(id);
       if (failed != null) {
         _replace(
@@ -287,6 +292,7 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
   }
 
   void _reportProgress(String id, int received, int? total) {
+    if (_disposed) return;
     final now = DateTime.now();
     final last = _lastProgressAt[id];
     final task = _byId(id);
@@ -337,18 +343,25 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
   }
 
   void _replace(DownloadTask task) {
+    // A transfer can outlive the screen that started it — and the container,
+    // when the app is shutting down. Nothing left to notify, nothing to write.
+    if (_disposed) return;
     state = List<DownloadTask>.unmodifiable(
       state.map((existing) => existing.id == task.id ? task : existing),
     );
   }
 
   Future<void> _persist() async {
-    await ref.read(settingsStoreProvider).setString(
-          storageKey,
-          jsonEncode(
-              state.map((task) => task.toJson()).toList(growable: false)),
-        );
+    final payload = jsonEncode(
+      state.map((task) => task.toJson()).toList(growable: false),
+    );
+    try {
+      await ref.read(settingsStoreProvider).setString(storageKey, payload);
+    } on StateError {
+      // The container is gone; the queue in memory was already correct.
+    }
   }
+
 }
 
 /// Only finished downloads that are still on disk.
