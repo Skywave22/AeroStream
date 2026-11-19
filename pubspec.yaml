@@ -32,6 +32,10 @@ dependencies:
   crypto: ^3.0.3
   html: ^0.15.4
 
+  # The plugin sandbox. QuickJS runs on its own isolate and enforces the memory
+  # and time limits the runtime was designed around.
+  flutter_qjs: ^0.4.0
+
   # Utilities.
   collection: ^1.18.0
   logger: ^2.2.0

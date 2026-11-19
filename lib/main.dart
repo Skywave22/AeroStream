@@ -10,6 +10,8 @@ import 'core/platform/platform_profile.dart';
 import 'data/storage/file_artifact_store.dart';
 import 'data/storage/prefs_settings_store.dart';
 import 'data/storage/sqlite_extension_store.dart';
+import 'plugins/adapters/cloudstream/cloudstream_bridge.dart';
+import 'plugins/runtime/engine_factory.dart';
 
 /// Boot order matters: nothing may touch a store before it exists, so the
 /// platform-backed implementations are built here and injected as provider
@@ -29,6 +31,13 @@ Future<void> main() async {
   final artifacts = FileArtifactStore('${support.path}/plugins');
   final bootstrap = await rootBundle.loadString('assets/js/host_bootstrap.js');
 
+  // CloudStream extensions are Kotlin: they need the native host, which only
+  // this platform (so far) has. Everywhere else the ecosystem stays visible and
+  // uninstallable rather than pretending to work.
+  final cloudStream = platform.isAndroid
+      ? MethodChannelCloudStreamBridge()
+      : null;
+
   runApp(
     ProviderScope(
       overrides: [
@@ -37,6 +46,11 @@ Future<void> main() async {
         artifactStoreProvider.overrideWithValue(artifacts),
         hostBootstrapProvider.overrideWithValue(bootstrap),
         platformProfileProvider.overrideWithValue(platform),
+        jsEngineFactoryProvider.overrideWithValue(
+          createPlatformEngineFactory(),
+        ),
+        if (cloudStream != null)
+          cloudStreamBridgeProvider.overrideWithValue(cloudStream),
       ],
       child: const AeroStreamApp(),
     ),
