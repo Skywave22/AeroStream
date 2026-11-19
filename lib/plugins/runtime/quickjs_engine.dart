@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter_qjs/flutter_qjs.dart';
 
-import '../../core/logging/app_log.dart';
 import 'js_runtime.dart';
 
 /// [JsRuntime] over QuickJS, running on its own isolate.
@@ -42,11 +41,6 @@ final class QuickJsRuntime implements JsRuntime {
     final engine = IsolateQjs(
       memoryLimit: memoryLimit,
       timeout: hardTimeout.inMilliseconds,
-      hostPromiseRejectionHandler: (reason) {
-        // A promise nobody awaited is a plugin bug, not a crash: the call that
-        // would have consumed it has already timed out or returned.
-        AppLog.warn('Unhandled promise rejection in a plugin: $reason');
-      },
     );
     _engine = engine;
     // Force the isolate up now, so a host without a usable engine fails at
