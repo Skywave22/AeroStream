@@ -222,12 +222,12 @@ void main() {
       final show = movie(id: 'p:show', title: 'Slow River');
       await controller.enqueue(
         item: show,
-        episode: Episode(id: 's1e1', url: 'u1', number: 1),
+        episode: const Episode(id: 's1e1', url: 'u1', number: 1),
         source: source(url: 'https://cdn.test/e1.mp4'),
       );
       await controller.enqueue(
         item: show,
-        episode: Episode(id: 's1e2', url: 'u2', number: 2),
+        episode: const Episode(id: 's1e2', url: 'u2', number: 2),
         source: source(url: 'https://cdn.test/e2.mp4'),
       );
       await pumpUntil(() => h.container.read(downloadsProvider).every((t) => t.isPlayable));

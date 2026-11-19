@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../domain/entities/download.dart';
 import '../../domain/entities/stream_source.dart';
-import '../details/details_providers.dart';
 import '../player/watch_screen.dart';
 import 'download_providers.dart';
 

@@ -286,7 +286,7 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
     final file = File(pathFor(task));
     try {
       if (!await file.exists()) return null;
-      return file.length();
+      return await file.length();
     } on FileSystemException {
       return null;
     }

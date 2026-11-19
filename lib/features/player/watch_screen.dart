@@ -294,7 +294,7 @@ class _SourceList extends ConsumerWidget {
   final bool canDownload;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return DefaultTabController(
       length: subtitles.isEmpty ? 1 : 2,
       child: Column(
