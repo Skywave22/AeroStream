@@ -19,16 +19,21 @@ It runs three plugin ecosystems behind one unified interface:
 | 0 | Project foundation, CI | done |
 | 1 | Unified domain model + plugin abstraction | done |
 | 2 | Extension / repository manager | done |
-| 3 | JavaScript runtime + host API bridge | done |
+| 3 | JavaScript runtime + host API bridge | done — engine backend pending |
 | 4 | SkyStream adapter | done |
 | 5 | Vega adapter | done |
-| 6 | CloudStream adapter (Android host) | done |
+| 6 | CloudStream adapter (Android host) | done — Kotlin host pending |
 | 7 | Adaptive UI/UX | done |
-| 8 | Player | planned |
-| 9 | Library, history, downloads | partial |
-| 10 | Settings, security, privacy | partial |
+| 8 | Player | source selection done, playback pending |
+| 9 | Library, history, downloads | library done, history and downloads planned |
+| 10 | Settings, security, privacy | settings and persisted theme done |
 | 11 | Platform polish | planned |
-| 12 | Testing, performance, release | planned |
+| 12 | Testing, performance, release | in progress |
+
+Two pieces are intentionally left as seams rather than half-built features: a
+JavaScript engine backend (`JsRuntime`) and a video engine (`PlaybackEngine`).
+Until they are supplied the app runs, browses its own UI and reports honestly
+that it cannot execute plugin code or decode video — nothing pretends to work.
 
 See `docs/ARCHITECTURE.md` for the layer map, `docs/PLUGIN_SPEC.md` for the
 verified on-the-wire formats of all three ecosystems, and `docs/PLATFORMS.md`
@@ -42,6 +47,25 @@ flutter pub get
 flutter run -d <device>
 flutter analyze --fatal-infos
 flutter test
+```
+
+## Repo layout
+
+```
+assets/js/      host bootstrap, cheerio-lite, Vega compatibility layer
+lib/core/       Result, typed plugin errors, network policy, JSON readers
+lib/domain/     entities, MediaProvider, CatalogService
+lib/plugins/    runtime (sandbox), adapters (3 ecosystems), managers, parsers
+lib/data/       SQLite store, filesystem artifacts, preferences
+lib/features/   screens: home, search, details, player, library, extensions…
+tool/           js_selftest.mjs — runs the real JS in a Node VM
+docs/           architecture, plugin spec, platforms, disclaimer
+```
+
+The JavaScript tests run without Flutter:
+
+```bash
+node tool/js_selftest.mjs
 ```
 
 ## Legal

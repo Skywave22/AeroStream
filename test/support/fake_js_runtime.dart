@@ -64,6 +64,9 @@ final class FakePlugin {
   Future<String?> onEvaluate(String script) async {
     if (script.startsWith('__aeroInvoke(')) {
       invocations.add(script);
+      // A new invocation restarts the scripted sequence: the same plugin
+      // called twice must behave twice, not run out of script on call two.
+      _index = 0;
       return '{"started":true}';
     }
     if (script.startsWith('__aeroResolve(')) {

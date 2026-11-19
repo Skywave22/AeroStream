@@ -212,7 +212,9 @@ final class JsHostApi {
 
   Future<JsHostReply> _batch(Map<String, Object?> payload) async {
     final requests = payload['requests'];
-    if (requests is! List) return const JsHostReply.error('requests must be a list');
+    if (requests is! List) {
+      return const JsHostReply.error('requests must be a list');
+    }
     final results = <Object?>[];
     for (final request in requests) {
       if (request is! Map) continue;
@@ -307,8 +309,9 @@ final class JsHostApi {
   }
 
   dom.Element? _first(dom.Document document, String selector) {
-    if (selector.trim().isEmpty)
+    if (selector.trim().isEmpty) {
       return document.body ?? document.documentElement;
+    }
     try {
       return document.querySelector(selector);
     } on Object {

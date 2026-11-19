@@ -81,7 +81,7 @@ final class MethodChannelCloudStreamBridge implements CloudStreamBridge {
           .invokeMethod<Object?>(command, arguments)
           .timeout(timeout);
       if (reply is Map) return Ok<Map<String, Object?>>(_stringKeyed(reply));
-      return Ok<Map<String, Object?>>(const <String, Object?>{});
+      return const Ok<Map<String, Object?>>(<String, Object?>{});
     } on TimeoutException {
       return Err<Map<String, Object?>>(
         PluginTimeoutError(
