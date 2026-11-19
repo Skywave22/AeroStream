@@ -41,6 +41,12 @@ dependencies:
   # the isolate API and the memory/time limits this runtime relies on.
   flutter_qjs: ^0.3.7
 
+  # Video playback. media_kit wraps libmpv and ships per-platform native
+  # libraries, which is what makes one player work on every target.
+  media_kit: ^1.2.6
+  media_kit_video: ^2.0.1
+  media_kit_libs_video: ^1.0.7
+
   # Utilities.
   collection: ^1.18.0
   logger: ^2.2.0

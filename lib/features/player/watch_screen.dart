@@ -7,9 +7,6 @@ import '../../domain/entities/stream_source.dart';
 import '../details/details_providers.dart';
 import 'playback_engine.dart';
 
-/// Overridden by a platform that ships a video pipeline.
-final playerEngineProvider = Provider<PlaybackEngine?>((ref) => null);
-
 /// Source selection and playback.
 ///
 /// The source list comes first, because with user-supplied extensions one title
@@ -108,11 +105,9 @@ class _Body extends StatelessWidget {
   Widget build(BuildContext context) {
     final source =
         selected ?? (result.sources.isEmpty ? null : result.sources.first);
-    final engineSurface = source == null
+    final engineSurface = source == null || !(engine?.supports(source) ?? false)
         ? null
-        : engine?.supports(source) ?? false
-            ? engine!.buildSurface(context, source)
-            : null;
+        : engine!.buildSurface(context, source, subtitles: result.subtitles);
 
     return Column(
       children: [

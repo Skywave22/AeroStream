@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'app/app.dart';
@@ -10,6 +11,8 @@ import 'core/platform/platform_profile.dart';
 import 'data/storage/file_artifact_store.dart';
 import 'data/storage/prefs_settings_store.dart';
 import 'data/storage/sqlite_extension_store.dart';
+import 'features/player/media_kit_engine.dart';
+import 'features/player/playback_engine.dart';
 import 'plugins/adapters/cloudstream/cloudstream_bridge.dart';
 import 'plugins/runtime/engine_factory.dart';
 
@@ -18,6 +21,8 @@ import 'plugins/runtime/engine_factory.dart';
 /// overrides. Widgets never construct a store themselves.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // libmpv, before any player is constructed.
+  MediaKit.ensureInitialized();
   AppLog.info('AeroStream starting');
 
   final platform = PlatformProfile.current;
@@ -48,6 +53,7 @@ Future<void> main() async {
         jsEngineFactoryProvider.overrideWithValue(
           createPlatformEngineFactory(),
         ),
+        playerEngineProvider.overrideWithValue(createPlaybackEngine()),
         if (cloudStream != null)
           cloudStreamBridgeProvider.overrideWithValue(cloudStream),
       ],
