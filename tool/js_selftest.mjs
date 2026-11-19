@@ -321,6 +321,35 @@ await run('Vega provider errors are contained', async () => {
     failed.error && String(failed.error.message).includes('kaboom'), JSON.stringify(failed));
 });
 
+await run('SkyStream host helpers exist', async () => {
+  const context = createContext();
+  const types = vm.runInContext(
+    "[typeof http_parallel, typeof getAndUnpack, typeof solveCaptcha, typeof crypto.decryptAES].join(',')",
+    context,
+  );
+  check('http_parallel, getAndUnpack, solveCaptcha, crypto.decryptAES are defined',
+    types === 'function,function,function,function', types);
+});
+
+await run('getAndUnpack strips P.A.C.K.E.R packing', async () => {
+  const context = createContext();
+  const packed = "eval(function(p,a,c,k,e,d){e=function(c){return c};return p}('0 1 2',62,3,'var|alpha|beta'.split('|'),0,{}))";
+  const flat = vm.runInContext(`getAndUnpack(${JSON.stringify(packed)})`, context);
+  check('words are substituted', flat === 'var alpha beta', flat);
+
+  const untouched = vm.runInContext("getAndUnpack('var a = 1;')", context);
+  check('code that is not packed comes back unchanged', untouched === 'var a = 1;', untouched);
+});
+
+await run('solveCaptcha explains itself instead of hanging', async () => {
+  const context = createContext();
+  const message = vm.runInContext(
+    "(function(){ try { solveCaptcha('x'); return 'no error'; } catch (e) { return e.message; } })()",
+    context,
+  );
+  check('it throws with a reason', String(message).includes('browser'), message);
+});
+
 await run('State isolation between contexts', async () => {
   const first = createContext();
   const second = createContext();

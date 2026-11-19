@@ -1,8 +1,12 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as html_parser;
+import 'package:pointycastle/block/aes.dart';
+import 'package:pointycastle/block/modes/cbc.dart';
+import 'package:pointycastle/export.dart' show KeyParameter, ParametersWithIV;
 
 import '../../core/errors/plugin_error.dart';
 import '../../core/logging/app_log.dart';
@@ -132,7 +136,7 @@ final class JsHostApi {
       case 'crypto:hmac':
         return _hmac(payload);
       case 'crypto:aes':
-        return _unsupported('AES decryption is not implemented yet');
+        return _aesDecrypt(payload);
       case 'text:b64encode':
         return _base64(payload, encode: true);
       case 'text:b64decode':
@@ -367,6 +371,107 @@ final class JsHostApi {
         ? crypto.Hmac(crypto.sha1, key)
         : crypto.Hmac(crypto.sha256, key);
     return JsHostReply(jsonEncode(hmac.convert(message).toString()));
+  }
+
+  /// AES-CBC decryption, the shape plugins use for "the API answers
+  /// base64(AES(payload))" endpoints.
+  ///
+  /// `data` is base64 or hex; `key` and `iv` are base64/hex when they look like
+  /// it and UTF-8 text otherwise, which is how these keys are written in the
+  /// wild. PKCS#7 padding is stripped when present, and the plaintext is
+  /// returned as text so `JSON.parse(await crypto.decryptAES(...))` just works.
+  JsHostReply _aesDecrypt(Map<String, Object?> payload) {
+    final data = _bytesFrom(payload['data'], preferText: false);
+    final key = _bytesFrom(payload['key']);
+    final iv = _bytesFrom(payload['iv']);
+
+    if (data == null || data.isEmpty) {
+      throw const PluginParseError(
+        'crypto.decryptAES needs base64 or hex data',
+      );
+    }
+    if (key == null || (key.length != 16 && key.length != 24 && key.length != 32)) {
+      throw const PluginParseError(
+        'crypto.decryptAES needs a 16, 24 or 32 byte key',
+      );
+    }
+    if (data.length % 16 != 0) {
+      throw const PluginParseError(
+        'crypto.decryptAES data is not a whole number of blocks',
+      );
+    }
+
+    final cipher = CBCBlockCipher(AESEngine())
+      ..init(
+        false,
+        ParametersWithIV(KeyParameter(key), iv ?? Uint8List(16)),
+      );
+
+    final plain = Uint8List(data.length);
+    for (var offset = 0; offset < data.length; offset += 16) {
+      cipher.processBlock(data, offset, plain, offset);
+    }
+
+    // Strip PKCS#7 padding only when it is well formed; some feeds pad with
+    // spaces or not at all.
+    var length = plain.length;
+    if (length > 0) {
+      final pad = plain[length - 1];
+      if (pad > 0 && pad <= 16 && pad <= length) {
+        var valid = true;
+        for (var i = length - pad; i < length; i++) {
+          if (plain[i] != pad) {
+            valid = false;
+            break;
+          }
+        }
+        if (valid) length -= pad;
+      }
+    }
+
+    return JsHostReply(
+      jsonEncode(utf8.decode(plain.sublist(0, length), allowMalformed: true)),
+    );
+  }
+
+  /// Decodes base64, then hex, then UTF-8 text, depending on what it looks like.
+  Uint8List? _bytesFrom(Object? value, {bool preferText = true}) {
+    final text = value?.toString() ?? '';
+    if (text.isEmpty) return null;
+
+    if (!preferText) {
+      final base64Bytes = _tryBase64(text);
+      if (base64Bytes != null) return base64Bytes;
+      final hexBytes = _tryHex(text);
+      if (hexBytes != null) return hexBytes;
+      return Uint8List.fromList(utf8.encode(text));
+    }
+
+    final hexBytes = _tryHex(text);
+    if (hexBytes != null) return hexBytes;
+    final base64Bytes = _tryBase64(text);
+    if (base64Bytes != null) return base64Bytes;
+    return Uint8List.fromList(utf8.encode(text));
+  }
+
+  Uint8List? _tryBase64(String text) {
+    if (!RegExp(r'^[A-Za-z0-9+/=_-]+$').hasMatch(text)) return null;
+    try {
+      return Uint8List.fromList(base64.decode(base64.normalize(text)));
+    } on FormatException {
+      return null;
+    }
+  }
+
+  Uint8List? _tryHex(String text) {
+    if (text.length.isOdd || !RegExp(r'^[0-9a-fA-F]+$').hasMatch(text)) {
+      return null;
+    }
+    final bytes = Uint8List(text.length ~/ 2);
+    for (var i = 0; i < bytes.length; i++) {
+      bytes[i] = int.parse(text.substring(i * 2, i * 2 + 2), radix: 16);
+    }
+    return bytes;
   }
 
   JsHostReply _base64(Map<String, Object?> payload, {required bool encode}) {

@@ -161,7 +161,7 @@ Subtitles are `{url, language?, label?}`.
 
 Vega providers expect an axios-like HTTP client and a Node-ish `crypto`; the
 bootstrap supplies both (`axios` over `http:get`/`http:post`, `crypto` over
-`crypto:md5`/`crypto:sha256`/`crypto:hmac`), plus `cheerio` via
+`crypto:md5`/`crypto:sha256`/`crypto:hmac`/`crypto:aes`), plus `cheerio` via
 `assets/js/cheerio_lite.js`.
 
 ---
@@ -243,12 +243,15 @@ the adapter is identical; where none exists the ecosystem is simply absent.
 | Plugin `settings` values (declared in `plugin.json`) | parsed and stored, no editing UI yet |
 | Byte proxy (`MAGIC_PROXY_v1`, `magic_m3u8:`) | reported as unavailable, never silently dropped |
 | DRM (Widevine/PlayReady: `drmKid`, `licenseUrl`, Vega `StreamDrm`) | flagged on the source; the bundled player has no CDM |
-| `solveCaptcha`, `parse_html`, `getAndUnpack`, `http_parallel` host helpers | not exposed to plugins yet; plugins that need them fail with a clear error |
+| `solveCaptcha` (needs a browser widget) | throws with that reason, so a plugin fails loudly instead of hanging |
 | CloudStream DEX execution | protocol + bridge only; no Kotlin host in this build |
 
 ## Sandbox rules
 
-Plugin code can: make HTTP requests to public hosts, parse HTML host-side, hash
-and base64, and read/write its own settings namespace. Plugin code cannot:
+Plugin code can: make HTTP requests to public hosts (singly or in parallel),
+parse HTML host-side, hash, HMAC, base64, AES-CBC decrypt, unpack P.A.C.K.E.R
+obfuscation, and read/write its own settings namespace. Crypto runs host-side
+(the keys and the plaintext never sit in the sandbox longer than one call);
+unpacking is pure string work and runs in-process. Plugin code cannot:
 reach the filesystem, spawn processes, read another plugin's settings, open
 sockets, or call any host channel not in the table above.

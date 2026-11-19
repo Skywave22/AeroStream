@@ -20,6 +20,9 @@ dependencies:
   # Networking.
   dio: ^5.4.3
 
+  # AES, for the plugins that decrypt their own API payloads.
+  pointycastle: ^3.7.0
+
   # Structured storage.
   sqlite3: ^2.4.0
   sqlite3_flutter_libs: ^0.5.24

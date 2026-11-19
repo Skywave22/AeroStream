@@ -296,6 +296,107 @@
     return sendMessage('http:batch', JSON.stringify({ requests: requests || [] }));
   };
 
+  // SkyStream's name for the same thing: many requests, one round trip.
+  globalThis.http_parallel = globalThis.http_batch;
+
+  /**
+   * P.A.C.K.E.R. deobfuscation.
+   *
+   * SkyStream ships this as a native helper; a plugin that scrapes an
+   * obfuscated player config calls it and gets readable JS back. The algorithm
+   * is the packed payload's own: decode the base-62 dictionary and substitute
+   * each word. It is plain string work, so it lives here rather than crossing
+   * the sandbox boundary.
+   */
+  globalThis.getAndUnpack = function (js) {
+    return unpack(js);
+  };
+
+  function unpack(js) {
+    var text = String(js === undefined || js === null ? '' : js);
+    // The packed call is the last `}('…', 62, N, '…'.split('|'), 0, {})`.
+    var call = /\}\s*\(\s*([\'"])/g;
+    var last = null;
+    var match;
+    while ((match = call.exec(text)) !== null) last = match;
+    if (!last) return text;
+
+    var quoteIndex = last.index + last[0].length - 1;
+    var payload = readJsString(text, quoteIndex);
+    if (!payload) return text;
+
+    var rest = text.slice(payload.end);
+    var numbers = /^\s*,\s*(\d+)\s*,\s*(\d+)\s*,/.exec(rest);
+    if (!numbers) return text;
+
+    var dictString = readJsString(rest, numbers[0].length);
+    if (!dictString) return text;
+
+    var base = parseInt(numbers[1], 10);
+    var count = parseInt(numbers[2], 10);
+    if (!(base > 1) || !(count >= 0)) return text;
+
+    // The dictionary is a string split on a separator the packer picks.
+    var splitCall = /^\s*\.split\(\s*(['"])([\s\S]?)\1/.exec(
+      rest.slice(dictString.end)
+    );
+    var separator = splitCall && splitCall[2] ? splitCall[2] : '|';
+    var words = dictString.text.split(separator);
+
+    var decodeWord = function (value) {
+      return (value < base ? '' : decodeWord(Math.floor(value / base))) +
+        ((value = value % base) > 35
+          ? String.fromCharCode(value + 29)
+          : value.toString(36));
+    };
+
+    var dictionary = {};
+    for (var index = 0; index < count; index++) {
+      dictionary[decodeWord(index)] = words[index] || decodeWord(index);
+    }
+    return payload.text.replace(/\b\w+\b/g, function (word) {
+      return Object.prototype.hasOwnProperty.call(dictionary, word)
+        ? dictionary[word]
+        : word;
+    });
+  }
+
+  /** Reads a JS string literal starting at `index` (which holds the quote). */
+  function readJsString(text, index) {
+    var quote = text.charAt(index);
+    if (quote !== "'" && quote !== '"') return null;
+    var out = '';
+    for (var i = index + 1; i < text.length; i++) {
+      var ch = text.charAt(i);
+      if (ch === '\\') {
+        var next = text.charAt(i + 1);
+        if (next === 'n') out += '\n';
+        else if (next === 'r') out += '\r';
+        else if (next === 't') out += '\t';
+        else if (next === '\\') out += '\\';
+        else if (next === quote) out += quote;
+        else if (next === '0') out += '\0';
+        else out += next;
+        i++;
+        continue;
+      }
+      if (ch === quote) return { text: out, end: i + 1 };
+      out += ch;
+    }
+    return null;
+  }
+
+  /**
+   * Captchas cannot be solved without a browser, and AeroStream does not embed
+   * one. Failing loudly with the reason is better than a plugin hanging on a
+   * promise that never settles.
+   */
+  globalThis.solveCaptcha = function () {
+    throw new Error(
+      'solveCaptcha is not available in AeroStream: it needs a browser widget'
+    );
+  };
+
   globalThis.fetch = function (url, options) {
     var opts = options || {};
     var headers = opts.headers || {};
@@ -351,6 +452,12 @@
     },
     aesDecrypt: function (payload) {
       return sendMessage('crypto:aes', JSON.stringify(payload || {}));
+    },
+    // SkyStream's SDK signature: crypto.decryptAES(data, key, iv).
+    decryptAES: function (data, key, iv) {
+      return sendMessage('crypto:aes', JSON.stringify({
+        data: data, key: key, iv: iv
+      }));
     },
     base64Encode: function (input) {
       return sendMessage('text:b64encode', JSON.stringify({ input: input }));
