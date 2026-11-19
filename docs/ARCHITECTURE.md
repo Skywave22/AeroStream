@@ -143,6 +143,19 @@ Every request passes `NetworkPolicy` first: no `localhost`, no `.local` or
   carrying their error so the UI can offer a retry per plugin instead of
   failing the whole search.
 
+## Playback
+
+`PlaybackEngine` is the second seam. `WatchScreen` resolves links through the
+plugin, ranks them, and shows the list; the chosen source goes to the engine.
+`MediaKitPlaybackEngine` owns one `Player` per surface — created with the
+surface, disposed with it — so switching sources tears the old decoder down
+rather than leaving it running behind the new one. Plugin headers travel with
+the media, and a preferred external subtitle is loaded when one exists.
+
+Where the native libraries are absent (unit tests), `playerEngineProvider` stays
+null and the watch screen explains that this build cannot decode the link and
+offers to copy it instead.
+
 ## Storage
 
 | What | Where | Why |

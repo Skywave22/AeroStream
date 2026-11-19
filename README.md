@@ -24,17 +24,16 @@ It runs three plugin ecosystems behind one unified interface:
 | 5 | Vega adapter | done |
 | 6 | CloudStream adapter (Android host) | done — Kotlin host pending |
 | 7 | Adaptive UI/UX | done |
-| 8 | Player | source selection done, playback pending |
+| 8 | Player | done — source selection, libmpv playback, subtitles |
 | 9 | Library, history, downloads | library done, history and downloads planned |
 | 10 | Settings, security, privacy | settings and persisted theme done |
 | 11 | Platform polish | planned |
 | 12 | Testing, performance, release | in progress |
 
 Plugins run on QuickJS, one isolate per plugin, behind a bridge that only
-exposes HTTP, HTML parsing, hashing, base64 and namespaced storage. One seam is
-still open on purpose: a video engine (`PlaybackEngine`). Until one is supplied
-the player resolves and lists sources, and says plainly that this build cannot
-decode them — nothing pretends to work.
+exposes HTTP, HTML parsing, hashing, base64 and namespaced storage. Playback is
+libmpv through `media_kit`, behind a `PlaybackEngine` seam so a build without
+the native libraries reports that instead of showing a black rectangle.
 
 See `docs/ARCHITECTURE.md` for the layer map, `docs/PLUGIN_SPEC.md` for the
 verified on-the-wire formats of all three ecosystems, and `docs/PLATFORMS.md`

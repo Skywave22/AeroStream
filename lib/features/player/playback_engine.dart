@@ -26,6 +26,6 @@ abstract interface class PlaybackEngine {
 
 /// The playback engine for this build, or null when there is none.
 ///
-/// Overridden at boot with [createPlaybackEngine]; left null in tests and in
+/// Overridden at boot with `createPlaybackEngine`; left null in tests and in
 /// builds without a video pipeline.
 final playerEngineProvider = Provider<PlaybackEngine?>((ref) => null);

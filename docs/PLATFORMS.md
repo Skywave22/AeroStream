@@ -22,7 +22,7 @@ compiled against all six targets, not just the one the developer had open.
 | CloudStream plugins | ✅ | host absent | host absent | host absent | host absent | — |
 | SQLite store | ✅ | ✅ | ✅ | ✅ | ✅ | — |
 | Filesystem artifacts | ✅ | ✅ | ✅ | ✅ | ✅ | — |
-| Video playback | planned | planned | planned | planned | planned | — |
+| Video playback | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 Two things gate a feature per platform, and both are explicit:
 
@@ -73,9 +73,10 @@ this repository.
 
 ## Known gaps
 
-* No video engine is wired yet: the watch screen resolves and lists sources,
-  and says so when it cannot play them. A `PlaybackEngine` implementation is
-  the one missing piece (see `lib/features/player/playback_engine.dart`).
+* Playback is libmpv through `media_kit`; the watch screen lists every source
+  the plugins returned and hands the chosen one to `MediaKitPlaybackEngine`.
+  A build without the native video libraries (tests) leaves
+  `playerEngineProvider` null and the screen says so.
 * The JavaScript engine is QuickJS, running on its own isolate per plugin
   (`lib/plugins/runtime/quickjs_engine.dart`, selected by
   `engine_factory.dart`). It is absent on web, where `dart:ffi` cannot exist
