@@ -152,7 +152,8 @@ class _DownloadTile extends ConsumerWidget {
                           : theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
-                  if (task.isActive || task.status == DownloadStatus.paused) ...[
+                  if (task.isActive ||
+                      task.status == DownloadStatus.paused) ...[
                     const SizedBox(height: 10),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(2),

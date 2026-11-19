@@ -74,9 +74,8 @@ final class DownloadTask {
   /// Whether the user can watch the file that is already on disk.
   bool get isPlayable => status == DownloadStatus.complete;
 
-  String get title => episode == null
-      ? item.title
-      : '${item.title} · ${episode!.label}';
+  String get title =>
+      episode == null ? item.title : '${item.title} · ${episode!.label}';
 
   DownloadTask copyWith({
     DownloadStatus? status,
@@ -84,33 +83,34 @@ final class DownloadTask {
     int? totalBytes,
     String? error,
     bool clearError = false,
-  }) => DownloadTask(
-    id: id,
-    item: item,
-    episode: episode,
-    url: url,
-    headers: headers,
-    fileName: fileName,
-    createdAt: createdAt,
-    status: status ?? this.status,
-    receivedBytes: receivedBytes ?? this.receivedBytes,
-    totalBytes: totalBytes ?? this.totalBytes,
-    error: clearError ? null : (error ?? this.error),
-  );
+  }) =>
+      DownloadTask(
+        id: id,
+        item: item,
+        episode: episode,
+        url: url,
+        headers: headers,
+        fileName: fileName,
+        createdAt: createdAt,
+        status: status ?? this.status,
+        receivedBytes: receivedBytes ?? this.receivedBytes,
+        totalBytes: totalBytes ?? this.totalBytes,
+        error: clearError ? null : (error ?? this.error),
+      );
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'id': id,
-    'item': item.toJson(),
-    'url': url,
-    'fileName': fileName,
-    'createdAt': createdAt.toIso8601String(),
-    'status': status.name,
-    'receivedBytes': receivedBytes,
-    if (episode != null) 'episode': episode!.toJson(),
-    if (headers.isNotEmpty) 'headers': headers,
-    if (totalBytes != null) 'totalBytes': totalBytes,
-    if (error != null) 'error': error,
-  };
+        'id': id,
+        'item': item.toJson(),
+        'url': url,
+        'fileName': fileName,
+        'createdAt': createdAt.toIso8601String(),
+        'status': status.name,
+        'receivedBytes': receivedBytes,
+        if (episode != null) 'episode': episode!.toJson(),
+        if (headers.isNotEmpty) 'headers': headers,
+        if (totalBytes != null) 'totalBytes': totalBytes,
+        if (error != null) 'error': error,
+      };
 
   factory DownloadTask.fromJson(Map<String, Object?> json) {
     final episodeJson = json['episode'];
@@ -118,9 +118,8 @@ final class DownloadTask {
     return DownloadTask(
       id: readString(json['id']) ?? '',
       item: MediaItem.fromJson(readMap(json['item'])),
-      episode: episodeJson is Map
-          ? Episode.fromJson(readMap(episodeJson))
-          : null,
+      episode:
+          episodeJson is Map ? Episode.fromJson(readMap(episodeJson)) : null,
       url: readString(json['url']) ?? '',
       headers: readStringMap(json['headers']),
       fileName: readString(json['fileName']) ?? 'download.bin',

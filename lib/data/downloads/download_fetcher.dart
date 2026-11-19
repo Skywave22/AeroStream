@@ -61,17 +61,16 @@ abstract interface class DownloadFetcher {
 /// Dio-backed fetcher: follows redirects, streams straight to disk.
 final class DioDownloadFetcher implements DownloadFetcher {
   DioDownloadFetcher({Dio? dio})
-    : _dio =
-          dio ??
-          Dio(
-            BaseOptions(
-              connectTimeout: const Duration(seconds: 30),
-              receiveTimeout: const Duration(minutes: 10),
-              followRedirects: true,
-              maxRedirects: 5,
-              responseType: ResponseType.stream,
-            ),
-          );
+      : _dio = dio ??
+            Dio(
+              BaseOptions(
+                connectTimeout: const Duration(seconds: 30),
+                receiveTimeout: const Duration(minutes: 10),
+                followRedirects: true,
+                maxRedirects: 5,
+                responseType: ResponseType.stream,
+              ),
+            );
 
   final Dio _dio;
 

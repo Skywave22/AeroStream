@@ -199,9 +199,7 @@ extension on _SourceList {
   ) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await ref
-          .read(downloadsProvider.notifier)
-          .enqueue(
+      await ref.read(downloadsProvider.notifier).enqueue(
             item: request.item,
             episode: request.episode,
             source: source,

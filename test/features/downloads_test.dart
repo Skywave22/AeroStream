@@ -82,7 +82,8 @@ StreamSource source({
   bool isHls = false,
   bool isDash = false,
   Map<String, String> headers = const <String, String>{},
-}) => StreamSource(url: url, isHls: isHls, isDash: isDash, headers: headers);
+}) =>
+    StreamSource(url: url, isHls: isHls, isDash: isDash, headers: headers);
 
 typedef Harness = ({
   ProviderContainer container,
@@ -150,7 +151,8 @@ void main() {
 
       expect(task.status, DownloadStatus.queued);
       // Let the (fake) transfer finish.
-      await pumpUntil(() => h.container.read(downloadsProvider).first.isPlayable);
+      await pumpUntil(
+          () => h.container.read(downloadsProvider).first.isPlayable);
 
       final done = h.container.read(downloadsProvider).single;
       expect(done.status, DownloadStatus.complete);
@@ -167,7 +169,8 @@ void main() {
         item: movie(),
         source: source(headers: {'Referer': 'https://origin.test'}),
       );
-      await pumpUntil(() => h.container.read(downloadsProvider).first.isPlayable);
+      await pumpUntil(
+          () => h.container.read(downloadsProvider).first.isPlayable);
       expect(h.fetcher.headersSeen.single, {'Referer': 'https://origin.test'});
     });
 
@@ -197,7 +200,8 @@ void main() {
     });
 
     test('one task per title, and no duplicate queueing', () async {
-      final h = harness(fetcher: FakeDownloadFetcher()..gate = Completer<void>());
+      final h =
+          harness(fetcher: FakeDownloadFetcher()..gate = Completer<void>());
       final controller = h.container.read(downloadsProvider.notifier);
       final item = movie();
 
@@ -230,7 +234,8 @@ void main() {
         episode: const Episode(id: 's1e2', url: 'u2', number: 2),
         source: source(url: 'https://cdn.test/e2.mp4'),
       );
-      await pumpUntil(() => h.container.read(downloadsProvider).every((t) => t.isPlayable));
+      await pumpUntil(
+          () => h.container.read(downloadsProvider).every((t) => t.isPlayable));
       expect(h.container.read(downloadsProvider), hasLength(2));
       expect(
         h.container.read(downloadsProvider).map((task) => task.title),
@@ -240,7 +245,8 @@ void main() {
 
     test('cancelling stops the transfer, deletes the file and keeps the task',
         () async {
-      final h = harness(fetcher: FakeDownloadFetcher()..gate = Completer<void>());
+      final h =
+          harness(fetcher: FakeDownloadFetcher()..gate = Completer<void>());
       final controller = h.container.read(downloadsProvider.notifier);
       final task = await controller.enqueue(item: movie(), source: source());
 
@@ -251,7 +257,8 @@ void main() {
       h.fetcher.gate!.complete();
 
       await pumpUntil(
-        () => h.container.read(downloadsProvider).single.status ==
+        () =>
+            h.container.read(downloadsProvider).single.status ==
             DownloadStatus.paused,
       );
       final paused = h.container.read(downloadsProvider).single;
@@ -268,7 +275,8 @@ void main() {
       await controller.enqueue(item: movie(), source: source());
 
       await pumpUntil(
-        () => h.container.read(downloadsProvider).single.status ==
+        () =>
+            h.container.read(downloadsProvider).single.status ==
             DownloadStatus.failed,
       );
       final failed = h.container.read(downloadsProvider).single;
@@ -315,7 +323,9 @@ void main() {
         source: source(url: 'https://cdn.test/b.mp4'),
       );
       await pumpUntil(
-        () => h.container.read(downloadsProvider).every((task) => task.isPlayable),
+        () => h.container
+            .read(downloadsProvider)
+            .every((task) => task.isPlayable),
       );
 
       final first = h.container.read(downloadsProvider).first;

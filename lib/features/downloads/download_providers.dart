@@ -26,8 +26,8 @@ final downloadFetcherProvider = Provider<DownloadFetcher>(
 /// The download queue, newest first.
 final downloadsProvider =
     NotifierProvider<DownloadsController, List<DownloadTask>>(
-      DownloadsController.new,
-    );
+  DownloadsController.new,
+);
 
 /// A download that cannot be started, with a reason worth showing.
 final class DownloadRejected implements Exception {
@@ -92,11 +92,11 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
 
   /// The file [task] points at, ready to hand to a player.
   StreamSource playableSource(DownloadTask task) => StreamSource(
-    url: 'file://${pathFor(task)}',
-    quality: task.episode?.label ?? 'Downloaded',
-    isHls: false,
-    isDash: false,
-  );
+        url: 'file://${pathFor(task)}',
+        quality: task.episode?.label ?? 'Downloaded',
+        isHls: false,
+        isDash: false,
+      );
 
   DownloadTask? taskFor(MediaItem item, {Episode? episode}) {
     final id = _idFor(item, episode);
@@ -141,9 +141,7 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
       url: source.url,
       headers: source.headers,
       fileName: downloadFileName(
-        title: episode == null
-            ? item.title
-            : '${item.title} ${episode.label}',
+        title: episode == null ? item.title : '${item.title} ${episode.label}',
         extension: extensionForUrl(source.url),
       ),
       createdAt: DateTime.now(),
@@ -197,14 +195,13 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
 
     final destination = pathFor(task);
     try {
-      final bytes = await ref
-          .read(downloadFetcherProvider)
-          .download(
+      final bytes = await ref.read(downloadFetcherProvider).download(
             url: Uri.parse(task.url),
             headers: task.headers,
             destination: destination,
             ticket: ticket,
-            onProgress: (received, total) => _reportProgress(id, received, total),
+            onProgress: (received, total) =>
+                _reportProgress(id, received, total),
           );
       final finished = _byId(id);
       if (finished == null) return;
@@ -265,9 +262,8 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
     _tickets[id]?.cancel();
     _tickets.remove(id);
     await _deleteFile(pathFor(task));
-    state = state
-        .where((existing) => existing.id != id)
-        .toList(growable: false);
+    state =
+        state.where((existing) => existing.id != id).toList(growable: false);
     await _persist();
   }
 
@@ -275,9 +271,7 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
     for (final task in state.where((task) => task.isPlayable)) {
       await _deleteFile(pathFor(task));
     }
-    state = state
-        .where((task) => !task.isPlayable)
-        .toList(growable: false);
+    state = state.where((task) => !task.isPlayable).toList(growable: false);
     await _persist();
   }
 
@@ -298,12 +292,15 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
     final task = _byId(id);
     if (task == null) return;
     final isComplete = total != null && total > 0 && received >= total;
-    if (!isComplete && last != null && now.difference(last) < _progressInterval) {
+    if (!isComplete &&
+        last != null &&
+        now.difference(last) < _progressInterval) {
       return;
     }
     _lastProgressAt[id] = now;
     _replace(
-      task.copyWith(receivedBytes: received, totalBytes: total ?? task.totalBytes),
+      task.copyWith(
+          receivedBytes: received, totalBytes: total ?? task.totalBytes),
     );
   }
 
@@ -346,11 +343,10 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
   }
 
   Future<void> _persist() async {
-    await ref
-        .read(settingsStoreProvider)
-        .setString(
+    await ref.read(settingsStoreProvider).setString(
           storageKey,
-          jsonEncode(state.map((task) => task.toJson()).toList(growable: false)),
+          jsonEncode(
+              state.map((task) => task.toJson()).toList(growable: false)),
         );
   }
 }
