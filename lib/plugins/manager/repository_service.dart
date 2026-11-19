@@ -12,6 +12,7 @@ import '../../domain/entities/plugin_repository.dart';
 import '../../domain/repositories/extension_store.dart';
 import '../manifest/plugin_list_parser.dart';
 import '../manifest/repository_manifest.dart';
+import 'repository_input.dart';
 
 /// Adds, refreshes and removes plugin repositories.
 ///
@@ -29,45 +30,75 @@ final class RepositoryService {
   final HttpService _http;
   final ExtensionStore _store;
 
-  /// Adds a repository from a user-entered URL.
+  /// Adds a repository from whatever the user typed.
+  ///
+  /// The three ecosystems accept different input — a manifest URL, a
+  /// `cloudstreamrepo://` deep link, a `cutt.ly` shortcode, a Vega author name —
+  /// so normalisation happens in [RepositoryInputResolver] and this method only
+  /// has to try the resulting URLs until one parses.
   Future<Result<PluginRepository>> addRepository(String input) async {
-    final normalized = normalizeUrl(input);
-    if (normalized == null) {
-      return const Err<PluginRepository>(
-        PluginParseError(
-          'That does not look like a repository URL',
-          field: 'url',
-        ),
-      );
+    final resolved = await RepositoryInputResolver(
+      followRedirect: _followRedirect,
+    ).resolve(input);
+    if (resolved is Err<RepositoryInput>) {
+      return Err<PluginRepository>(resolved.error);
     }
-    final uri = Uri.parse(normalized);
+    final target = (resolved as Ok<RepositoryInput>).value;
 
-    final fetched = await _http.get(uri);
-    if (fetched is Err<HttpPayload>) {
-      return Err<PluginRepository>(fetched.error);
-    }
-    final body = (fetched as Ok<HttpPayload>).value.text;
+    PluginError? lastError;
+    for (final uri in target.attempts) {
+      final fetched = await _http.get(uri);
+      if (fetched is Err<HttpPayload>) {
+        lastError = fetched.error;
+        continue;
+      }
+      final body = (fetched as Ok<HttpPayload>).value.text;
+      final decoded = _tryDecode(body);
 
-    // Vega publishes the provider array itself; everything else publishes a
-    // repository manifest that points at plugin lists.
-    final decoded = _tryDecode(body);
-    if (decoded is List) {
-      return _addVegaRepository(uri, body);
-    }
-    if (decoded is! Map) {
-      return const Err<PluginRepository>(
-        PluginParseError(
+      // Vega publishes the provider array itself; the other two publish a
+      // repository manifest that points at plugin lists.
+      if (decoded is List) {
+        return _addVegaRepository(uri, body);
+      }
+      if (decoded is! Map) {
+        lastError = const PluginParseError(
           'The URL did not return a repository manifest',
           field: 'root',
-        ),
+        );
+        continue;
+      }
+
+      final manifest = RepositoryManifest.parse(body, sourceUrl: uri.toString());
+      if (manifest is Err<RepositoryManifest>) {
+        lastError = manifest.error;
+        continue;
+      }
+      return _storeRepository(
+        (manifest as Ok<RepositoryManifest>).value,
+        sourceUrl: uri.toString(),
       );
     }
 
-    final manifest = RepositoryManifest.parse(body, sourceUrl: normalized);
-    if (manifest is Err<RepositoryManifest>) {
-      return Err<PluginRepository>(manifest.error);
-    }
-    final parsed = (manifest as Ok<RepositoryManifest>).value;
+    return Err<PluginRepository>(
+      lastError ??
+          const PluginParseError(
+            'No repository answered at that address',
+            field: 'url',
+          ),
+    );
+  }
+
+  /// One hop of redirect, http(s) only. Shortcodes are the only thing that
+  /// needs this, and they never legitimately chain.
+  Future<Uri?> _followRedirect(Uri url) async {
+    final result = await _http.resolveRedirect(url);
+    return result is Ok<Uri> ? result.value : null;
+  }
+
+  Future<Result<PluginRepository>> _storeRepository(
+    RepositoryManifest parsed, {
+    required String sourceUrl,
+  }) async {
     if (!parsed.isUsable) {
       return const Err<PluginRepository>(
         PluginParseError(
@@ -77,13 +108,12 @@ final class RepositoryService {
       );
     }
 
+    final id = _repositoryId(parsed, sourceUrl);
+
     // Learn the ecosystem from the first list we can read.
     PluginEcosystem ecosystem = PluginEcosystem.skystream;
     for (final listUrl in parsed.pluginLists) {
-      final listing = await fetchPluginList(
-        listUrl,
-        repositoryId: _repositoryId(parsed, normalized),
-      );
+      final listing = await fetchPluginList(listUrl, repositoryId: id);
       if (listing is Ok<ParsedPluginList>) {
         ecosystem = listing.value.ecosystem;
         break;
@@ -91,9 +121,9 @@ final class RepositoryService {
     }
 
     final repository = PluginRepository(
-      id: _repositoryId(parsed, normalized),
+      id: id,
       name: parsed.name,
-      url: normalized,
+      url: sourceUrl,
       ecosystem: ecosystem,
       description: parsed.description,
       iconUrl: parsed.iconUrl,
@@ -289,28 +319,6 @@ final class RepositoryService {
 
   Future<void> remove(PluginRepository repository) =>
       _store.deleteRepository(repository.id);
-
-  /// Accepts `host.tld/path`, `https://…` and `http://…`.
-  ///
-  /// A bare string that contains a dot and no spaces is assumed to be https;
-  /// anything else is rejected rather than guessed at.
-  static String? normalizeUrl(String input) {
-    final trimmed = input.trim();
-    if (trimmed.isEmpty) return null;
-    if (trimmed.contains(RegExp(r'\s'))) return null;
-
-    final withScheme = trimmed.contains('://')
-        ? trimmed
-        : trimmed.startsWith('//')
-            ? 'https:$trimmed'
-            : 'https://$trimmed';
-
-    final uri = Uri.tryParse(withScheme);
-    if (uri == null) return null;
-    if (uri.scheme != 'http' && uri.scheme != 'https') return null;
-    if (uri.host.isEmpty || !uri.host.contains('.')) return null;
-    return uri.toString();
-  }
 
   static String _repositoryId(RepositoryManifest manifest, String url) =>
       manifest.packageName ?? _hashId(url);

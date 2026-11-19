@@ -1,6 +1,7 @@
 import 'package:aerostream/core/result.dart';
 import 'package:aerostream/core/utils/version.dart';
 import 'package:aerostream/domain/entities/enums.dart';
+import 'package:aerostream/domain/entities/plugin_repository.dart';
 import 'package:aerostream/plugins/manifest/plugin_list_parser.dart';
 import 'package:aerostream/plugins/manifest/repository_manifest.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -213,6 +214,57 @@ void main() {
       );
       expect(provider.settings, contains('settings'));
       expect(result.plugins.last.isWorking, isFalse);
+    });
+
+    test('a Vega provider path replaces dist/<value>', () {
+      final result = PluginListParser.parse(
+        '''[
+          {"value": "nested", "display_name": "Nested", "version": "1.0",
+           "path": "providers/nested"},
+          {"value": "escape", "display_name": "Escape", "path": "../outside"},
+          {"value": "absolute", "display_name": "Absolute",
+           "path": "https://evil.example/x"}
+        ]''',
+        sourceUrl: 'https://example.com/repo/manifest.json',
+        repositoryId: 'vega',
+      ).valueOrNull!;
+
+      expect(
+        result.plugins.first.downloadUrl,
+        'https://example.com/repo/providers/nested/',
+      );
+      // A path that leaves the source folder is ignored, not followed.
+      expect(
+        result.plugins[1].downloadUrl,
+        'https://example.com/repo/dist/escape/',
+      );
+      expect(
+        result.plugins[2].downloadUrl,
+        'https://example.com/repo/dist/absolute/',
+      );
+    });
+
+    test('CloudStream status codes mean what CloudStream says they mean', () {
+      AvailablePlugin status(int code) => PluginListParser.parse(
+        '[{"url":"https://e.test/a.cs3","internalName":"A","name":"A",'
+        '"status":$code,"version":1,"apiVersion":1,"tvTypes":["Movie"]}]',
+        sourceUrl: 'https://e.test/plugins.json',
+        repositoryId: 'cs',
+      ).valueOrNull!.plugins.single;
+
+      expect(status(1).isWorking, isTrue);
+      expect(status(1).statusNote, isNull);
+
+      expect(status(2).isWorking, isTrue, reason: 'slow is installable');
+      expect(status(2).isSlow, isTrue);
+      expect(status(2).statusNote, 'Reported slow');
+
+      expect(status(3).isWorking, isTrue, reason: 'beta is installable');
+      expect(status(3).isBeta, isTrue);
+      expect(status(3).statusNote, 'Beta channel only');
+
+      expect(status(0).isWorking, isFalse);
+      expect(status(0).isInstallable(isAndroid: true), isFalse);
     });
 
     test('detects the ecosystem from entry shape', () {

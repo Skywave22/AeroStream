@@ -122,6 +122,38 @@ final class VegaAdapter implements MediaProvider {
     MediaItem item, {
     Season? season,
   }) async {
+    // Vega splits series in two: `meta.js` says there are episodes and gives the
+    // handle, `episodes.js getEpisodes({url})` returns them. Providers that put
+    // episodes inline in `getMeta` still work through the fallback.
+    var link = readString(item.extras['episodesLink']);
+    if (link == null || link.isEmpty) {
+      // The caller may hold the shelf item rather than the loaded one; the
+      // handle only appears after `getMeta`.
+      final details = await getDetails(item);
+      if (details is Ok<MediaDetails>) {
+        link = readString(details.value.item.extras['episodesLink']);
+      }
+    }
+    if (link != null && link.isNotEmpty) {
+      final response = await _call(
+        'episodes',
+        'getEpisodes',
+        <String, Object?>{'url': link, 'link': link, 'providerValue': providerValue},
+      );
+      if (response is Ok<Object?>) {
+        final mapped = mapEpisodes(response.value);
+        if (mapped.isNotEmpty) {
+          return Ok<List<Episode>>(
+            season == null
+                ? mapped
+                : mapped
+                      .where((episode) => episode.seasonNumber == season.number)
+                      .toList(growable: false),
+          );
+        }
+      }
+    }
+
     final details = await getDetails(item);
     return switch (details) {
       Err<MediaDetails>(:final error) => Err<List<Episode>>(error),
@@ -129,6 +161,41 @@ final class VegaAdapter implements MediaProvider {
           season == null ? value.episodes : value.episodesOf(season.number),
         ),
     };
+  }
+
+  /// `EpisodeLink[]`: `{id?, title, link, sourceLink?, description?, image?}`.
+  List<Episode> mapEpisodes(Object? raw) {
+    final episodes = <Episode>[];
+    for (final entry in AdapterSupport.items(raw)) {
+      final link = readString(entry['link']) ?? readString(entry['url']);
+      if (link == null || link.isEmpty) continue;
+      final title = readString(entry['title']) ?? readString(entry['name']);
+      episodes.add(
+        Episode(
+          id: AdapterSupport.itemId(
+            '${info.id}/episode',
+            url: link,
+            title: title,
+          ),
+          url: link,
+          number: readInt(entry['episode']) ??
+              readInt(entry['number']) ??
+              episodes.length + 1,
+          seasonNumber:
+              readInt(entry['season']) ?? readInt(entry['seasonNumber']) ?? 1,
+          title: title,
+          description: readString(entry['description']),
+          thumbnailUrl: AdapterSupport.imageUrl(entry['image']),
+          runtimeMinutes: readInt(entry['runtime'] ?? entry['duration']),
+          airDate: readDate(entry['airDate'] ?? entry['released']),
+          extras: <String, Object?>{
+            if (readString(entry['sourceLink']) != null)
+              'sourceLink': readString(entry['sourceLink']),
+          },
+        ),
+      );
+    }
+    return List<Episode>.unmodifiable(episodes);
   }
 
   @override
@@ -258,6 +325,10 @@ final class VegaAdapter implements MediaProvider {
     return MediaDetails(
       item: item.copyWith(
         type: episodes.isEmpty ? item.type : MediaType.series,
+        extras: <String, Object?>{
+          ...item.extras,
+          if (_episodesLink(map) case final link?) 'episodesLink': link,
+        },
       ),
       description: readString(map['description']) ?? item.description,
       genres: readStringList(map['genres'] ?? map['tags']),
@@ -282,6 +353,19 @@ final class VegaAdapter implements MediaProvider {
       runtimeMinutes: readInt(map['runtime'] ?? map['duration']),
       headers: readStringMap(map['headers']),
     );
+  }
+
+  /// The handle `episodes.js` is called with: `episodesLink` on the metadata,
+  /// or the first `linkList` entry that has one (that is where Vega providers
+  /// usually put it).
+  static String? _episodesLink(Map<String, Object?> map) {
+    final direct = readString(map['episodesLink']);
+    if (direct != null && direct.isNotEmpty) return direct;
+    for (final entry in AdapterSupport.items(map['linkList'])) {
+      final link = readString(entry['episodesLink']);
+      if (link != null && link.isNotEmpty) return link;
+    }
+    return null;
   }
 
   List<MediaItem> _items(Object? raw) {

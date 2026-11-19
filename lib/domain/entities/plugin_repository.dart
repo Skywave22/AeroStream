@@ -182,13 +182,29 @@ final class AvailablePlugin {
 
   final int? apiVersion;
 
-  /// CloudStream uses 1 for working, other values for disabled/broken.
+  /// CloudStream's own status codes: 0 down, 1 ok, 2 slow, 3 beta only.
+  ///
+  /// Only 0 means "do not install"; 2 and 3 are installable and worth a note
+  /// beside the button rather than a hidden plugin.
   final int status;
 
   /// Setting keys a plugin declares in its manifest.
   final List<String> settings;
 
-  bool get isWorking => status == 1;
+  /// Nothing published with status 0 should be offered for install.
+  bool get isWorking => status != 0;
+
+  bool get isSlow => status == 2;
+
+  bool get isBeta => status == 3;
+
+  /// What the extensions list should say next to this plugin, if anything.
+  String? get statusNote => switch (status) {
+    0 => 'Reported down by the repository',
+    2 => 'Reported slow',
+    3 => 'Beta channel only',
+    _ => null,
+  };
 
   AvailablePlugin copyWith({
     String? id,

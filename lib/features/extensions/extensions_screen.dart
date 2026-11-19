@@ -322,6 +322,9 @@ class _AvailableTile extends ConsumerWidget {
               'v${plugin.version.raw}',
               if (installedVersion != null)
                 'installed v${installedVersion.raw}',
+              // CloudStream repositories flag providers as slow or beta; the
+              // user should see that before installing, not after.
+              if (plugin.statusNote case final note?) note,
               if (reason != null) reason,
             ].join(' · '),
             style: Theme.of(context).textTheme.bodySmall,
@@ -443,7 +446,10 @@ class _RepositoriesTab extends ConsumerWidget {
                   controller: controller,
                   autofocus: true,
                   decoration: const InputDecoration(
-                    hintText: 'https://example.com/repo.json',
+                    hintText: 'Repo URL, shortcode or Vega author',
+                    helperText: 'A URL, a CloudStream/SkyStream shortcode '
+                        '(abc123), or a Vega author (name, name@gl)',
+                    helperMaxLines: 2,
                   ),
                 ),
                 const SizedBox(height: 12),

@@ -17,11 +17,33 @@ A repository always answers with the same outer manifest:
 ```
 
 `pluginLists` may be relative; entries are resolved against the manifest URL.
-Some repositories also publish `includedRepos` (CloudStream mega-repos), which
-AeroStream follows one level deep.
+CloudStream's own `Repository` data class is exactly these five fields
+(`iconUrl`, `name`, `description`, `manifestVersion`, `pluginLists`) — there is
+no `includedRepos` key in the format. AeroStream still follows a `repos` /
+`includedRepos` array when a fork publishes one, but treats it as an extension,
+not as part of the contract.
 
 What a plugin *is* depends on what a plugin-list entry points at: a `.sky` zip,
 a directory of Vega modules, or a `.cs3` file. That decides the ecosystem.
+
+### Adding a source: what the box accepts
+
+The three ecosystems do not agree on what belongs in "Add repository", and each
+one's answer is its own convention:
+
+| Input | Understood as |
+| --- | --- |
+| `https://…/repo.json` | a manifest (SkyStream, CloudStream) |
+| `https://…/manifest.json`, or a folder on any host | a Vega source; `/manifest.json` is appended |
+| `cloudstreamrepo://<rest>`, `https://cs.repo/?<rest>` | CloudStream deep link: the prefix is stripped |
+| `abc123` | a `cutt.ly/abc123` shortcode (CloudStream, SkyStream); `!abc123` goes through `py.md` |
+| `author`, `author@gl` (`@cb`, `@bb`, `@gh`) | a Vega author: `author/vega-providers` on that host |
+| `https://github.com/<author>/<repo>[/tree/<branch>]` (also Codeberg, GitLab, Bitbucket, raw.githubusercontent) | a Vega source, canonicalised to its raw base |
+
+A bare word is ambiguous (`author` could be a shortcode or a Vega author), so
+resolution is a cascade: the redirect service is asked first, then the Vega
+convention. Exactly one hop is followed and only http(s) targets are accepted —
+a shortcode is not allowed to become a redirect-following primitive.
 
 ---
 
@@ -47,6 +69,16 @@ a directory of Vega modules, or a `.cs3` file. That decides the ecosystem.
 `version` is an integer, not a semver string. `packageName` must match the id
 the repository listed; a mismatch is a parse error and the install is rejected.
 
+Two further manifest keys exist and are handled:
+
+* `domains` — mirrors. Published either as strings or as `{name, url}` objects;
+  the app is expected to let the user pick one and inject it as
+  `manifest.baseUrl`. *AeroStream parses and keeps them but does not yet offer
+  the picker* — see "Not implemented" at the end.
+* `providers` — sub-providers of one JS bundle. Each entry (`{id, name,
+  baseUrl?}`) becomes a provider instance with `manifest.baseUrl` or
+  `manifest.providerId` injected. *Same status: parsed, not yet selectable.*
+
 `plugin.js` runs with these globals available:
 
 | Global | Signature | Returns |
@@ -56,7 +88,16 @@ the repository listed; a mismatch is a parse error and the install is rejected.
 | `load` | `(url, callback)` | item with `episodes` / `streams` |
 | `loadStreams` | `(url, callback)` | `{success, data: [Stream]} ` |
 
-Callbacks receive `{success, data}`. A category named `Trending` is rendered as
+Callbacks receive `{success, data}`. A `Stream` is
+`{url, source?, quality?, headers?, subtitles?, drmKid?, licenseUrl?}` where
+`quality` is a **number** (`1080`) or a string (`"720p"`), and `0`/`"Auto"`
+marks an HLS master. Subtitles are `{url, label, lang}` and may sit on the
+envelope or on a single stream.
+
+Links that begin `MAGIC_PROXY_v1` or `magic_m3u8:` only work inside SkyStream's
+own byte proxy. AeroStream reports how many were skipped instead of dropping
+them silently, and flags `drmKid`/`licenseUrl` streams as DRM-protected so the
+player can say so instead of failing three seconds in. A category named `Trending` is rendered as
 the hero carousel. `type` is one of `movie`, `series`, `anime`, `livestream`.
 
 Helpers the bootstrap provides to plugin code:
@@ -90,14 +131,21 @@ itself, so adding it needs no separate manifest:
 ]
 ```
 
-Modules live under `dist/<value>/` and are CommonJS:
+Modules live under `dist/<value>/`, or under the entry's `path` when the
+manifest declares one (`{value, display_name, version, path}`), and are
+CommonJS:
 
 | Module | Functions AeroStream calls |
 | --- | --- |
 | `posts.js` | `getPosts({filter, page, providerValue})`, `getSearchPosts({searchQuery, page, providerValue})` |
 | `meta.js` | `getMeta({link, providerValue})` |
 | `stream.js` | `getStream({link, type, isDownload, providerValue})` |
+| `episodes.js` | `getEpisodes({url, providerValue})` — the `episodesLink` from `getMeta`'s `linkList` is the `url` |
 | `catalog.js`, `settings.js`, `headers.js` | optional; loaded when present |
+
+Vega's own downloader fetches `posts`, `meta`, `stream`, `catalog` (required)
+and `episodes`, `settings` (optional), so those six names are the ones that can
+exist in a bundle.
 
 Each module must export the function it is called for. AeroStream checks with
 `__vegaHas(module, fn)` before calling `__vegaCall(module, fn, optionsJson)`,
@@ -140,8 +188,10 @@ Repository entries look like:
 }
 ```
 
-`status` other than `1` means broken/disabled. `fileHash` is verified on install
-when present. `apiVersion` must be `1`.
+`status` follows CloudStream's own table: **0 down, 1 ok, 2 slow, 3 beta
+only**. Only `0` stops an install; 2 and 3 are installable and are labelled in
+the list ("Reported slow", "Beta channel only"). `fileHash` is verified on
+install when present. `apiVersion` must be `1`.
 
 ### The host contract
 
@@ -180,6 +230,16 @@ the adapter is identical; where none exists the ecosystem is simply absent.
 4. A plugin whose manifest id disagrees with the listing is rejected.
 5. Disabling a plugin keeps its files; uninstalling removes them and leaves
    library entries intact, marked unavailable.
+
+## Not implemented (and labelled as such in the app)
+
+| Capability | Where it would go |
+| --- | --- |
+| SkyStream `domains` mirror picker and `providers` sub-provider toggles | parsed from the manifest, no settings UI yet |
+| Byte proxy (`MAGIC_PROXY_v1`, `magic_m3u8:`) | reported as unavailable, never silently dropped |
+| DRM (Widevine/PlayReady: `drmKid`, `licenseUrl`, Vega `StreamDrm`) | flagged on the source; the bundled player has no CDM |
+| `solveCaptcha`, `parse_html`, `getAndUnpack`, `http_parallel` host helpers | not exposed to plugins yet; plugins that need them fail with a clear error |
+| CloudStream DEX execution | protocol + bridge only; no Kotlin host in this build |
 
 ## Sandbox rules
 

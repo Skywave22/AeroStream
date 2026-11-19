@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 
 import '../errors/plugin_error.dart';
+import 'redirect_location.dart';
 import '../result.dart';
 
 /// Limits applied to every download AeroStream performs.
@@ -68,6 +69,14 @@ abstract interface class HttpService {
     Object? body,
     Map<String, String>? headers,
   });
+
+  /// Where [url] redirects to, without downloading the body.
+  ///
+  /// Only the first hop is followed and only http(s) targets are returned:
+  /// shortcodes (`cutt.ly/<code>`, `py.md/<code>`) exist so a person can paste
+  /// four characters instead of a URL, and resolving one must not become a
+  /// general-purpose redirect follower for plugin code.
+  Future<Result<Uri>> resolveRedirect(Uri url);
 }
 
 /// Dio-backed implementation with the safety rails switched on.
@@ -115,6 +124,48 @@ final class DioHttpService implements HttpService {
                   'Content-Type': 'application/x-www-form-urlencoded'
               },
       );
+
+  @override
+  Future<Result<Uri>> resolveRedirect(Uri url) async {
+    if (url.scheme != 'http' && url.scheme != 'https') {
+      return Err<Uri>(
+        PluginSandboxError(
+          'Refusing to resolve a ${url.scheme} URL',
+          violation: 'network-scheme',
+        ),
+      );
+    }
+    try {
+      final response = await _dio.get<List<int>>(
+        url.toString(),
+        options: Options(
+          followRedirects: false,
+          validateStatus: (int? status) => status != null && status < 400,
+          responseType: ResponseType.bytes,
+        ),
+      );
+      final location = response.headers.value('location');
+      final target = parseRedirectLocation(location, url);
+      if (target == null) {
+        return Err<Uri>(
+          PluginNetworkError(
+            '${url.host} did not redirect anywhere useful',
+            url: url.toString(),
+          ),
+        );
+      }
+      return Ok<Uri>(target);
+    } on DioException catch (error) {
+      return Err<Uri>(
+        PluginNetworkError(
+          'Could not resolve that link: ${error.type.name}',
+          statusCode: error.response?.statusCode,
+          url: url.toString(),
+          cause: error,
+        ),
+      );
+    }
+  }
 
   Future<Result<HttpPayload>> _send(
     Uri url, {

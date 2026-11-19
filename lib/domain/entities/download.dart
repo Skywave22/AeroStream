@@ -141,8 +141,13 @@ final class DownloadTask {
 /// HLS and DASH are segment lists, not files. Saving them means fetching every
 /// segment and remuxing, which this build does not do — saying so up front is
 /// better than a download that silently produces a broken file.
-bool isDownloadableLink(String url, {bool isHls = false, bool isDash = false}) {
-  if (isHls || isDash) return false;
+bool isDownloadableLink(
+  String url, {
+  bool isHls = false,
+  bool isDash = false,
+  bool isDrmProtected = false,
+}) {
+  if (isHls || isDash || isDrmProtected) return false;
   final lower = url.toLowerCase();
   if (lower.contains('.m3u8') || lower.contains('.mpd')) return false;
   return lower.startsWith('http://') || lower.startsWith('https://');

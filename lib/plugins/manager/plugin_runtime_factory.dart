@@ -64,6 +64,7 @@ final class PluginRuntimeFactory {
     'catalog.js',
     'meta.js',
     'stream.js',
+    'episodes.js',
     'settings.js',
   ];
 

@@ -56,6 +56,25 @@ final class FakeHttpService implements HttpService {
     Map<String, String>? headers,
   }) =>
       get(url, headers: headers);
+
+  /// URL -> redirect target, for shortcode resolution in tests.
+  final Map<String, String> redirects = <String, String>{};
+
+  @override
+  Future<Result<Uri>> resolveRedirect(Uri url) async {
+    requested.add(url.toString());
+    final target = redirects[url.toString()];
+    if (target == null) {
+      return Err<Uri>(
+        PluginNetworkError(
+          'No redirect fixture for $url',
+          statusCode: 404,
+          url: url.toString(),
+        ),
+      );
+    }
+    return Ok<Uri>(Uri.parse(target));
+  }
 }
 
 /// In-memory [ExtensionStore].

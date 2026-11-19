@@ -14,6 +14,7 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
 
   @override
   bool supports(StreamSource source) {
+    if (source.isDrmProtected) return false;
     final url = source.url;
     // `file://` is how a finished download is played: same player, no network.
     return url.startsWith('https://') ||

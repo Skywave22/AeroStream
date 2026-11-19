@@ -120,6 +120,7 @@ final class SkyStreamAdapter implements MediaProvider {
           StreamResult(
             sources: mapStreams(value),
             subtitles: mapSubtitles(value),
+            diagnostics: mapDiagnostics(value),
           ),
         ),
     };
@@ -317,31 +318,98 @@ final class SkyStreamAdapter implements MediaProvider {
               readString(entry['label']) ??
               readString(entry['server']) ??
               'Default',
-          quality: readString(entry['quality']),
+          quality: qualityLabel(entry['quality']),
           headers: readStringMap(entry['headers']),
           isHls: url.toLowerCase().contains('.m3u8'),
           isDash: url.toLowerCase().contains('.mpd'),
           extractorName: readString(entry['extractor']),
+          isDrmProtected: _isDrm(entry),
         ),
       );
     }
     return List<StreamSource>.unmodifiable(sources);
   }
 
+  /// `quality` is a height in the SkyStream schema (`1080`, or the string
+  /// `"720p"`), and `0`/`"Auto"` marks an HLS master whose variants the player
+  /// picks. Numbers arrive as numbers, so `readString` alone would drop them.
+  static String? qualityLabel(Object? raw) {
+    if (raw == null) return null;
+    if (raw is num) return raw <= 0 ? null : '${raw.round()}';
+    final text = raw.toString().trim();
+    if (text.isEmpty) return null;
+    return text;
+  }
+
+  /// SkyStream reports DRM as a key id and/or a licence URL on the stream.
+  static bool _isDrm(Object? raw) {
+    final map = raw is Map ? readMap(raw) : const <String, Object?>{};
+    final kid = readString(map['drmKid']) ?? readString(map['drm_kid']);
+    final licence =
+        readString(map['licenseUrl']) ?? readString(map['license_url']);
+    return (kid?.isNotEmpty ?? false) || (licence?.isNotEmpty ?? false);
+  }
+
+  /// Things the user should know before pressing play.
+  ///
+  /// SkyStream lets a plugin hand back `MAGIC_PROXY_v1<base64>` and
+  /// `magic_m3u8:<base64>` pseudo-URLs that only work inside SkyStream's own
+  /// proxy. They are not playable here, so they are reported instead of
+  /// disappearing from the list with no explanation.
+  List<String> mapDiagnostics(Object? raw) {
+    final entries = raw is List
+        ? readMapList(raw)
+        : readMapList(raw is Map ? raw['streams'] : null);
+    var proxied = 0;
+    var drmVariant = 0;
+    for (final entry in entries) {
+      final url = readString(entry['url']) ?? readString(entry['link']) ?? '';
+      if (url.startsWith('MAGIC_PROXY_') || url.startsWith('magic_m3u8:')) {
+        proxied++;
+      } else if (_isDrm(entry)) {
+        drmVariant++;
+      }
+    }
+    return <String>[
+      if (proxied > 0)
+        '$proxied link${proxied == 1 ? '' : 's'} needed SkyStream\'s byte proxy '
+            'and cannot be played here',
+      if (drmVariant > 0)
+        '$drmVariant link${drmVariant == 1 ? '' : 's'} are DRM-protected and '
+            'cannot be decrypted here',
+    ];
+  }
+
+  /// Subtitles arrive either on the envelope or on each stream.
+  ///
+  /// The schema documents `{url, label, lang}` per stream, so a plugin that
+  /// attaches a track to the one source it belongs to is normal — merging both
+  /// places (de-duplicated by URL) is what keeps that track visible.
   List<SubtitleTrack> mapSubtitles(Object? raw) {
     final map = raw is Map ? readMap(raw) : const <String, Object?>{};
-    final entries = AdapterSupport.subtitles(
-      map['subtitles'] ?? map['tracks'],
-    );
+    final entries = <Map<String, Object?>>[
+      ...AdapterSupport.subtitles(map['subtitles'] ?? map['tracks']),
+    ];
+    final streams = raw is List
+        ? readMapList(raw)
+        : readMapList(map['streams']);
+    for (final stream in streams) {
+      entries.addAll(AdapterSupport.subtitles(stream['subtitles']));
+    }
+
     final tracks = <SubtitleTrack>[];
+    final seen = <String>{};
     for (final entry in entries) {
       final url = readString(entry['url']);
       if (url == null || !url.contains('://')) continue;
+      if (!seen.add(url)) continue;
       tracks.add(
         SubtitleTrack(
           url: url,
-          language: readString(entry['language']) ?? 'und',
-          label: readString(entry['label']),
+          language: readString(entry['language']) ??
+              readString(entry['lang']) ??
+              'und',
+          label: readString(entry['label']) ?? readString(entry['name']),
           format: readString(entry['format']) ?? 'vtt',
           headers: readStringMap(entry['headers']),
         ),

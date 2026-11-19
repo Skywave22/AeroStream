@@ -228,25 +228,4 @@ void main() {
     });
   });
 
-  group('normalizeUrl', () {
-    test('keeps a valid URL as-is', () {
-      expect(
-        RepositoryService.normalizeUrl('https://a.example/repo.json'),
-        'https://a.example/repo.json',
-      );
-    });
-
-    test('adds https to a bare host', () {
-      expect(
-        RepositoryService.normalizeUrl('a.example/repo.json'),
-        'https://a.example/repo.json',
-      );
-    });
-
-    test('rejects non-http schemes, spaces and non-hosts', () {
-      expect(RepositoryService.normalizeUrl('ftp://a.example/x'), isNull);
-      expect(RepositoryService.normalizeUrl('a b'), isNull);
-      expect(RepositoryService.normalizeUrl('localhost'), isNull);
-    });
-  });
 }

@@ -17,6 +17,7 @@ final class StreamSource {
     this.audioLanguage,
     this.sizeBytes,
     this.requiresProxy = false,
+    this.isDrmProtected = false,
   });
 
   final String url;
@@ -38,6 +39,13 @@ final class StreamSource {
   /// origin rejects unknown IPs or needs playlists rewritten).
   final bool requiresProxy;
 
+  /// The plugin reported DRM (Widevine key id, licence URL, …).
+  ///
+  /// The bundled player has no CDM, so this is surfaced rather than attempted:
+  /// a link that plays for three seconds and then dies is worse than a link
+  /// that says why it cannot be played.
+  final bool isDrmProtected;
+
   /// Whether the player can seek — live HLS usually cannot.
   bool get isLive => isHls && label.toLowerCase().contains('live');
 
@@ -55,6 +63,7 @@ final class StreamSource {
     String? audioLanguage,
     int? sizeBytes,
     bool? requiresProxy,
+    bool? isDrmProtected,
   }) =>
       StreamSource(
         url: url ?? this.url,
@@ -67,6 +76,7 @@ final class StreamSource {
         audioLanguage: audioLanguage ?? this.audioLanguage,
         sizeBytes: sizeBytes ?? this.sizeBytes,
         requiresProxy: requiresProxy ?? this.requiresProxy,
+        isDrmProtected: isDrmProtected ?? this.isDrmProtected,
       );
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -80,6 +90,7 @@ final class StreamSource {
         if (audioLanguage != null) 'audioLanguage': audioLanguage,
         if (sizeBytes != null) 'sizeBytes': sizeBytes,
         if (requiresProxy) 'requiresProxy': true,
+        if (isDrmProtected) 'isDrmProtected': true,
       };
 
   factory StreamSource.fromJson(Map<String, Object?> json) {
@@ -104,6 +115,7 @@ final class StreamSource {
       audioLanguage: readString(json['audioLanguage']),
       sizeBytes: readInt(json['sizeBytes']),
       requiresProxy: readBool(json['requiresProxy']),
+      isDrmProtected: readBool(json['isDrmProtected']),
     );
   }
 

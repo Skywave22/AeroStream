@@ -41,6 +41,17 @@ See `docs/ARCHITECTURE.md` for the layer map, `docs/PLUGIN_SPEC.md` for the
 verified on-the-wire formats of all three ecosystems, and `docs/PLATFORMS.md`
 for per-target build notes.
 
+The formats are checked against the upstream projects rather than guessed:
+[akashdh11/skystream](https://github.com/akashdh11/skystream) (plus
+[skystream-tools](https://github.com/akashdh11/skystream-tools) for the plugin
+manifest and CLI),
+[recloudstream/cloudstream](https://github.com/recloudstream/cloudstream) (the
+`Repository`/`SitePlugin` data classes and `RepositoryManager.parseRepoUrl`) and
+[vega-org/vega-app](https://github.com/vega-org/vega-app) (`ExtensionManager`,
+`helpers.ts`, `ProviderManager`). Where this app cannot do what they do — DRM,
+the byte proxy, captcha solving, DEX — it says so in `PLUGIN_SPEC.md` under
+"Not implemented", and in the UI at the point of use.
+
 ## Quick start
 
 ```bash

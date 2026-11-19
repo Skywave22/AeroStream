@@ -3,6 +3,7 @@ import 'package:aerostream/domain/entities/enums.dart';
 import 'package:aerostream/domain/entities/media_item.dart';
 import 'package:aerostream/domain/entities/plugin_info.dart';
 import 'package:aerostream/plugins/adapters/vega/vega_adapter.dart';
+import 'package:aerostream/plugins/manager/plugin_runtime_factory.dart';
 import 'package:aerostream/plugins/runtime/js_host_api.dart';
 import 'package:aerostream/plugins/runtime/js_plugin_host.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -79,6 +80,67 @@ void main() {
 
       expect(result.isErr, isTrue);
       expect(result.errorOrNull, isA<PluginUnsupportedError>());
+    });
+  });
+
+  group('VegaAdapter episodes', () {
+    test('getMeta exposes the episodes handle for episodes.js', () {
+      final details = _adapter().mapDetails(
+        <String, Object?>{
+          'title': 'Slow River',
+          'linkList': <Object?>[
+            <String, Object?>{'title': 'Season 1', 'episodesLink': 's1'},
+            <String, Object?>{'title': 'Season 2', 'episodesLink': 's2'},
+          ],
+        },
+        fallback: _item(url: 'https://example.com/show'),
+      );
+
+      expect(details.item.extras['episodesLink'], 's1');
+    });
+
+    test('an explicit episodesLink wins over the link list', () {
+      final details = _adapter().mapDetails(
+        <String, Object?>{
+          'episodesLink': 'direct',
+          'linkList': <Object?>[
+            <String, Object?>{'episodesLink': 'from-list'},
+          ],
+        },
+        fallback: _item(url: 'https://example.com/show'),
+      );
+
+      expect(details.item.extras['episodesLink'], 'direct');
+    });
+
+    test('EpisodeLink arrays map to episodes with their own links', () {
+      final episodes = _adapter().mapEpisodes(<Object?>[
+        <String, Object?>{
+          'title': 'Pilot',
+          'link': 'https://example.com/s1e1',
+          'image': 'https://example.com/e1.jpg',
+          'description': 'It begins.',
+        },
+        <String, Object?>{'title': 'no link, dropped'},
+        <String, Object?>{
+          'title': 'Second',
+          'link': 'https://example.com/s1e2',
+          'season': 2,
+          'episode': 4,
+        },
+      ]);
+
+      expect(episodes, hasLength(2));
+      expect(episodes.first.title, 'Pilot');
+      expect(episodes.first.thumbnailUrl, 'https://example.com/e1.jpg');
+      expect(episodes.first.description, 'It begins.');
+      expect(episodes.last.seasonNumber, 2);
+      expect(episodes.last.number, 4);
+      expect(episodes.last.id, isNot(episodes.first.id));
+    });
+
+    test('the runtime loads episodes.js', () {
+      expect(PluginRuntimeFactory.vegaModules, contains('episodes.js'));
     });
   });
 

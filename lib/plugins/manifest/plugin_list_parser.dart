@@ -196,8 +196,9 @@ abstract final class PluginListParser {
   ) {
     final value = readString(entry['value']) ?? readString(entry['id']);
     if (value == null || base == null) return null;
-    final distRoot = base.resolve('dist/');
-    final providerUrl = distRoot.resolve('$value/').toString();
+    // Vega providers live at `<source>/dist/<value>/`, unless the entry names a
+    // `path` — then the files are at `<source>/<path>/`.
+    final providerUrl = _vegaProviderUrl(base, value, readString(entry['path']));
     return AvailablePlugin(
       id: value,
       name: readString(entry['display_name']) ??
@@ -216,6 +217,24 @@ abstract final class PluginListParser {
           ? const <String>['settings']
           : const <String>[],
     );
+  }
+
+  /// Where a Vega provider's modules live.
+  ///
+  /// [path] is user-supplied JSON, so it is validated the way Vega validates it:
+  /// relative segments only, no `..`, no scheme, no backslashes or query.
+  static String _vegaProviderUrl(Uri base, String value, String? path) {
+    final folder = base.resolve('./');
+    if (path != null && path.isNotEmpty) {
+      final segments = path.split('/').where((s) => s.isNotEmpty).toList();
+      final safe = segments.isNotEmpty &&
+          !RegExp(r'[\\?#]|%2e', caseSensitive: false).hasMatch(path) &&
+          !RegExp(r'^[a-z][a-z0-9+.-]*:', caseSensitive: false)
+              .hasMatch(path) &&
+          segments.every((segment) => segment != '.' && segment != '..');
+      if (safe) return folder.resolve('${segments.join('/')}/').toString();
+    }
+    return folder.resolve('dist/$value/').toString();
   }
 
   static List<String> _settingKeys(Object? raw) {

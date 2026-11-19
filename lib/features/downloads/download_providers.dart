@@ -126,10 +126,15 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
       source.url,
       isHls: source.isHls,
       isDash: source.isDash,
+      isDrmProtected: source.isDrmProtected,
     )) {
-      throw const DownloadRejected(
-        'This link is a stream playlist, not a file. AeroStream saves '
-        'progressive HTTP links; for playlists use the player instead.',
+      throw DownloadRejected(
+        source.isDrmProtected
+            ? 'This link is DRM-protected: it cannot be saved or played '
+                  'here.'
+            : 'This link is a stream playlist, not a file. AeroStream saves '
+                  'progressive HTTP links; for playlists use the player '
+                  'instead.',
       );
     }
     final existing = taskFor(item, episode: episode);
