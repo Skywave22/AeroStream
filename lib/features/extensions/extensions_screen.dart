@@ -179,9 +179,7 @@ class _InstalledTile extends ConsumerWidget {
           if (!runsHere)
             Text(
               status?.reason ??
-                  actions
-                      .platform
-                      .unsupportedReason(plugin.info.ecosystem) ??
+                  actions.platform.unsupportedReason(plugin.info.ecosystem) ??
                   '',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.error,

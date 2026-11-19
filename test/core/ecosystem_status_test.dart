@@ -15,11 +15,12 @@ EcosystemStatus _for(
   PluginEcosystem ecosystem,
   PlatformProfile platform, {
   required bool host,
-}) => ecosystemStatus(
-  ecosystem,
-  platform: platform,
-  cloudStreamHost: host,
-);
+}) =>
+    ecosystemStatus(
+      ecosystem,
+      platform: platform,
+      cloudStreamHost: host,
+    );
 
 void main() {
   group('Android', () {
@@ -105,8 +106,9 @@ void main() {
   });
 
   test('a runnable status never carries a reason', () {
+    // Built at runtime: as a constant, the assertion would fire at compile time.
     expect(
-      () => const EcosystemStatus(
+      () => EcosystemStatus(
         ecosystem: PluginEcosystem.vega,
         runs: true,
         reason: 'contradiction',

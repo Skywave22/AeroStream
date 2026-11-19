@@ -42,7 +42,8 @@ List<EcosystemStatus> ecosystemStatuses({
 }) {
   return <EcosystemStatus>[
     for (final ecosystem in PluginEcosystem.values)
-      _statusFor(ecosystem, platform: platform, cloudStreamHost: cloudStreamHost),
+      _statusFor(ecosystem,
+          platform: platform, cloudStreamHost: cloudStreamHost),
   ];
 }
 
@@ -92,8 +93,9 @@ EcosystemStatus ecosystemStatus(
   PluginEcosystem ecosystem, {
   required PlatformProfile platform,
   required bool cloudStreamHost,
-}) => _statusFor(
-  ecosystem,
-  platform: platform,
-  cloudStreamHost: cloudStreamHost,
-);
+}) =>
+    _statusFor(
+      ecosystem,
+      platform: platform,
+      cloudStreamHost: cloudStreamHost,
+    );

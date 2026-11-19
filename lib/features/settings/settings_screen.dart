@@ -104,8 +104,8 @@ class SettingsScreen extends ConsumerWidget {
                 leading: Icon(
                   status.runs ? Icons.check_circle_outline : Icons.block,
                   color: status.runs
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.outline,
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.outline,
                 ),
                 title: Text(status.label),
                 subtitle: Text(
