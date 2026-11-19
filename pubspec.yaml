@@ -1,0 +1,48 @@
+name: aerostream
+description: >-
+  AeroStream is a cross-platform media client runtime. It ships with no
+  content of its own: everything it plays comes from plugins the user installs
+  (SkyStream, Vega and CloudStream ecosystems).
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management + navigation.
+  flutter_riverpod: ^2.5.1
+  go_router: ^14.2.0
+
+  # Networking.
+  dio: ^5.4.3
+
+  # Structured storage.
+  sqlite3: ^2.4.0
+  sqlite3_flutter_libs: ^0.5.24
+  path_provider: ^2.1.3
+  path: ^1.9.0
+  shared_preferences: ^2.2.3
+
+  # Plugin artifacts + untrusted payloads.
+  archive: ^3.4.9
+  crypto: ^3.0.3
+  html: ^0.15.4
+
+  # Utilities.
+  collection: ^1.18.0
+  logger: ^2.2.0
+  cached_network_image: ^3.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/js/

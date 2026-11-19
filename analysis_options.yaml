@@ -1,0 +1,39 @@
+# Analysis configuration for AeroStream.
+#
+# The goal is "code that cannot drift": strict casts so an untrusted plugin
+# payload can never slip into a typed field implicitly, and a curated lint set
+# that catches real defects instead of style churn.
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  language:
+    strict-casts: true
+  errors:
+    # Plugin manifests are untrusted maps; `Object?` is intentional there.
+    avoid_dynamic_calls: ignore
+
+linter:
+  rules:
+    - always_declare_return_types
+    - avoid_empty_else
+    - avoid_print
+    - avoid_relative_lib_imports
+    - avoid_slow_async_io
+    - avoid_type_to_string
+    - avoid_unnecessary_containers
+    - avoid_void_async
+    - cancel_subscriptions
+    - cast_nullable_to_non_nullable
+    - close_sinks
+    - comment_references
+    - directives_ordering
+    - empty_catches
+    - unnecessary_await_in_return
+    - unnecessary_lambdas
+    - unnecessary_parenthesis
+    - unnecessary_statements
+    - unawaited_futures
+    - use_colored_box
+    - use_decorated_box
+    - use_if_null_to_convert_nulls_to_bools
+    - use_super_parameters
