@@ -135,7 +135,8 @@ void main() {
       final failed = _FakeProvider(
         id: 'failed',
         priority: 0,
-        searchHandler: (query, page) async => const Err(PluginNetworkError('offline')),
+        searchHandler: (query, page) async =>
+            const Err(PluginNetworkError('offline')),
       );
 
       final groups = await CatalogService.search([failed, ok], 'dune');
@@ -205,7 +206,7 @@ final class _FakeProvider implements MediaProvider {
 
   final Future<Result<List<HomeSection>>> Function()? homeHandler;
   final Future<Result<SearchPage>> Function(String query, int page)?
-  searchHandler;
+      searchHandler;
 
   @override
   PluginCapabilities get capabilities => PluginCapabilities.all;
