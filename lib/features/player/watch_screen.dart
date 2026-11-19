@@ -235,8 +235,8 @@ class _EngineMissing extends StatelessWidget {
             source == null
                 ? 'No playable links'
                 : source!.isDrmProtected
-                ? 'DRM-protected link'
-                : 'No player in this build',
+                    ? 'DRM-protected link'
+                    : 'No player in this build',
             style: const TextStyle(color: Colors.white, fontSize: 18),
           ),
           const SizedBox(height: 8),
@@ -244,12 +244,12 @@ class _EngineMissing extends StatelessWidget {
             source == null
                 ? 'The extension returned no sources for this title.'
                 : source!.isDrmProtected
-                ? 'This link needs a DRM licence (Widevine or similar). '
-                      'AeroStream ships no content decryption module, so it '
-                      'cannot play it — copy the link into a player that can.'
-                : 'The links resolved, but this build has no video engine '
-                      'attached. Copy the link into a player that supports '
-                      '${source!.isHls ? 'HLS' : source!.isDash ? 'DASH' : 'this format'}.',
+                    ? 'This link needs a DRM licence (Widevine or similar). '
+                        'AeroStream ships no content decryption module, so it '
+                        'cannot play it — copy the link into a player that can.'
+                    : 'The links resolved, but this build has no video engine '
+                        'attached. Copy the link into a player that supports '
+                        '${source!.isHls ? 'HLS' : source!.isDash ? 'DASH' : 'this format'}.',
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.white54, height: 1.4),
           ),

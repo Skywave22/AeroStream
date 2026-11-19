@@ -390,9 +390,8 @@ final class SkyStreamAdapter implements MediaProvider {
     final entries = <Map<String, Object?>>[
       ...AdapterSupport.subtitles(map['subtitles'] ?? map['tracks']),
     ];
-    final streams = raw is List
-        ? readMapList(raw)
-        : readMapList(map['streams']);
+    final streams =
+        raw is List ? readMapList(raw) : readMapList(map['streams']);
     for (final stream in streams) {
       entries.addAll(AdapterSupport.subtitles(stream['subtitles']));
     }

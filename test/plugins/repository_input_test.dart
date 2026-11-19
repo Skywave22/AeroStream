@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// The redirect table a test resolver uses: shortcode URL -> target.
 final class _Redirects {
   _Redirects([Map<String, String>? table])
-    : table = table ?? <String, String>{};
+      : table = table ?? <String, String>{};
 
   final Map<String, String> table;
   final List<String> asked = <String>[];
@@ -86,7 +86,8 @@ void main() {
 
     test('a shortcode is resolved through the redirect service', () async {
       final redirects = _Redirects(<String, String>{
-        'https://cutt.ly/abc123': 'https://repo.example/user/repo/main/repo.json',
+        'https://cutt.ly/abc123':
+            'https://repo.example/user/repo/main/repo.json',
       });
       final input = await _resolve('abc123', redirects);
       expect(redirects.asked.single, 'https://cutt.ly/abc123');
@@ -141,16 +142,20 @@ void main() {
     test('other hosts (GitLab, Codeberg, Bitbucket) map to their raw form',
         () async {
       expect(
-        (await _resolve('https://codeberg.org/me/providers')).primary.toString(),
+        (await _resolve('https://codeberg.org/me/providers'))
+            .primary
+            .toString(),
         'https://codeberg.org/me/providers/raw/branch/main',
       );
       expect(
-        (await _resolve('https://bitbucket.org/me/providers')).primary
+        (await _resolve('https://bitbucket.org/me/providers'))
+            .primary
             .toString(),
         'https://bitbucket.org/me/providers/raw/main',
       );
       expect(
-        (await _resolve('https://gitlab.com/group/providers')).primary
+        (await _resolve('https://gitlab.com/group/providers'))
+            .primary
             .toString(),
         'https://gitlab.com/group/providers/-/raw/main',
       );

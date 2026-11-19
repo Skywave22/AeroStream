@@ -200,11 +200,11 @@ final class AvailablePlugin {
 
   /// What the extensions list should say next to this plugin, if anything.
   String? get statusNote => switch (status) {
-    0 => 'Reported down by the repository',
-    2 => 'Reported slow',
-    3 => 'Beta channel only',
-    _ => null,
-  };
+        0 => 'Reported down by the repository',
+        2 => 'Reported slow',
+        3 => 'Beta channel only',
+        _ => null,
+      };
 
   AvailablePlugin copyWith({
     String? id,

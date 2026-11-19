@@ -68,7 +68,8 @@ final class RepositoryService {
         continue;
       }
 
-      final manifest = RepositoryManifest.parse(body, sourceUrl: uri.toString());
+      final manifest =
+          RepositoryManifest.parse(body, sourceUrl: uri.toString());
       if (manifest is Err<RepositoryManifest>) {
         lastError = manifest.error;
         continue;

@@ -27,7 +27,8 @@ SkyStreamAdapter _adapter() {
     bootstrap: '/* bootstrap */',
     pluginSource: '// plugin',
   );
-  return SkyStreamAdapter(info: _info, host: host, baseUrl: 'https://example.com');
+  return SkyStreamAdapter(
+      info: _info, host: host, baseUrl: 'https://example.com');
 }
 
 void main() {
@@ -47,7 +48,10 @@ void main() {
           'url': 'https://cdn.example.com/c.m3u8',
           'quality': 0,
         },
-        <String, Object?>{'url': 'https://cdn.example.com/d.mp4', 'quality': ' '},
+        <String, Object?>{
+          'url': 'https://cdn.example.com/d.mp4',
+          'quality': ' '
+        },
       ]);
 
       expect(sources, hasLength(4));
@@ -93,13 +97,17 @@ void main() {
           'url': 'https://cdn.example.com/b.mp4',
           'subtitles': <Object?>[
             <String, Object?>{'url': 'https://example.com/en.srt'},
-            <String, Object?>{'url': 'https://example.com/hi.srt', 'lang': 'hi'},
+            <String, Object?>{
+              'url': 'https://example.com/hi.srt',
+              'lang': 'hi'
+            },
           ],
         },
       ]);
 
       expect(tracks, hasLength(2), reason: 'the same URL is one track');
-      expect(tracks.first.language, 'en', reason: '`lang` is the documented key');
+      expect(tracks.first.language, 'en',
+          reason: '`lang` is the documented key');
       expect(tracks.first.displayName, 'English');
       expect(tracks.last.language, 'hi');
       expect(tracks.last.displayName, 'HI');

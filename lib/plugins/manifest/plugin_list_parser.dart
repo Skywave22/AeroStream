@@ -198,7 +198,8 @@ abstract final class PluginListParser {
     if (value == null || base == null) return null;
     // Vega providers live at `<source>/dist/<value>/`, unless the entry names a
     // `path` — then the files are at `<source>/<path>/`.
-    final providerUrl = _vegaProviderUrl(base, value, readString(entry['path']));
+    final providerUrl =
+        _vegaProviderUrl(base, value, readString(entry['path']));
     return AvailablePlugin(
       id: value,
       name: readString(entry['display_name']) ??

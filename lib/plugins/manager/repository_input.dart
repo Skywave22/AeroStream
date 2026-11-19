@@ -91,7 +91,8 @@ final class RepositoryInputResolver {
     }
     if (input.contains(RegExp(r'\s'))) {
       return const Err<RepositoryInput>(
-        PluginParseError('A repository URL cannot contain spaces', field: 'url'),
+        PluginParseError('A repository URL cannot contain spaces',
+            field: 'url'),
       );
     }
 
@@ -203,9 +204,8 @@ final class RepositoryInputResolver {
         );
       case 'gitlab.com':
         final separator = segments.indexOf('-');
-        final project = separator >= 0
-            ? segments.sublist(0, separator)
-            : segments;
+        final project =
+            separator >= 0 ? segments.sublist(0, separator) : segments;
         if (project.length < 2) return null;
         final branch = separator >= 0 && segments.length > separator + 2
             ? segments.sublist(separator + 2).join('/')
@@ -228,12 +228,12 @@ final class RepositoryInputResolver {
   }
 
   Result<RepositoryInput> _unsupportedHost(String host) => Err<RepositoryInput>(
-    PluginParseError(
-      'That link points at $host, which is not a repository file. Paste the '
-      'repository URL or its manifest instead.',
-      field: 'url',
-    ),
-  );
+        PluginParseError(
+          'That link points at $host, which is not a repository file. Paste the '
+          'repository URL or its manifest instead.',
+          field: 'url',
+        ),
+      );
 
   /// A folder needs `/manifest.json` appended; a `.json` URL is already a file.
   static Result<RepositoryInput> _fromUrl(
@@ -241,9 +241,8 @@ final class RepositoryInputResolver {
     required RepositoryInputKind kind,
   }) {
     final isJson = uri.path.toLowerCase().endsWith('.json');
-    final base = uri.toString().endsWith('/')
-        ? uri
-        : Uri.parse('${uri.toString()}/');
+    final base =
+        uri.toString().endsWith('/') ? uri : Uri.parse('${uri.toString()}/');
     final display = _displayFor(uri);
     if (isJson) {
       return Ok<RepositoryInput>(
@@ -312,18 +311,14 @@ final class RepositoryInputResolver {
       );
     }
     final base = switch (host) {
-      'codeberg' =>
-        'https://codeberg.org/$author/$vegaDefaultRepo/raw/branch/'
-            '$vegaDefaultBranch',
-      'bitbucket' =>
-        'https://bitbucket.org/$author/$vegaDefaultRepo/raw/'
-            '$vegaDefaultBranch',
-      'gitlab' =>
-        'https://gitlab.com/$author/$vegaDefaultRepo/-/raw/'
-            '$vegaDefaultBranch',
-      _ =>
-        'https://raw.githubusercontent.com/$author/$vegaDefaultRepo/'
-            'refs/heads/$vegaDefaultBranch',
+      'codeberg' => 'https://codeberg.org/$author/$vegaDefaultRepo/raw/branch/'
+          '$vegaDefaultBranch',
+      'bitbucket' => 'https://bitbucket.org/$author/$vegaDefaultRepo/raw/'
+          '$vegaDefaultBranch',
+      'gitlab' => 'https://gitlab.com/$author/$vegaDefaultRepo/-/raw/'
+          '$vegaDefaultBranch',
+      _ => 'https://raw.githubusercontent.com/$author/$vegaDefaultRepo/'
+          'refs/heads/$vegaDefaultBranch',
     };
     final folder = Uri.parse(base.endsWith('/') ? base : '$base/');
     return Ok<RepositoryInput>(
@@ -342,4 +337,3 @@ final class RepositoryInputResolver {
     return text.endsWith('/') ? text.substring(0, text.length - 1) : text;
   }
 }
-

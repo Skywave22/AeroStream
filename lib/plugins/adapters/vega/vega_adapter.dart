@@ -138,7 +138,11 @@ final class VegaAdapter implements MediaProvider {
       final response = await _call(
         'episodes',
         'getEpisodes',
-        <String, Object?>{'url': link, 'link': link, 'providerValue': providerValue},
+        <String, Object?>{
+          'url': link,
+          'link': link,
+          'providerValue': providerValue
+        },
       );
       if (response is Ok<Object?>) {
         final mapped = mapEpisodes(response.value);
@@ -147,8 +151,8 @@ final class VegaAdapter implements MediaProvider {
             season == null
                 ? mapped
                 : mapped
-                      .where((episode) => episode.seasonNumber == season.number)
-                      .toList(growable: false),
+                    .where((episode) => episode.seasonNumber == season.number)
+                    .toList(growable: false),
           );
         }
       }

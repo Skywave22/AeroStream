@@ -227,5 +227,4 @@ void main() {
       expect((await store.repositories()).single.name, 'Example Repo');
     });
   });
-
 }

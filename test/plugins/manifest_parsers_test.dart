@@ -246,11 +246,11 @@ void main() {
 
     test('CloudStream status codes mean what CloudStream says they mean', () {
       AvailablePlugin status(int code) => PluginListParser.parse(
-        '[{"url":"https://e.test/a.cs3","internalName":"A","name":"A",'
-        '"status":$code,"version":1,"apiVersion":1,"tvTypes":["Movie"]}]',
-        sourceUrl: 'https://e.test/plugins.json',
-        repositoryId: 'cs',
-      ).valueOrNull!.plugins.single;
+            '[{"url":"https://e.test/a.cs3","internalName":"A","name":"A",'
+            '"status":$code,"version":1,"apiVersion":1,"tvTypes":["Movie"]}]',
+            sourceUrl: 'https://e.test/plugins.json',
+            repositoryId: 'cs',
+          ).valueOrNull!.plugins.single;
 
       expect(status(1).isWorking, isTrue);
       expect(status(1).statusNote, isNull);
