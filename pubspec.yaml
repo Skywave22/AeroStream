@@ -33,8 +33,13 @@ dependencies:
   html: ^0.15.4
 
   # The plugin sandbox. QuickJS runs on its own isolate and enforces the memory
-  # and time limits the runtime was designed around.
-  flutter_qjs: ^0.4.0
+  # and time limits the runtime was designed around. Pinned to a commit rather
+  # than a version: the release that speaks this API (0.4.0, native build hooks)
+  # is not on pub.dev yet.
+  flutter_qjs:
+    git:
+      url: https://github.com/ekibun/flutter_qjs.git
+      ref: 12a393bd22529753935705b2a8f5db636e93d37f
 
   # Utilities.
   collection: ^1.18.0
