@@ -8,5 +8,5 @@ import 'unavailable_js_runtime.dart';
 /// failing silently.
 JsRuntime Function() createPlatformEngineFactory() =>
     () => UnavailableJsRuntime(
-      reason: 'JavaScript plugins cannot run in a browser',
-    );
+          reason: 'JavaScript plugins cannot run in a browser',
+        );

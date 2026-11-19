@@ -34,9 +34,8 @@ Future<void> main() async {
   // CloudStream extensions are Kotlin: they need the native host, which only
   // this platform (so far) has. Everywhere else the ecosystem stays visible and
   // uninstallable rather than pretending to work.
-  final cloudStream = platform.isAndroid
-      ? MethodChannelCloudStreamBridge()
-      : null;
+  final cloudStream =
+      platform.isAndroid ? MethodChannelCloudStreamBridge() : null;
 
   runApp(
     ProviderScope(
