@@ -32,7 +32,7 @@ including the case where Android is present but the CloudStream host is not
 | 9 | Library, history, downloads | done — saved titles, continue watching, resume, off-line downloads |
 | 10 | Settings, security, privacy | done — appearance, playback, platform matrix, data controls |
 | 11 | Platform polish | done — support matrix, cleartext, generated runners |
-| 12 | Testing, performance, release | done except store publishing — see `docs/RELEASING.md` |
+| 12 | Testing, performance, release | done — five-platform builds published as release assets; store publishing not attempted (`docs/RELEASING.md`) |
 
 Remaining work is not a phase: it is the "Not implemented" table in
 `docs/PLUGIN_SPEC.md` (one endpoint per plugin, editable plugin settings, DRM,
@@ -61,6 +61,14 @@ manifest and CLI),
 the byte proxy, captcha solving, DEX — it says so in `PLUGIN_SPEC.md` under
 "Not implemented", and in the UI at the point of use.
 
+## Download
+
+Tagged releases carry builds for every supported platform — Android (arm64-v8a,
+armeabi-v7a, x86_64 and universal APKs), Linux x64, Windows (portable zip and
+installer), macOS and an unsigned iOS `.ipa`. They are unsigned and marked as
+pre-releases: see `docs/BUILDING.md` for what that means and how to build your
+own.
+
 ## Quick start
 
 ```bash
@@ -81,7 +89,7 @@ lib/plugins/    runtime (sandbox), adapters (3 ecosystems), managers, parsers
 lib/data/       SQLite store, filesystem artifacts, preferences
 lib/features/   screens: home, search, details, player, library, extensions…
 tool/           js_selftest.mjs — runs the real JS in a Node VM
-docs/           architecture, plugin spec, platforms, releasing, disclaimer
+docs/           architecture, plugin spec, platforms, building, releasing, disclaimer
 ```
 
 The JavaScript tests run without Flutter:
