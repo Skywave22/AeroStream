@@ -118,9 +118,9 @@ class SettingsScreen extends ConsumerWidget {
               ),
           const Divider(),
           const _SectionLabel('About'),
-          const ListTile(
-            leading: Icon(Icons.info_outline),
-            title: Text(appName),
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: const Text(appName),
             subtitle: Text('Version $appVersionLabel · open source'),
           ),
           ListTile(
@@ -256,6 +256,7 @@ class SettingsScreen extends ConsumerWidget {
     );
     if (!confirmed) return;
     await ref.read(historyProvider.notifier).clear();
+    if (!context.mounted) return;
     _toast(context, 'Watch history cleared.');
   }
 
@@ -268,6 +269,7 @@ class SettingsScreen extends ConsumerWidget {
     );
     if (!confirmed) return;
     await ref.read(libraryProvider.notifier).clear();
+    if (!context.mounted) return;
     _toast(context, 'Library cleared.');
   }
 
@@ -284,6 +286,7 @@ class SettingsScreen extends ConsumerWidget {
     );
     if (!confirmed) return;
     await ref.read(downloadsProvider.notifier).removeFinished();
+    if (!context.mounted) return;
     _toast(context, 'Finished downloads removed.');
   }
 
@@ -306,6 +309,7 @@ class SettingsScreen extends ConsumerWidget {
     if (!confirmed) return;
 
     final removed = await store.forgetAll();
+    if (!context.mounted) return;
     ref.invalidate(providerPluginDataCount);
     // Providers cache their settings; a plugin whose token just vanished must
     // not keep running on the copy it read at startup.
