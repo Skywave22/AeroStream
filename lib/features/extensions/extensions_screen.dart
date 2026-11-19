@@ -146,7 +146,14 @@ class _InstalledTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final actions = ExtensionActions(ref);
     final busy = ref.watch(busyPluginsProvider).contains(plugin.info.id);
-    final runsHere = actions.runsHere(plugin);
+    // The support matrix knows about the CloudStream host, which the platform
+    // alone does not: an Android build without it can install .cs3 files and
+    // never start them.
+    final status = actions.statusFor(
+      ref.watch(ecosystemStatusesProvider).valueOrNull,
+      plugin.info.ecosystem,
+    );
+    final runsHere = status?.runs ?? actions.runsHere(plugin);
     final theme = Theme.of(context);
 
     return ListTile(
@@ -171,7 +178,11 @@ class _InstalledTile extends ConsumerWidget {
           ),
           if (!runsHere)
             Text(
-              actions.platform.unsupportedReason(plugin.info.ecosystem) ?? '',
+              status?.reason ??
+                  actions
+                      .platform
+                      .unsupportedReason(plugin.info.ecosystem) ??
+                  '',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.error,
               ),
@@ -366,7 +377,11 @@ class _AvailableTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final actions = ExtensionActions(ref);
-    final reason = actions.unsupportedReason(plugin);
+    final status = actions.statusFor(
+      ref.watch(ecosystemStatusesProvider).valueOrNull,
+      plugin.ecosystem,
+    );
+    final reason = status?.reason ?? actions.unsupportedReason(plugin);
     final installedVersion = installed?.info.version;
 
     return ListTile(

@@ -2,8 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../core/errors/plugin_error.dart';
+import '../../core/platform/ecosystem_status.dart';
 import '../../core/platform/platform_profile.dart';
 import '../../core/result.dart';
+import '../../domain/entities/enums.dart';
 import '../../domain/entities/installed_plugin.dart';
 import '../../domain/entities/plugin_info.dart';
 import '../../domain/entities/plugin_repository.dart';
@@ -156,6 +158,18 @@ final class ExtensionActions {
   /// Whether an installed plugin can run on this platform.
   bool runsHere(InstalledPlugin plugin) =>
       platform.supports(plugin.info.ecosystem);
+
+  /// The support matrix row for [ecosystem], when it has loaded.
+  EcosystemStatus? statusFor(
+    List<EcosystemStatus>? statuses,
+    PluginEcosystem ecosystem,
+  ) {
+    if (statuses == null) return null;
+    for (final status in statuses) {
+      if (status.ecosystem == ecosystem) return status;
+    }
+    return null;
+  }
 
   /// Distinguishes "installed at this version" from "update available".
   AvailablePlugin? upgradeFor(

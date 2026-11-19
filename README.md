@@ -8,9 +8,13 @@ It runs three plugin ecosystems behind one unified interface:
 
 | Ecosystem | Artifact | Runtime | Platforms |
 | --- | --- | --- | --- |
-| **SkyStream** | `.sky` (zip: `plugin.json` + `plugin.js`) | Sandboxed JavaScript | all |
-| **Vega** | provider modules (`posts.js`, `stream.js`, …) | Sandboxed JavaScript | all |
-| **CloudStream** | `.cs3` (Kotlin/DEX) | Native Kotlin host (`DexClassLoader`) | Android |
+| **SkyStream** | `.sky` (zip: `plugin.json` + `plugin.js`) | Sandboxed JavaScript | Android, iOS, desktop |
+| **Vega** | provider modules (`posts.js`, `stream.js`, …) | Sandboxed JavaScript | Android, iOS, desktop |
+| **CloudStream** | `.cs3` (Kotlin/DEX) | Native Kotlin host (`DexClassLoader`) | Android, when the host is in the build |
+
+Each ecosystem's availability is reported per device in Settings › Platform,
+including the case where Android is present but the CloudStream host is not
+(see `docs/PLATFORMS.md`).
 
 ## Status
 
@@ -27,7 +31,7 @@ It runs three plugin ecosystems behind one unified interface:
 | 8 | Player | done — source selection, libmpv playback, subtitles |
 | 9 | Library, history, downloads | done — saved titles, continue watching, resume, off-line downloads |
 | 10 | Settings, security, privacy | settings and persisted theme done |
-| 11 | Platform polish | planned |
+| 11 | Platform polish | done — support matrix, cleartext, generated runners |
 | 12 | Testing, performance, release | in progress |
 
 Plugins run on QuickJS, one isolate per plugin, behind a bridge that only
@@ -56,7 +60,7 @@ the byte proxy, captcha solving, DEX — it says so in `PLUGIN_SPEC.md` under
 
 ```bash
 flutter pub get
-./scripts/scaffold_platforms.sh   # one-off: adds ios/macos/windows/linux runners
+./scripts/scaffold_platforms.sh   # one-off: adds the android/ios/macos/windows/linux runners
 flutter run -d <device>
 flutter analyze --fatal-infos
 flutter test

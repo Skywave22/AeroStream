@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme/theme_providers.dart';
-import '../../domain/entities/enums.dart';
 import 'settings_providers.dart';
 
 /// Settings and diagnostics.
@@ -15,6 +14,10 @@ class SettingsScreen extends ConsumerWidget {
     final theme = ref.watch(persistedThemeProvider);
     final prefs = ref.watch(preferencesProvider);
     final platform = ref.watch(platformProfileProvider);
+    // The matrix asks the CloudStream host for its handshake, so the rows
+    // appear once that answers — a guess in the meantime would be a claim about
+    // this build that the build has not made.
+    final statuses = ref.watch(ecosystemStatusesProvider).valueOrNull;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -82,12 +85,33 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: Text(
               <String>[
                 platform.target.name,
-                for (final ecosystem in PluginEcosystem.values)
-                  '${ecosystem.label}: '
-                      '${platform.supports(ecosystem) ? 'yes' : 'no'}',
-              ].join(' · '),
+                platform.operatingSystem,
+              ].where((part) => part.isNotEmpty).join(' · '),
             ),
           ),
+          if (statuses == null)
+            const ListTile(
+              leading: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              title: Text('Checking which plugins can run here…'),
+            )
+          else
+            for (final status in statuses)
+              ListTile(
+                leading: Icon(
+                  status.runs ? Icons.check_circle_outline : Icons.block,
+                  color: status.runs
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.outline,
+                ),
+                title: Text(status.label),
+                subtitle: Text(
+                  status.reason ?? 'Runs here, in the JavaScript sandbox',
+                ),
+              ),
           const Divider(),
           const _SectionLabel('About'),
           const ListTile(

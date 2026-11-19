@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/network/http_service.dart';
+import '../core/platform/ecosystem_status.dart';
 import '../core/platform/platform_profile.dart';
 import '../domain/entities/installed_plugin.dart';
 import '../domain/entities/plugin_repository.dart';
@@ -53,6 +54,24 @@ final jsEngineFactoryProvider = Provider<JsEngineFactory>(
 final cloudStreamBridgeProvider = Provider<CloudStreamBridge?>(
   (ref) => null,
 );
+
+/// Whether a native CloudStream host actually answered its handshake.
+///
+/// Asked once per screen that needs it: the answer is a property of the build,
+/// and the bridge caches the result after the first probe.
+final cloudStreamHostProvider = FutureProvider<bool>((ref) async {
+  final bridge = ref.watch(cloudStreamBridgeProvider);
+  if (bridge == null) return false;
+  return bridge.isAvailable();
+});
+
+/// The platform support matrix for this device, CloudStream host included.
+final ecosystemStatusesProvider =
+    FutureProvider<List<EcosystemStatus>>((ref) async {
+  final platform = ref.watch(platformProfileProvider);
+  final host = await ref.watch(cloudStreamHostProvider.future);
+  return ecosystemStatuses(platform: platform, cloudStreamHost: host);
+});
 
 final runtimeFactoryProvider = Provider<PluginRuntimeFactory>((ref) {
   return PluginRuntimeFactory(
