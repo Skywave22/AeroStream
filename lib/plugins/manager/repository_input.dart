@@ -163,11 +163,6 @@ final class RepositoryInputResolver {
       segments.removeLast();
     }
 
-    String? build(String rawBase) {
-      final base = rawBase.endsWith('/') ? rawBase : '$rawBase/';
-      return Uri.tryParse(base)?.toString();
-    }
-
     switch (host) {
       case 'raw.githubusercontent.com':
         // <author>/<repo>/refs/heads/<branch>[/…] or <author>/<repo>/<branch>
@@ -177,9 +172,9 @@ final class RepositoryInputResolver {
         final branch = segments.length >= 5 && segments[2] == 'refs'
             ? segments.sublist(4).join('/')
             : segments.sublist(2).join('/');
-        return Uri.tryParse(build(
+        return Uri.parse(
           'https://raw.githubusercontent.com/$author/$repo/refs/heads/$branch',
-        )!);
+        );
       case 'github.com':
         if (segments.length < 2) return null;
         final author = segments[0];
@@ -187,25 +182,25 @@ final class RepositoryInputResolver {
         final branch = segments.length > 3 && segments[2] == 'tree'
             ? segments.sublist(3).join('/')
             : vegaDefaultBranch;
-        return Uri.tryParse(build(
+        return Uri.parse(
           'https://raw.githubusercontent.com/$author/$repo/refs/heads/$branch',
-        )!);
+        );
       case 'codeberg.org':
         if (segments.length < 2) return null;
         final branch = segments.length > 3 && segments[2] == 'src'
             ? segments.sublist(3).join('/')
             : vegaDefaultBranch;
-        return Uri.tryParse(build(
+        return Uri.parse(
           'https://codeberg.org/${segments[0]}/${segments[1]}/raw/branch/$branch',
-        )!);
+        );
       case 'bitbucket.org':
         if (segments.length < 2) return null;
         final branch = segments.length > 3 && segments[2] == 'src'
             ? segments.sublist(3).join('/')
             : vegaDefaultBranch;
-        return Uri.tryParse(build(
+        return Uri.parse(
           'https://bitbucket.org/${segments[0]}/${segments[1]}/raw/$branch',
-        )!);
+        );
       case 'gitlab.com':
         final separator = segments.indexOf('-');
         final project = separator >= 0
@@ -215,12 +210,20 @@ final class RepositoryInputResolver {
         final branch = separator >= 0 && segments.length > separator + 2
             ? segments.sublist(separator + 2).join('/')
             : vegaDefaultBranch;
-        return Uri.tryParse(build(
+        return Uri.parse(
           'https://gitlab.com/${project.join('/')}/-/raw/$branch',
-        )!);
+        );
       default:
-        // Any other host: a folder (or a manifest.json URL) is the source.
-        return Uri.tryParse(uri.replace(query: '').toString());
+        // Any other host: a folder (or a manifest.json URL) is the source. The
+        // query is dropped — a manifest URL with `?v=1` still names the same
+        // repository folder.
+        return Uri(
+          scheme: uri.scheme,
+          userInfo: uri.userInfo.isEmpty ? null : uri.userInfo,
+          host: uri.host,
+          port: uri.hasPort ? uri.port : null,
+          path: uri.path,
+        );
     }
   }
 
@@ -322,7 +325,7 @@ final class RepositoryInputResolver {
         'https://raw.githubusercontent.com/$author/$vegaDefaultRepo/'
             'refs/heads/$vegaDefaultBranch',
     };
-    final folder = Uri.parse(base);
+    final folder = Uri.parse(base.endsWith('/') ? base : '$base/');
     return Ok<RepositoryInput>(
       RepositoryInput(
         // A Vega source is a folder; the only fetchable file in it is the
