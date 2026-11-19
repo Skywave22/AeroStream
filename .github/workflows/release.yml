@@ -465,13 +465,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          prerelease=""
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.prerelease }}" = "true" ]; then
-            prerelease="--prerelease"
+          # Nothing here is signed or tested on a device, so the default is a
+          # pre-release: promoting it to a full release is one click in the UI,
+          # and pretending otherwise is not.
+          prerelease="--prerelease"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.prerelease }}" = "false" ]; then
+            prerelease=""
           fi
-          if [ -n "$prerelease" ]; then
-            echo "Publishing ${{ steps.tag.outputs.value }} as a pre-release"
-          fi
+          echo "Publishing ${{ steps.tag.outputs.value }} (${prerelease:-final})"
 
           gh release create "${{ steps.tag.outputs.value }}" \
             --title "AeroStream ${{ steps.tag.outputs.value }}" \
