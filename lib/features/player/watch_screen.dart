@@ -5,8 +5,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../domain/entities/download.dart';
 import '../../domain/entities/stream_source.dart';
 import '../details/details_providers.dart';
+import '../downloads/download_providers.dart';
 import '../library/history_providers.dart';
 import '../settings/settings_providers.dart';
 import 'playback_engine.dart';
@@ -17,9 +19,13 @@ import 'playback_engine.dart';
 /// often has several links of different qualities and container types — showing
 /// the choice is more honest than silently picking one.
 class WatchScreen extends ConsumerStatefulWidget {
-  const WatchScreen({required this.request, super.key});
+  const WatchScreen({required this.request, this.resolved, super.key});
 
   final StreamRequest request;
+
+  /// Links that are already known — a file on disk, for instance. When set the
+  /// screen plays them and never asks a plugin for anything.
+  final StreamResult? resolved;
 
   @override
   ConsumerState<WatchScreen> createState() => _WatchScreenState();
@@ -31,7 +37,10 @@ class _WatchScreenState extends ConsumerState<WatchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final streams = ref.watch(streamsProvider(widget.request));
+    final resolved = widget.resolved;
+    final streams = resolved == null
+        ? ref.watch(streamsProvider(widget.request))
+        : AsyncValue<StreamResult>.data(resolved);
     final engine = ref.watch(playerEngineProvider);
     // The user's quality choice is applied here, once, so the surface and the
     // picker below it agree on which link is first.
@@ -56,11 +65,12 @@ class _WatchScreenState extends ConsumerState<WatchScreen> {
             onPressed: () => setState(() => _showSources = !_showSources),
             icon: Icon(_showSources ? Icons.dns : Icons.dns_outlined),
           ),
-          IconButton(
-            tooltip: 'Reload links',
-            onPressed: () => ref.invalidate(streamsProvider(widget.request)),
-            icon: const Icon(Icons.refresh),
-          ),
+          if (resolved == null)
+            IconButton(
+              tooltip: 'Reload links',
+              onPressed: () => ref.invalidate(streamsProvider(widget.request)),
+              icon: const Icon(Icons.refresh),
+            ),
         ],
       ),
       body: streams.when(
@@ -94,6 +104,8 @@ class _WatchScreenState extends ConsumerState<WatchScreen> {
             showSources: _showSources,
             onSelect: (source) => setState(() => _selected = source),
             engine: engine,
+            request: widget.request,
+            canDownload: resolved == null,
             // Resume where the user left off, and keep the record current
             // while they watch.
             startAt: history.resumePosition(
@@ -125,6 +137,8 @@ class _Body extends StatelessWidget {
     required this.engine,
     required this.startAt,
     required this.onProgress,
+    required this.request,
+    required this.canDownload,
   });
 
   final StreamResult result;
@@ -135,6 +149,8 @@ class _Body extends StatelessWidget {
   final PlaybackEngine? engine;
   final Duration? startAt;
   final ProgressCallback onProgress;
+  final StreamRequest request;
+  final bool canDownload;
 
   @override
   Widget build(BuildContext context) {
@@ -165,10 +181,39 @@ class _Body extends StatelessWidget {
               subtitles: result.subtitles,
               selected: source,
               onSelect: onSelect,
+              request: request,
+              canDownload: canDownload,
             ),
           ),
       ],
     );
+  }
+}
+
+extension on _SourceList {
+  /// Queues [source], and says what happened either way.
+  Future<void> _download(
+    BuildContext context,
+    WidgetRef ref,
+    StreamSource source,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref
+          .read(downloadsProvider.notifier)
+          .enqueue(
+            item: request.item,
+            episode: request.episode,
+            source: source,
+          );
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Saving ${source.label} — see Library › Downloads'),
+        ),
+      );
+    } on DownloadRejected catch (rejection) {
+      messenger.showSnackBar(SnackBar(content: Text(rejection.message)));
+    }
   }
 }
 
@@ -229,18 +274,24 @@ class _EngineMissing extends StatelessWidget {
   }
 }
 
-class _SourceList extends StatelessWidget {
+class _SourceList extends ConsumerWidget {
   const _SourceList({
     required this.sources,
     required this.subtitles,
     required this.selected,
     required this.onSelect,
+    required this.request,
+    required this.canDownload,
   });
 
   final List<StreamSource> sources;
   final List<SubtitleTrack> subtitles;
   final StreamSource? selected;
   final ValueChanged<StreamSource> onSelect;
+  final StreamRequest request;
+
+  /// False when these links already *are* local files.
+  final bool canDownload;
 
   @override
   Widget build(BuildContext context) {
@@ -296,9 +347,34 @@ class _SourceList extends StatelessWidget {
                         ].join(' · '),
                         style: const TextStyle(color: Colors.white38),
                       ),
-                      trailing: isSelected
-                          ? const Icon(Icons.check, color: Colors.white)
-                          : null,
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isSelected)
+                            const Icon(Icons.check, color: Colors.white),
+                          if (canDownload)
+                            IconButton(
+                              tooltip: isDownloadableLink(
+                                source.url,
+                                isHls: source.isHls,
+                                isDash: source.isDash,
+                              )
+                                  ? 'Download'
+                                  : 'Playlists cannot be downloaded',
+                              onPressed: () => _download(context, ref, source),
+                              icon: Icon(
+                                Icons.download_outlined,
+                                color: isDownloadableLink(
+                                  source.url,
+                                  isHls: source.isHls,
+                                  isDash: source.isDash,
+                                )
+                                    ? Colors.white70
+                                    : Colors.white24,
+                              ),
+                            ),
+                        ],
+                      ),
                       onTap: () => onSelect(source),
                     );
                   },

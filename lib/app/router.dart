@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../domain/entities/download.dart';
 import '../domain/entities/media_item.dart';
 import '../features/details/details_providers.dart';
 import '../features/details/details_screen.dart';
+import '../features/downloads/downloads_view.dart';
 import '../features/extensions/extensions_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/library/library_screen.dart';
@@ -49,6 +51,15 @@ final GoRouter appRouter = GoRouter(
           builder: (context, state) => const SettingsScreen(),
         ),
       ],
+    ),
+    GoRoute(
+      path: '/downloads/play',
+      name: 'download-play',
+      builder: (context, state) {
+        final task = state.extra;
+        if (task is! DownloadTask) return const _MissingRouteData();
+        return DownloadedPlayerScreen(task: task);
+      },
     ),
     GoRoute(
       path: '/details',

@@ -15,7 +15,10 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
   @override
   bool supports(StreamSource source) {
     final url = source.url;
-    return url.startsWith('https://') || url.startsWith('http://');
+    // `file://` is how a finished download is played: same player, no network.
+    return url.startsWith('https://') ||
+        url.startsWith('http://') ||
+        url.startsWith('file://');
   }
 
   @override

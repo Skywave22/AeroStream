@@ -25,7 +25,7 @@ It runs three plugin ecosystems behind one unified interface:
 | 6 | CloudStream adapter (Android host) | done — Kotlin host pending |
 | 7 | Adaptive UI/UX | done |
 | 8 | Player | done — source selection, libmpv playback, subtitles |
-| 9 | Library, history, downloads | library, continue watching and resume done; downloads planned |
+| 9 | Library, history, downloads | done — saved titles, continue watching, resume, off-line downloads |
 | 10 | Settings, security, privacy | settings and persisted theme done |
 | 11 | Platform polish | planned |
 | 12 | Testing, performance, release | in progress |

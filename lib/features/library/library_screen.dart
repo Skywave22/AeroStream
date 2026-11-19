@@ -4,10 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../domain/entities/media_item.dart';
 import '../common/media_card.dart';
+import '../downloads/downloads_view.dart';
 import 'history_providers.dart';
 import 'library_providers.dart';
 
-/// Saved titles and watch history.
+/// Saved titles, watch history and downloads.
 class LibraryScreen extends ConsumerWidget {
   const LibraryScreen({super.key});
 
@@ -17,7 +18,7 @@ class LibraryScreen extends ConsumerWidget {
     final history = ref.watch(historyProvider);
 
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Library'),
@@ -25,6 +26,7 @@ class LibraryScreen extends ConsumerWidget {
             tabs: [
               Tab(text: 'Saved'),
               Tab(text: 'History'),
+              Tab(text: 'Downloads'),
             ],
           ),
           actions: [
@@ -46,6 +48,7 @@ class LibraryScreen extends ConsumerWidget {
           children: [
             _SavedTab(items: saved),
             _HistoryTab(entries: history),
+            const DownloadsView(),
           ],
         ),
       ),

@@ -172,13 +172,35 @@ An entry counts as resumable between 2% and 95% — before that there is nothing
 to resume, after that the user has finished and being offered the credits again
 is noise. Writes are best-effort: history never blocks or fails playback.
 
+## Downloads
+
+`DownloadsController` saves a stream to `<appSupport>/downloads/<name>.<ext>`
+and plays it back through the same `PlaybackEngine`, as a `file://` source —
+no second player, no special case in the UI beyond knowing that there is
+nothing to resolve.
+
+What it will and will not do is stated up front rather than discovered
+half-way through: only progressive HTTP(S) links are saved. An HLS or DASH
+link is a *playlist*, and saving one means fetching every segment and
+remuxing, which this build does not do — the download button says so instead
+of producing a broken file.
+
+Downloads run one at a time (a phone on a mobile connection does not benefit
+from five parallel transfers), restart from zero when resumed (no range
+requests yet, and a half-file that silently resumes at the wrong offset is
+worse than an honest restart), and keep their task in the queue so an
+interrupted download is visibly *paused* rather than quietly gone. A
+`DownloadFetcher` seam means the queue, the status transitions and the file
+cleanup are tested without a network.
+
 ## Storage
 
 | What | Where | Why |
 | --- | --- | --- |
 | Repositories, installed plugins | SQLite (`aerostream.db`), `PRAGMA user_version` migrations | queries, ordering, atomic updates |
 | Plugin artifacts | `<appSupport>/plugins/<ecosystem>/<id>/<version>/` | one shape for every ecosystem |
-| Preferences, library, plugin settings | `shared_preferences` | small values, no schema |
+| Preferences, library, history, download queue, plugin settings | `shared_preferences` | small values, no schema |
+| Downloaded media | `<appSupport>/downloads/` | app-private; deleted with the app |
 
 Installs are staged into a sibling directory and swapped with `rename`, so a
 failed update leaves the previous version runnable. `previousArtifactPath`
