@@ -205,6 +205,56 @@ final class StreamResult {
     return withIndex.map((entry) => entry.$2).toList(growable: false);
   }
 
+  /// Sources re-ordered for a user who expressed a quality preference.
+  ///
+  /// The preference is a *filter the user chose*, not a hard requirement: if
+  /// nothing matches, the full list comes back in its natural order rather
+  /// than an empty screen. A cap (`720p` prefers at most that height) is more
+  /// useful than an exact match, because plugins label the same stream `720`,
+  /// `720p` and `HD` in the same repository.
+  List<StreamSource> preferredSources({
+    String? preferredQuality,
+    bool preferHls = true,
+  }) {
+    final ordered = List<StreamSource>.of(orderedSources);
+    if (preferHls && ordered.length > 1) {
+      // A stable partition: HLS first, everything else after, within each
+      // group keeping the quality ranking.
+      final hls = ordered.where((source) => source.isHls).toList(growable: false);
+      final rest = ordered
+          .where((source) => !source.isHls)
+          .toList(growable: false);
+      ordered
+        ..clear()
+        ..addAll(hls)
+        ..addAll(rest);
+    }
+
+    final target = _heightOf(preferredQuality ?? '');
+    if (target == null) return ordered;
+
+    final matching = ordered
+        .where((source) {
+          final height = _heightOf(source.quality ?? '');
+          return height != null && height <= target;
+        })
+        .toList(growable: false);
+    return matching.isEmpty ? ordered : matching;
+  }
+
+  /// `720p` -> 720, `4k` -> 2160, `auto`/empty -> null.
+  static int? _heightOf(String quality) {
+    final normalized = quality.toLowerCase().trim();
+    if (normalized.isEmpty || normalized == 'auto') return null;
+    final digits = RegExp(r'(\d{3,4})').firstMatch(normalized)?.group(1);
+    final height = int.tryParse(digits ?? '');
+    if (height != null) return height;
+    if (normalized.contains('4k') || normalized.contains('2160')) return 2160;
+    if (normalized == 'hd') return 1080;
+    if (normalized == 'sd') return 480;
+    return null;
+  }
+
   static int _score(StreamSource source) {
     var score = 0;
     final quality = source.quality?.toLowerCase() ?? '';

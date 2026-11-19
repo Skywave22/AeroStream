@@ -138,6 +138,51 @@ void main() {
       expect(ordered.last.quality, '360p');
     });
 
+    test('a quality preference caps rather than filters', () {
+      const result = StreamResult(
+        sources: <StreamSource>[
+          StreamSource(url: 'https://a/1080.mp4', quality: '1080p'),
+          StreamSource(url: 'https://a/720.mp4', quality: '720p'),
+          StreamSource(url: 'https://a/480.mp4', quality: '480p'),
+        ],
+      );
+
+      final capped = result.preferredSources(preferredQuality: '720p');
+      expect(capped.map((source) => source.quality), <String>['720p', '480p']);
+
+      // Nothing at or below the cap: the full list comes back rather than an
+      // empty screen.
+      final none = result.preferredSources(preferredQuality: '240p');
+      expect(none, hasLength(3));
+    });
+
+    test('HLS is preferred when the user asks for it', () {
+      const result = StreamResult(
+        sources: <StreamSource>[
+          StreamSource(url: 'https://a/best.mp4', quality: '1080p'),
+          StreamSource(url: 'https://a/ok.m3u8', quality: '720p', isHls: true),
+        ],
+      );
+
+      expect(result.preferredSources().first.isHls, isTrue);
+      expect(
+        result.preferredSources(preferHls: false).first.quality,
+        '1080p',
+      );
+    });
+
+    test('no preference keeps the natural ranking', () {
+      const result = StreamResult(
+        sources: <StreamSource>[
+          StreamSource(url: 'https://a/360.mp4', quality: '360p'),
+          StreamSource(url: 'https://a/1080.mp4', quality: '1080p'),
+        ],
+      );
+
+      expect(result.preferredSources(preferHls: false).first.quality, '1080p');
+      expect(result.preferredSources().length, 2);
+    });
+
     test('detects HLS and DASH from the URL when the plugin does not say', () {
       final hls = StreamSource.fromJson(<String, Object?>{
         'url': 'https://cdn/x/index.m3u8',

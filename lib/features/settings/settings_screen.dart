@@ -4,74 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/providers.dart';
 import '../../app/theme/theme_providers.dart';
 import '../../domain/entities/enums.dart';
-
-/// Playback and network preferences that plugins honour.
-final class AppPreferences {
-  const AppPreferences({
-    required this.preferredQuality,
-    required this.autoplayNext,
-    required this.preferHls,
-    required this.allowUntrustedCertificates,
-  });
-
-  final String preferredQuality;
-  final bool autoplayNext;
-  final bool preferHls;
-  final bool allowUntrustedCertificates;
-}
-
-final preferencesProvider =
-    NotifierProvider<PreferencesController, AppPreferences>(
-  PreferencesController.new,
-);
-
-class PreferencesController extends Notifier<AppPreferences> {
-  static const String _qualityKey = 'playback.preferredQuality';
-  static const String _autoplayKey = 'playback.autoplayNext';
-  static const String _hlsKey = 'playback.preferHls';
-  static const String _certsKey = 'network.allowUntrustedCertificates';
-
-  @override
-  AppPreferences build() {
-    final settings = ref.read(settingsStoreProvider);
-    return AppPreferences(
-      preferredQuality: settings.getString(_qualityKey) ?? 'Auto',
-      autoplayNext: settings.getBool(_autoplayKey, fallback: true),
-      preferHls: settings.getBool(_hlsKey, fallback: true),
-      allowUntrustedCertificates: settings.getBool(_certsKey),
-    );
-  }
-
-  Future<void> setQuality(String quality) async {
-    state = AppPreferences(
-      preferredQuality: quality,
-      autoplayNext: state.autoplayNext,
-      preferHls: state.preferHls,
-      allowUntrustedCertificates: state.allowUntrustedCertificates,
-    );
-    await ref.read(settingsStoreProvider).setString(_qualityKey, quality);
-  }
-
-  Future<void> setAutoplayNext({required bool value}) async {
-    state = AppPreferences(
-      preferredQuality: state.preferredQuality,
-      autoplayNext: value,
-      preferHls: state.preferHls,
-      allowUntrustedCertificates: state.allowUntrustedCertificates,
-    );
-    await ref.read(settingsStoreProvider).setBool(_autoplayKey, value: value);
-  }
-
-  Future<void> setPreferHls({required bool value}) async {
-    state = AppPreferences(
-      preferredQuality: state.preferredQuality,
-      autoplayNext: state.autoplayNext,
-      preferHls: value,
-      allowUntrustedCertificates: state.allowUntrustedCertificates,
-    );
-    await ref.read(settingsStoreProvider).setBool(_hlsKey, value: value);
-  }
-}
+import 'settings_providers.dart';
 
 /// Settings and diagnostics.
 class SettingsScreen extends ConsumerWidget {

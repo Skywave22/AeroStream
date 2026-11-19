@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../domain/entities/stream_source.dart';
 import '../details/details_providers.dart';
+import '../settings/settings_providers.dart';
 import 'playback_engine.dart';
 
 /// Source selection and playback.
@@ -29,6 +30,9 @@ class _WatchScreenState extends ConsumerState<WatchScreen> {
   Widget build(BuildContext context) {
     final streams = ref.watch(streamsProvider(widget.request));
     final engine = ref.watch(playerEngineProvider);
+    // The user's quality choice is applied here, once, so the surface and the
+    // picker below it agree on which link is first.
+    final preferences = ref.watch(preferencesProvider);
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -76,6 +80,10 @@ class _WatchScreenState extends ConsumerState<WatchScreen> {
         ),
         data: (result) => _Body(
           result: result,
+          sources: result.preferredSources(
+            preferredQuality: preferences.preferredQuality,
+            preferHls: preferences.preferHls,
+          ),
           selected: _selected,
           showSources: _showSources,
           onSelect: (source) => setState(() => _selected = source),
@@ -89,6 +97,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> {
 class _Body extends StatelessWidget {
   const _Body({
     required this.result,
+    required this.sources,
     required this.selected,
     required this.showSources,
     required this.onSelect,
@@ -96,6 +105,7 @@ class _Body extends StatelessWidget {
   });
 
   final StreamResult result;
+  final List<StreamSource> sources;
   final StreamSource? selected;
   final bool showSources;
   final ValueChanged<StreamSource> onSelect;
@@ -103,8 +113,7 @@ class _Body extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final source =
-        selected ?? (result.sources.isEmpty ? null : result.sources.first);
+    final source = selected ?? (sources.isEmpty ? null : sources.first);
     final engineSurface = source == null || !(engine?.supports(source) ?? false)
         ? null
         : engine!.buildSurface(context, source, subtitles: result.subtitles);
@@ -121,7 +130,8 @@ class _Body extends StatelessWidget {
           SizedBox(
             height: 240,
             child: _SourceList(
-              result: result,
+              sources: sources,
+              subtitles: result.subtitles,
               selected: source,
               onSelect: onSelect,
             ),
@@ -190,18 +200,19 @@ class _EngineMissing extends StatelessWidget {
 
 class _SourceList extends StatelessWidget {
   const _SourceList({
-    required this.result,
+    required this.sources,
+    required this.subtitles,
     required this.selected,
     required this.onSelect,
   });
 
-  final StreamResult result;
+  final List<StreamSource> sources;
+  final List<SubtitleTrack> subtitles;
   final StreamSource? selected;
   final ValueChanged<StreamSource> onSelect;
 
   @override
   Widget build(BuildContext context) {
-    final subtitles = result.subtitles;
     return DefaultTabController(
       length: subtitles.isEmpty ? 1 : 2,
       child: Column(
@@ -211,7 +222,7 @@ class _SourceList extends StatelessWidget {
             unselectedLabelColor: Colors.white54,
             indicatorColor: Theme.of(context).colorScheme.primary,
             tabs: [
-              Tab(text: 'Sources (${result.sources.length})'),
+              Tab(text: 'Sources (${sources.length})'),
               if (subtitles.isNotEmpty)
                 Tab(text: 'Subtitles (${subtitles.length})'),
             ],
@@ -220,9 +231,9 @@ class _SourceList extends StatelessWidget {
             child: TabBarView(
               children: [
                 ListView.builder(
-                  itemCount: result.sources.length,
+                  itemCount: sources.length,
                   itemBuilder: (context, index) {
-                    final source = result.sources[index];
+                    final source = sources[index];
                     final isSelected = source == selected;
                     return ListTile(
                       selected: isSelected,
