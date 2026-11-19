@@ -37,12 +37,12 @@ final class PluginRuntimeFactory {
     required this.hostBootstrap,
     CloudStreamBridge? cloudStreamBridge,
     this.limits = const RuntimeLimits(),
-  }) : _artifacts = artifacts,
-       _http = http,
-       _settings = settings,
-       _platform = platform,
-       _engineFactory = engineFactory,
-       _cloudStream = cloudStreamBridge;
+  })  : _artifacts = artifacts,
+        _http = http,
+        _settings = settings,
+        _platform = platform,
+        _engineFactory = engineFactory,
+        _cloudStream = cloudStreamBridge;
 
   final ArtifactStore _artifacts;
   final HttpService _http;

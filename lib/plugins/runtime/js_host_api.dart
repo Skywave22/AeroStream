@@ -66,8 +66,8 @@ final class JsHostApi {
     required SettingsStore settings,
     required this.pluginId,
     this.policy = const NetworkPolicy(),
-  }) : _http = http,
-       _settings = settings;
+  })  : _http = http,
+        _settings = settings;
 
   final HttpService _http;
   final SettingsStore _settings;
@@ -149,13 +149,13 @@ final class JsHostApi {
   }
 
   JsHostReply _errorReply(PluginError error) => JsHostReply(
-    jsonEncode(<String, Object?>{
-      'message': error.message,
-      'kind': error.kind,
-      'userMessage': error.userMessage,
-    }),
-    isError: true,
-  );
+        jsonEncode(<String, Object?>{
+          'message': error.message,
+          'kind': error.kind,
+          'userMessage': error.userMessage,
+        }),
+        isError: true,
+      );
 
   // ---- HTTP --------------------------------------------------------------
 
@@ -166,7 +166,7 @@ final class JsHostApi {
     final rawUrl = payload['url']?.toString();
     final uri = rawUrl == null ? null : Uri.tryParse(rawUrl);
     if (uri == null) {
-      return JsHostReply.error('Invalid URL');
+      return const JsHostReply.error('Invalid URL');
     }
     final checked = policy.check(uri);
     if (checked is Err<Uri>) return _errorReply(checked.error);
@@ -188,14 +188,14 @@ final class JsHostApi {
     switch (response) {
       case Err<HttpPayload>(:final error):
         AppLog.warn(
-          '${method} ${uri.host} failed after ${elapsed.inMilliseconds}ms: '
+          '$method ${uri.host} failed after ${elapsed.inMilliseconds}ms: '
           '${error.message}',
           pluginId: pluginId,
         );
         return _errorReply(error);
       case Ok<HttpPayload>(:final value):
         AppLog.debug(
-          '${method} ${uri.host} -> ${value.statusCode} '
+          '$method ${uri.host} -> ${value.statusCode} '
           '(${value.bytes.length}B, ${elapsed.inMilliseconds}ms)',
           pluginId: pluginId,
         );
@@ -212,7 +212,7 @@ final class JsHostApi {
 
   Future<JsHostReply> _batch(Map<String, Object?> payload) async {
     final requests = payload['requests'];
-    if (requests is! List) return JsHostReply.error('requests must be a list');
+    if (requests is! List) return const JsHostReply.error('requests must be a list');
     final results = <Object?>[];
     for (final request in requests) {
       if (request is! Map) continue;
@@ -237,12 +237,12 @@ final class JsHostApi {
       results.add(
         switch (response) {
           Ok<HttpPayload>(:final value) => <String, Object?>{
-            'status': value.statusCode,
-            'body': value.text,
-          },
+              'status': value.statusCode,
+              'body': value.text,
+            },
           Err<HttpPayload>(:final error) => <String, Object?>{
-            'error': error.message,
-          },
+              'error': error.message,
+            },
         },
       );
     }
@@ -278,7 +278,7 @@ final class JsHostApi {
 
   JsHostReply _queryDocument(Map<String, Object?> payload) {
     final document = _documents[payload['doc']?.toString()];
-    if (document == null) return JsHostReply.error('Unknown document id');
+    if (document == null) return const JsHostReply.error('Unknown document id');
     return JsHostReply(
       jsonEncode(
         _extract(
@@ -292,7 +292,7 @@ final class JsHostApi {
 
   JsHostReply _attribute(Map<String, Object?> payload) {
     final document = _documents[payload['doc']?.toString()];
-    if (document == null) return JsHostReply.error('Unknown document id');
+    if (document == null) return const JsHostReply.error('Unknown document id');
     final element = _first(document, payload['selector']?.toString() ?? '');
     if (element == null) return const JsHostReply('null');
     final value = element.attributes[payload['attribute']?.toString() ?? ''];
@@ -301,13 +301,14 @@ final class JsHostApi {
 
   JsHostReply _text(Map<String, Object?> payload) {
     final document = _documents[payload['doc']?.toString()];
-    if (document == null) return JsHostReply.error('Unknown document id');
+    if (document == null) return const JsHostReply.error('Unknown document id');
     final element = _first(document, payload['selector']?.toString() ?? '');
     return JsHostReply(jsonEncode(element?.text.trim()));
   }
 
   dom.Element? _first(dom.Document document, String selector) {
-    if (selector.trim().isEmpty) return document.body ?? document.documentElement;
+    if (selector.trim().isEmpty)
+      return document.body ?? document.documentElement;
     try {
       return document.querySelector(selector);
     } on Object {
@@ -357,7 +358,8 @@ final class JsHostApi {
   JsHostReply _hmac(Map<String, Object?> payload) {
     final key = utf8.encode(payload['key']?.toString() ?? '');
     final message = utf8.encode(payload['message']?.toString() ?? '');
-    final algorithm = payload['algorithm']?.toString().toLowerCase() ?? 'sha256';
+    final algorithm =
+        payload['algorithm']?.toString().toLowerCase() ?? 'sha256';
     final hmac = algorithm == 'sha1'
         ? crypto.Hmac(crypto.sha1, key)
         : crypto.Hmac(crypto.sha256, key);
@@ -367,7 +369,8 @@ final class JsHostApi {
   JsHostReply _base64(Map<String, Object?> payload, {required bool encode}) {
     if (encode) {
       return JsHostReply(
-        jsonEncode(base64Encode(utf8.encode(payload['input']?.toString() ?? ''))),
+        jsonEncode(
+            base64Encode(utf8.encode(payload['input']?.toString() ?? ''))),
       );
     }
     final raw = payload['input']?.toString() ?? '';
@@ -376,14 +379,15 @@ final class JsHostApi {
         jsonEncode(utf8.decode(base64.decode(base64.normalize(raw)))),
       );
     } on FormatException {
-      return JsHostReply.error('Invalid base64 input');
+      return const JsHostReply.error('Invalid base64 input');
     }
   }
 
   JsHostReply _unsupported(String message) => JsHostReply(
-    jsonEncode(<String, Object?>{'message': message, 'kind': 'unsupported'}),
-    isError: true,
-  );
+        jsonEncode(
+            <String, Object?>{'message': message, 'kind': 'unsupported'}),
+        isError: true,
+      );
 
   // ---- storage -----------------------------------------------------------
 
@@ -391,7 +395,7 @@ final class JsHostApi {
 
   JsHostReply _storageGet(Map<String, Object?> payload) {
     final key = payload['key']?.toString();
-    if (key == null) return JsHostReply.error('key is required');
+    if (key == null) return const JsHostReply.error('key is required');
     final stored = _settings.getString(_storageKey(key));
     if (stored == null) return JsHostReply(jsonEncode(payload['fallback']));
     return JsHostReply(jsonEncode(stored));
@@ -399,7 +403,7 @@ final class JsHostApi {
 
   Future<JsHostReply> _storageSet(Map<String, Object?> payload) async {
     final key = payload['key']?.toString();
-    if (key == null) return JsHostReply.error('key is required');
+    if (key == null) return const JsHostReply.error('key is required');
     final value = payload['value'];
     await _settings.setString(
       _storageKey(key),
@@ -410,7 +414,7 @@ final class JsHostApi {
 
   Future<JsHostReply> _storageRemove(Map<String, Object?> payload) async {
     final key = payload['key']?.toString();
-    if (key == null) return JsHostReply.error('key is required');
+    if (key == null) return const JsHostReply.error('key is required');
     await _settings.remove(_storageKey(key));
     return JsHostReply.ok;
   }

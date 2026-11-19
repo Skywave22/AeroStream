@@ -19,8 +19,8 @@ import '../../domain/repositories/extension_store.dart';
 ///
 /// The manager owns installation, not execution: it asks a factory for a
 /// provider so the JS and CloudStream runtimes stay swappable and testable.
-typedef ProviderFactory =
-    Future<Result<MediaProvider>> Function(InstalledPlugin installed);
+typedef ProviderFactory = Future<Result<MediaProvider>> Function(
+    InstalledPlugin installed);
 
 /// Install, update, roll back and remove plugins of every ecosystem.
 final class ExtensionManager {
@@ -30,10 +30,10 @@ final class ExtensionManager {
     required HttpService http,
     required this.platform,
     ProviderFactory? providerFactory,
-  }) : _store = store,
-       _artifacts = artifacts,
-       _http = http,
-       _providerFactory = providerFactory;
+  })  : _store = store,
+        _artifacts = artifacts,
+        _http = http,
+        _providerFactory = providerFactory;
 
   final ExtensionStore _store;
   final ArtifactStore _artifacts;
@@ -128,11 +128,11 @@ final class ExtensionManager {
     final result = await install(listed);
     return switch (result) {
       Ok<InstalledPlugin>(:final value) => Ok<InstalledPlugin>(
-        value.copyWith(
-          previousArtifactPath: installed.artifactPath,
-          info: value.info.copyWith(priority: installed.info.priority),
+          value.copyWith(
+            previousArtifactPath: installed.artifactPath,
+            info: value.info.copyWith(priority: installed.info.priority),
+          ),
         ),
-      ),
       Err<InstalledPlugin>(:final error) => Err<InstalledPlugin>(error),
     };
   }
@@ -175,7 +175,8 @@ final class ExtensionManager {
       _store.setEnabled(installed.key, enabled: enabled);
 
   /// Reorders plugins; lower runs first in aggregated queries.
-  Future<void> setPriority(InstalledPlugin installed, {required int priority}) =>
+  Future<void> setPriority(InstalledPlugin installed,
+          {required int priority}) =>
       _store.setPriority(installed.key, priority: priority);
 
   /// Providers for every enabled plugin that can run on this platform.
@@ -204,10 +205,9 @@ final class ExtensionManager {
 
   /// Pairs installed plugins with newer listings from their repositories.
   Future<List<({InstalledPlugin installed, AvailablePlugin upgrade})>>
-  findUpdates(List<AvailablePlugin> listings) async {
+      findUpdates(List<AvailablePlugin> listings) async {
     final installed = await _store.installedPlugins();
-    final updates =
-        <({InstalledPlugin installed, AvailablePlugin upgrade})>[];
+    final updates = <({InstalledPlugin installed, AvailablePlugin upgrade})>[];
     for (final plugin in installed) {
       for (final listing in listings) {
         if (listing.ecosystem != plugin.info.ecosystem) continue;
@@ -295,9 +295,11 @@ final class ExtensionManager {
         _Artifact(
           files: <String, List<int>>{
             'plugin.js': bytes.toList(growable: false),
-            'plugin.json': utf8.encode(
-              jsonEncode(_fallbackManifest(listed)),
-            ).toList(growable: false),
+            'plugin.json': utf8
+                .encode(
+                  jsonEncode(_fallbackManifest(listed)),
+                )
+                .toList(growable: false),
           },
           archive: bytes,
           info: _infoFromListing(listed),
@@ -322,8 +324,8 @@ final class ExtensionManager {
     if (manifest == null) {
       return _artifactError(listed, 'plugin.json is not valid JSON');
     }
-    final declared = readString(manifest['packageName']) ??
-        readString(manifest['id']);
+    final declared =
+        readString(manifest['packageName']) ?? readString(manifest['id']);
     if (declared != null && declared != listed.id) {
       // The archive must be the plugin the repository listed: otherwise an
       // archive could take over another plugin's install slot.
@@ -366,7 +368,7 @@ final class ExtensionManager {
       return _artifactError(
         listed,
         'No posts.js or catalog.js in the provider bundle'
-            '${lastError == null ? '' : ' ($lastError)'}',
+        '${lastError == null ? '' : ' ($lastError)'}',
       );
     }
 
@@ -388,21 +390,21 @@ final class ExtensionManager {
     final capabilities = switch (listed.ecosystem) {
       PluginEcosystem.cloudstream => PluginCapabilities.all,
       PluginEcosystem.skystream => const PluginCapabilities(
-        home: true,
-        search: true,
-        details: true,
-        episodes: true,
-        streams: true,
-        settings: true,
-      ),
+          home: true,
+          search: true,
+          details: true,
+          episodes: true,
+          streams: true,
+          settings: true,
+        ),
       PluginEcosystem.vega => const PluginCapabilities(
-        home: true,
-        search: true,
-        details: true,
-        streams: true,
-        settings: true,
-        catalogs: true,
-      ),
+          home: true,
+          search: true,
+          details: true,
+          streams: true,
+          settings: true,
+          catalogs: true,
+        ),
     };
 
     return PluginInfo(

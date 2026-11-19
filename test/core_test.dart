@@ -43,7 +43,8 @@ void main() {
   });
 
   group('PluginError', () {
-    test('every error kind is addressable and none is retryable by accident', () {
+    test('every error kind is addressable and none is retryable by accident',
+        () {
       const errors = <PluginError>[
         PluginTimeoutError('t'),
         PluginParseError('p'),
@@ -77,7 +78,8 @@ void main() {
       final scoped = error.copyWithPlugin('dev.example.plugin');
       expect(scoped, isA<PluginTimeoutError>());
       expect(scoped.pluginId, 'dev.example.plugin');
-      expect((scoped as PluginTimeoutError).timeout, const Duration(seconds: 5));
+      expect(
+          (scoped as PluginTimeoutError).timeout, const Duration(seconds: 5));
       expect(scoped.toString(), contains('dev.example.plugin'));
     });
   });
@@ -151,7 +153,12 @@ void main() {
       expect(readBool('off', fallback: true), isFalse);
       expect(readStringList(<Object?>['a', 2, null, 'b']), ['a', '2', 'b']);
       expect(readStringMap(<Object?, Object?>{'a': 'b', 1: null}), {'a': 'b'});
-      expect(readMapList(<Object?>[{'a': 1}, 'x']), hasLength(1));
+      expect(
+          readMapList(<Object?>[
+            {'a': 1},
+            'x'
+          ]),
+          hasLength(1));
       expect(readDate('2024-04-01'), DateTime(2024, 4, 1));
       expect(readDate('not a date'), isNull);
     });

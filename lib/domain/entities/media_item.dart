@@ -100,40 +100,40 @@ final class MediaItem {
       );
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'id': id,
-    'pluginId': pluginId,
-    'title': title,
-    if (originalTitle != null) 'originalTitle': originalTitle,
-    'type': type.wire,
-    if (url != null) 'url': url,
-    if (posterUrl != null) 'posterUrl': posterUrl,
-    if (backdropUrl != null) 'backdropUrl': backdropUrl,
-    if (year != null) 'year': year,
-    if (rating != null) 'rating': rating,
-    if (description != null) 'description': description,
-    if (genres.isNotEmpty) 'genres': genres,
-    if (status != null) 'status': status,
-    if (headers.isNotEmpty) 'headers': headers,
-    if (extras.isNotEmpty) 'extras': extras,
-  };
+        'id': id,
+        'pluginId': pluginId,
+        'title': title,
+        if (originalTitle != null) 'originalTitle': originalTitle,
+        'type': type.wire,
+        if (url != null) 'url': url,
+        if (posterUrl != null) 'posterUrl': posterUrl,
+        if (backdropUrl != null) 'backdropUrl': backdropUrl,
+        if (year != null) 'year': year,
+        if (rating != null) 'rating': rating,
+        if (description != null) 'description': description,
+        if (genres.isNotEmpty) 'genres': genres,
+        if (status != null) 'status': status,
+        if (headers.isNotEmpty) 'headers': headers,
+        if (extras.isNotEmpty) 'extras': extras,
+      };
 
   factory MediaItem.fromJson(Map<String, Object?> json) => MediaItem(
-    id: readString(json['id']) ?? '',
-    pluginId: readString(json['pluginId']) ?? '',
-    title: readString(json['title']) ?? 'Untitled',
-    originalTitle: readString(json['originalTitle']),
-    type: MediaType.fromWire(json['type']),
-    url: readString(json['url']),
-    posterUrl: readString(json['posterUrl']),
-    backdropUrl: readString(json['backdropUrl']),
-    year: readInt(json['year']),
-    rating: readDouble(json['rating']),
-    description: readString(json['description']),
-    genres: readStringList(json['genres']),
-    status: readString(json['status']),
-    headers: readStringMap(json['headers']),
-    extras: readMap(json['extras']),
-  );
+        id: readString(json['id']) ?? '',
+        pluginId: readString(json['pluginId']) ?? '',
+        title: readString(json['title']) ?? 'Untitled',
+        originalTitle: readString(json['originalTitle']),
+        type: MediaType.fromWire(json['type']),
+        url: readString(json['url']),
+        posterUrl: readString(json['posterUrl']),
+        backdropUrl: readString(json['backdropUrl']),
+        year: readInt(json['year']),
+        rating: readDouble(json['rating']),
+        description: readString(json['description']),
+        genres: readStringList(json['genres']),
+        status: readString(json['status']),
+        headers: readStringMap(json['headers']),
+        extras: readMap(json['extras']),
+      );
 
   @override
   bool operator ==(Object other) =>
@@ -150,16 +150,16 @@ final class MediaItem {
 
   @override
   int get hashCode => Object.hash(
-    id,
-    pluginId,
-    title,
-    type,
-    url,
-    posterUrl,
-    backdropUrl,
-    year,
-    rating,
-  );
+        id,
+        pluginId,
+        title,
+        type,
+        url,
+        posterUrl,
+        backdropUrl,
+        year,
+        rating,
+      );
 
   @override
   String toString() => 'MediaItem($id, $title, ${type.wire})';

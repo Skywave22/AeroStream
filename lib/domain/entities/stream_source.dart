@@ -70,17 +70,17 @@ final class StreamSource {
       );
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'url': url,
-    'label': label,
-    if (quality != null) 'quality': quality,
-    if (headers.isNotEmpty) 'headers': headers,
-    if (isHls) 'isHls': true,
-    if (isDash) 'isDash': true,
-    if (extractorName != null) 'extractorName': extractorName,
-    if (audioLanguage != null) 'audioLanguage': audioLanguage,
-    if (sizeBytes != null) 'sizeBytes': sizeBytes,
-    if (requiresProxy) 'requiresProxy': true,
-  };
+        'url': url,
+        'label': label,
+        if (quality != null) 'quality': quality,
+        if (headers.isNotEmpty) 'headers': headers,
+        if (isHls) 'isHls': true,
+        if (isDash) 'isDash': true,
+        if (extractorName != null) 'extractorName': extractorName,
+        if (audioLanguage != null) 'audioLanguage': audioLanguage,
+        if (sizeBytes != null) 'sizeBytes': sizeBytes,
+        if (requiresProxy) 'requiresProxy': true,
+      };
 
   factory StreamSource.fromJson(Map<String, Object?> json) {
     final url = readString(json['url']) ?? '';
@@ -88,16 +88,15 @@ final class StreamSource {
     final lowerUrl = url.toLowerCase();
     return StreamSource(
       url: url,
-      label: readString(json['label']) ?? readString(json['server']) ?? 'Default',
+      label:
+          readString(json['label']) ?? readString(json['server']) ?? 'Default',
       quality: readString(json['quality']),
       headers: readStringMap(json['headers']),
-      isHls:
-          readBool(json['isHls']) ||
+      isHls: readBool(json['isHls']) ||
           explicitType == 'm3u8' ||
           explicitType == 'hls' ||
           lowerUrl.contains('.m3u8'),
-      isDash:
-          readBool(json['isDash']) ||
+      isDash: readBool(json['isDash']) ||
           explicitType == 'mpd' ||
           explicitType == 'dash' ||
           lowerUrl.contains('.mpd'),
@@ -115,7 +114,8 @@ final class StreamSource {
   int get hashCode => key.hashCode;
 
   @override
-  String toString() => 'StreamSource($label${quality == null ? '' : ' $quality'})';
+  String toString() =>
+      'StreamSource($label${quality == null ? '' : ' $quality'})';
 }
 
 /// A subtitle file the player can load alongside a stream.
@@ -148,22 +148,22 @@ final class SubtitleTrack {
   }
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'url': url,
-    'language': language,
-    if (label != null) 'label': label,
-    'format': format,
-    if (headers.isNotEmpty) 'headers': headers,
-    if (isDefault) 'isDefault': true,
-  };
+        'url': url,
+        'language': language,
+        if (label != null) 'label': label,
+        'format': format,
+        if (headers.isNotEmpty) 'headers': headers,
+        if (isDefault) 'isDefault': true,
+      };
 
   factory SubtitleTrack.fromJson(Map<String, Object?> json) => SubtitleTrack(
-    url: readString(json['url']) ?? '',
-    language: readString(json['language']) ?? 'und',
-    label: readString(json['label']),
-    format: readString(json['format']) ?? 'vtt',
-    headers: readStringMap(json['headers']),
-    isDefault: readBool(json['isDefault']),
-  );
+        url: readString(json['url']) ?? '',
+        language: readString(json['language']) ?? 'und',
+        label: readString(json['label']),
+        format: readString(json['format']) ?? 'vtt',
+        headers: readStringMap(json['headers']),
+        isDefault: readBool(json['isDefault']),
+      );
 
   @override
   bool operator ==(Object other) =>
@@ -223,22 +223,22 @@ final class StreamResult {
   }
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'sources': sources.map((source) => source.toJson()).toList(growable: false),
-    'subtitles': subtitles
-        .map((track) => track.toJson())
-        .toList(growable: false),
-    if (diagnostics.isNotEmpty) 'diagnostics': diagnostics,
-  };
+        'sources':
+            sources.map((source) => source.toJson()).toList(growable: false),
+        'subtitles':
+            subtitles.map((track) => track.toJson()).toList(growable: false),
+        if (diagnostics.isNotEmpty) 'diagnostics': diagnostics,
+      };
 
   factory StreamResult.fromJson(Map<String, Object?> json) => StreamResult(
-    sources: readMapList(
-      json['sources'],
-    ).map(StreamSource.fromJson).toList(growable: false),
-    subtitles: readMapList(
-      json['subtitles'],
-    ).map(SubtitleTrack.fromJson).toList(growable: false),
-    diagnostics: readStringList(json['diagnostics']),
-  );
+        sources: readMapList(
+          json['sources'],
+        ).map(StreamSource.fromJson).toList(growable: false),
+        subtitles: readMapList(
+          json['subtitles'],
+        ).map(SubtitleTrack.fromJson).toList(growable: false),
+        diagnostics: readStringList(json['diagnostics']),
+      );
 
   static const StreamResult empty = StreamResult();
 

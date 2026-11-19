@@ -52,8 +52,8 @@ final class SkyStreamAdapter implements MediaProvider {
     return switch (response) {
       Err<Object?>(:final error) => Err<List<HomeSection>>(error),
       Ok<Object?>(:final value) => Ok<List<HomeSection>>(
-        mapHome(value),
-      ),
+          mapHome(value),
+        ),
     };
   }
 
@@ -95,10 +95,8 @@ final class SkyStreamAdapter implements MediaProvider {
     return switch (details) {
       Err<MediaDetails>(:final error) => Err<List<Episode>>(error),
       Ok<MediaDetails>(:final value) => Ok<List<Episode>>(
-        season == null
-            ? value.episodes
-            : value.episodesOf(season.number),
-      ),
+          season == null ? value.episodes : value.episodesOf(season.number),
+        ),
     };
   }
 
@@ -108,7 +106,7 @@ final class SkyStreamAdapter implements MediaProvider {
     Episode? episode,
   }) async {
     if (!capabilities.streams) return _unsupported('loadStreams');
-    final handle = episode?.url.isNotEmpty == true ? episode!.url : item.url;
+    final handle = (episode?.url.isNotEmpty ?? false) ? episode!.url : item.url;
     if (handle == null || handle.isEmpty) {
       return const Err<StreamResult>(
         PluginParseError('Nothing to resolve: the item has no handle'),
@@ -119,11 +117,11 @@ final class SkyStreamAdapter implements MediaProvider {
     return switch (response) {
       Err<Object?>(:final error) => Err<StreamResult>(error),
       Ok<Object?>(:final value) => Ok<StreamResult>(
-        StreamResult(
-          sources: mapStreams(value),
-          subtitles: mapSubtitles(value),
+          StreamResult(
+            sources: mapStreams(value),
+            subtitles: mapSubtitles(value),
+          ),
         ),
-      ),
     };
   }
 
@@ -267,9 +265,9 @@ final class SkyStreamAdapter implements MediaProvider {
 
   /// Prefers the richer payload field while keeping the caller's identity.
   MediaItem _merge(MediaItem parsed, MediaItem fallback) => parsed.copyWith(
-    id: fallback.id,
-    headers: parsed.headers.isEmpty ? fallback.headers : parsed.headers,
-  );
+        id: fallback.id,
+        headers: parsed.headers.isEmpty ? fallback.headers : parsed.headers,
+      );
 
   Episode? mapEpisode(Map<String, Object?> raw) {
     final url = readString(raw['url']) ?? readString(raw['link']);
@@ -278,9 +276,8 @@ final class SkyStreamAdapter implements MediaProvider {
         readInt(raw['number']) ??
         readInt(raw['episodeNumber']) ??
         1;
-    final seasonNumber = readInt(raw['season']) ??
-        readInt(raw['seasonNumber']) ??
-        1;
+    final seasonNumber =
+        readInt(raw['season']) ?? readInt(raw['seasonNumber']) ?? 1;
     return Episode(
       id: AdapterSupport.itemId(
         '${info.id}/episode',
@@ -372,10 +369,10 @@ final class SkyStreamAdapter implements MediaProvider {
   }
 
   Result<T> _unsupported<T>(String operation) => Err<T>(
-    PluginUnsupportedError(
-      'This plugin does not implement $operation',
-      pluginId: info.id,
-      operation: operation,
-    ),
-  );
+        PluginUnsupportedError(
+          'This plugin does not implement $operation',
+          pluginId: info.id,
+          operation: operation,
+        ),
+      );
 }

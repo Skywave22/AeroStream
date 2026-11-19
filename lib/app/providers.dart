@@ -46,7 +46,7 @@ final hostBootstrapProvider = Provider<String>(
 /// The JavaScript engine for this platform. Overridden at boot by the native
 /// engine; the default fails safe with a typed error.
 final jsEngineFactoryProvider = Provider<JsEngineFactory>(
-  (ref) => () => UnavailableJsRuntime(),
+  (ref) => UnavailableJsRuntime.new,
 );
 
 /// The Android CloudStream host, when this build has one.

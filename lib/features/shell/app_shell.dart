@@ -12,7 +12,7 @@ class AppShell extends ConsumerWidget {
 
   final Widget child;
 
-  static const List<_Destination> destinations = <_Destination>[
+  static const List<_Destination> _destinations = <_Destination>[
     _Destination('/', 'Home', Icons.home_outlined, Icons.home),
     _Destination('/search', 'Search', Icons.search, Icons.search),
     _Destination('/library', 'Library', Icons.bookmark_border, Icons.bookmark),
@@ -38,7 +38,7 @@ class AppShell extends ConsumerWidget {
     final useRail = width >= 720;
 
     void navigate(int index) {
-      final destination = destinations[index];
+      final destination = _destinations[index];
       context.go(destination.path);
     }
 
@@ -59,7 +59,7 @@ class AppShell extends ConsumerWidget {
                 child: _Brand(compact: true),
               ),
               destinations: [
-                for (final destination in destinations)
+                for (final destination in _destinations)
                   NavigationRailDestination(
                     icon: Icon(destination.icon),
                     selectedIcon: Icon(destination.selectedIcon),
@@ -80,7 +80,7 @@ class AppShell extends ConsumerWidget {
         selectedIndex: index,
         onDestinationSelected: navigate,
         destinations: [
-          for (final destination in destinations)
+          for (final destination in _destinations)
             NavigationDestination(
               icon: Icon(destination.icon),
               selectedIcon: Icon(destination.selectedIcon),
@@ -93,8 +93,8 @@ class AppShell extends ConsumerWidget {
 
   static int _indexFor(String location) {
     if (location == '/' || location.isEmpty) return 0;
-    for (var i = 1; i < destinations.length; i++) {
-      if (location.startsWith(destinations[i].path)) return i;
+    for (var i = 1; i < _destinations.length; i++) {
+      if (location.startsWith(_destinations[i].path)) return i;
     }
     return 0;
   }

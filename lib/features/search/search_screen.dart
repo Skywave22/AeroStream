@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../domain/entities/enums.dart';
 import '../../domain/services/catalog_service.dart';
 import '../common/media_card.dart';
 import '../home/home_providers.dart';
@@ -39,9 +38,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final results = _query.isEmpty
-        ? null
-        : ref.watch(searchResultsProvider(_query));
+    final results =
+        _query.isEmpty ? null : ref.watch(searchResultsProvider(_query));
 
     return Scaffold(
       appBar: AppBar(

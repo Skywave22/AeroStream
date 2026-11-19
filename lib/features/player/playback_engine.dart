@@ -5,7 +5,7 @@ import '../../domain/entities/stream_source.dart';
 /// Renders a stream surface.
 ///
 /// The engine is a seam on purpose: platforms that can host a video pipeline
-/// override [playbackEngineProvider] with a real implementation, while builds
+/// `playerEngineProvider` with a real implementation, while builds
 /// that cannot (or tests) leave it null and the watch screen explains itself
 /// instead of rendering a black rectangle.
 abstract interface class PlaybackEngine {

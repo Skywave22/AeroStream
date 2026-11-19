@@ -47,7 +47,8 @@ List<int> buildSkyPackage({
     ],
   });
   final archive = Archive()
-    ..addFile(ArchiveFile('plugin.json', manifest.length, utf8.encode(manifest)))
+    ..addFile(
+        ArchiveFile('plugin.json', manifest.length, utf8.encode(manifest)))
     ..addFile(ArchiveFile('plugin.js', code.length, utf8.encode(code)));
   return ZipEncoder().encode(archive)!;
 }
@@ -210,7 +211,8 @@ void main() {
       final updated = (await manager().update(
         first,
         listing(version: 3),
-      )).valueOrNull!;
+      ))
+          .valueOrNull!;
 
       expect(updated.info.version, PluginVersion.parse(3));
       expect(updated.previousArtifactPath, first.artifactPath);
@@ -229,8 +231,7 @@ void main() {
     test('uninstall removes both the record and the files', () async {
       http.routes['https://example.com/dev.example.plugin.bin'] =
           buildSkyPackage();
-      final installed =
-          (await manager().install(listing())).valueOrNull!;
+      final installed = (await manager().install(listing())).valueOrNull!;
 
       await manager().uninstall(installed);
       expect(await store.installedPlugins(), isEmpty);
@@ -276,11 +277,15 @@ void main() {
     test('builds a provider per enabled plugin', () async {
       http.routes['https://example.com/dev.example.plugin.bin'] =
           buildSkyPackage();
+      http.routes['https://example.com/second.plugin.bin'] = buildSkyPackage(
+        packageName: 'second.plugin',
+      );
       await manager().install(listing());
       await manager().install(listing(id: 'second.plugin'));
 
       final providers = await manager(
-        factory: (plugin) async => Ok<MediaProvider>(_FakeProvider(plugin.info)),
+        factory: (plugin) async =>
+            Ok<MediaProvider>(_FakeProvider(plugin.info)),
       ).activeProviders();
 
       expect(providers, hasLength(2));
@@ -320,8 +325,7 @@ void main() {
     test('refuses when there is nothing to roll back to', () async {
       http.routes['https://example.com/dev.example.plugin.bin'] =
           buildSkyPackage();
-      final installed =
-          (await manager().install(listing())).valueOrNull!;
+      final installed = (await manager().install(listing())).valueOrNull!;
       final fresh = InstalledPlugin(
         info: installed.info,
         artifactPath: installed.artifactPath,

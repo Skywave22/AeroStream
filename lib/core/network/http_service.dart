@@ -81,8 +81,8 @@ final class DioHttpService implements HttpService {
       ..followRedirects = true
       ..maxRedirects = limits.maxRedirects
       ..validateStatus = ((int? _) => true)
-        ..responseType = ResponseType.bytes
-        ..headers = <String, Object?>{'Accept': '*/*'};
+      ..responseType = ResponseType.bytes
+      ..headers = <String, Object?>{'Accept': '*/*'};
   }
 
   final Dio _dio;

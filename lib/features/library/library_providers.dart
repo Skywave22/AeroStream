@@ -59,8 +59,9 @@ class LibraryController extends Notifier<List<MediaItem>> {
 
   Future<void> _persist() async {
     await ref.read(settingsStoreProvider).setString(
-      _key,
-      jsonEncode(state.map((item) => item.toJson()).toList(growable: false)),
-    );
+          _key,
+          jsonEncode(
+              state.map((item) => item.toJson()).toList(growable: false)),
+        );
   }
 }

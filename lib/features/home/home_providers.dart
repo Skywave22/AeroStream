@@ -18,8 +18,8 @@ final searchQueryProvider = StateProvider<String>((ref) => '');
 
 final searchResultsProvider = FutureProvider.autoDispose
     .family<List<SearchGroup>, String>((ref, query) async {
-      final trimmed = query.trim();
-      if (trimmed.isEmpty) return const <SearchGroup>[];
-      final providers = await ref.watch(mediaProvidersProvider.future);
-      return CatalogService.search(providers, trimmed);
-    });
+  final trimmed = query.trim();
+  if (trimmed.isEmpty) return const <SearchGroup>[];
+  final providers = await ref.watch(mediaProvidersProvider.future);
+  return CatalogService.search(providers, trimmed);
+});

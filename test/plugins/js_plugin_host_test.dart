@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:aerostream/core/errors/plugin_error.dart';
 import 'package:aerostream/core/network/network_policy.dart';
 import 'package:aerostream/core/result.dart';
 import 'package:aerostream/plugins/runtime/js_host_api.dart';
@@ -64,16 +65,15 @@ void main() {
         ),
         pluginId: 'dev.example.plugin',
         bootstrap: '/* bootstrap */',
-        pluginSource: 'globalThis.getHome = (cb) => cb({success:true,data:[]});',
+        pluginSource:
+            'globalThis.getHome = (cb) => cb({success:true,data:[]});',
         manifestJson: '{"packageName":"dev.example.plugin"}',
       );
 
       await host.call('getHome');
 
       expect(runtime.scripts.first, '/* bootstrap */');
-      final withManifest = runtime
-          .scriptsStartingWith('var manifest =')
-          .single;
+      final withManifest = runtime.scriptsStartingWith('var manifest =').single;
       expect(withManifest, contains('dev.example.plugin'));
       expect(withManifest, contains('globalThis.getHome'));
       await host.dispose();
@@ -143,12 +143,11 @@ void main() {
 
     test('an unimplemented entry point is reported as unsupported', () async {
       final runtime = ScriptedJsRuntime(
-        onEvaluate: (script) async =>
-            script.startsWith('__aeroPoll(')
-                ? '{"done":true,"error":{"message":"no getHome","kind":"unsupported"}}'
-                : script.startsWith('__aeroInvoke(')
-                    ? '{"started":false}'
-                    : '[]',
+        onEvaluate: (script) async => script.startsWith('__aeroPoll(')
+            ? '{"done":true,"error":{"message":"no getHome","kind":"unsupported"}}'
+            : script.startsWith('__aeroInvoke(')
+                ? '{"started":false}'
+                : '[]',
       );
       final host = buildHost(runtime: runtime);
 
@@ -250,7 +249,9 @@ void main() {
             throw const JsEvalException('QuickJS aborted');
           }
           if (script.startsWith('__aeroInvoke(')) return '{"started":true}';
-          if (script.startsWith('__aeroPoll(')) return '{"done":true,"value":1}';
+          if (script.startsWith('__aeroPoll(')) {
+            return '{"done":true,"value":1}';
+          }
           return '[]';
         },
       );
@@ -343,7 +344,7 @@ void main() {
       final reply = await api.handle(
         JsHostCall(id: 'c1', channel: channel, payload: jsonEncode(payload)),
       );
-      if (reply.isError) return Err<Object?>(reply.json);
+      if (reply.isError) return Err<Object?>(PluginCrashError(reply.json));
       return reply.json == 'null' ? null : jsonDecode(reply.json);
     }
 
@@ -363,10 +364,12 @@ void main() {
         'html': html,
         'selector': 'a',
       });
-      expect((texts as List).first, containsPair('text', 'First'));
+      final textList = texts as List?;
+      expect(textList!.first, containsPair('text', 'First'));
 
-      final parsed = await invoke('html:parse', <String, Object?>{'html': html});
-      final docId = (parsed as Map)['id'];
+      final parsed =
+          await invoke('html:parse', <String, Object?>{'html': html});
+      final docId = (parsed as Map?)?['id'];
       final firstText = await invoke('html:text', <String, Object?>{
         'doc': docId,
         'selector': 'a',
@@ -409,7 +412,8 @@ void main() {
       );
       expect(settings.values.keys.single, 'plugin.p.token');
 
-      final stored = await invoke('storage:get', <String, Object?>{'key': 'token'});
+      final stored =
+          await invoke('storage:get', <String, Object?>{'key': 'token'});
       expect(stored, 'abc');
 
       final missing = await invoke('storage:get', <String, Object?>{

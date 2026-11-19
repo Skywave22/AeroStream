@@ -119,7 +119,8 @@ void main() {
       const result = StreamResult(
         sources: <StreamSource>[
           StreamSource(url: 'https://a/360.m3u8', quality: '360p', isHls: true),
-          StreamSource(url: 'https://a/1080.m3u8', quality: '1080p', isHls: true),
+          StreamSource(
+              url: 'https://a/1080.m3u8', quality: '1080p', isHls: true),
           StreamSource(url: 'https://a/720.mp4', quality: '720p'),
           StreamSource(
             url: 'https://a/proxy.mp4',

@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers.dart';
 
-import 'package:flutter/material.dart';
-
 /// Which of AeroStream's three palettes is active.
 enum AppThemeVariant {
   system,

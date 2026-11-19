@@ -86,13 +86,13 @@ final class VegaAdapter implements MediaProvider {
     return switch (response) {
       Err<Object?>(:final error) => Err<SearchPage>(error),
       Ok<Object?>(:final value) => Ok<SearchPage>(
-        SearchPage(
-          items: _items(value),
-          pluginId: info.id,
-          hasMore: (value is List) && value.isNotEmpty,
-          nextPage: page + 1,
+          SearchPage(
+            items: _items(value),
+            pluginId: info.id,
+            hasMore: (value is List) && value.isNotEmpty,
+            nextPage: page + 1,
+          ),
         ),
-      ),
     };
   }
 
@@ -112,8 +112,8 @@ final class VegaAdapter implements MediaProvider {
     return switch (response) {
       Err<Object?>(:final error) => Err<MediaDetails>(error),
       Ok<Object?>(:final value) => Ok<MediaDetails>(
-        mapDetails(value, fallback: item),
-      ),
+          mapDetails(value, fallback: item),
+        ),
     };
   }
 
@@ -126,8 +126,8 @@ final class VegaAdapter implements MediaProvider {
     return switch (details) {
       Err<MediaDetails>(:final error) => Err<List<Episode>>(error),
       Ok<MediaDetails>(:final value) => Ok<List<Episode>>(
-        season == null ? value.episodes : value.episodesOf(season.number),
-      ),
+          season == null ? value.episodes : value.episodesOf(season.number),
+        ),
     };
   }
 
@@ -136,7 +136,7 @@ final class VegaAdapter implements MediaProvider {
     MediaItem item, {
     Episode? episode,
   }) async {
-    final link = episode?.url.isNotEmpty == true ? episode!.url : item.url;
+    final link = (episode?.url.isNotEmpty ?? false) ? episode!.url : item.url;
     if (link == null || link.isEmpty) {
       return const Err<StreamResult>(
         PluginParseError('Nothing to resolve: the item has no link'),
@@ -155,11 +155,11 @@ final class VegaAdapter implements MediaProvider {
     return switch (response) {
       Err<Object?>(:final error) => Err<StreamResult>(error),
       Ok<Object?>(:final value) => Ok<StreamResult>(
-        StreamResult(
-          sources: mapStreams(value),
-          subtitles: mapSubtitles(value),
+          StreamResult(
+            sources: mapStreams(value),
+            subtitles: mapSubtitles(value),
+          ),
         ),
-      ),
     };
   }
 
@@ -221,8 +221,7 @@ final class VegaAdapter implements MediaProvider {
       if (link == null) continue;
       final seasonNumber =
           readInt(entry['season']) ?? readInt(entry['seasonNumber']) ?? 1;
-      final number =
-          readInt(entry['episode']) ?? readInt(entry['number']) ?? 1;
+      final number = readInt(entry['episode']) ?? readInt(entry['number']) ?? 1;
       episodes.add(
         Episode(
           id: AdapterSupport.itemId(
@@ -259,7 +258,8 @@ final class VegaAdapter implements MediaProvider {
       ),
       description: readString(map['description']) ?? item.description,
       genres: readStringList(map['genres'] ?? map['tags']),
-      cast: readMapList(map['cast']).map(Actor.fromJson).toList(growable: false),
+      cast:
+          readMapList(map['cast']).map(Actor.fromJson).toList(growable: false),
       trailers: readMapList(map['trailer'] is List ? map['trailer'] : null)
           .map(
             (trailer) => Trailer(
@@ -313,7 +313,8 @@ final class VegaAdapter implements MediaProvider {
               'Default',
           quality: readString(entry['quality']),
           headers: readStringMap(entry['headers']),
-          isHls: kind == 'm3u8' || kind == 'hls' ||
+          isHls: kind == 'm3u8' ||
+              kind == 'hls' ||
               url.toLowerCase().contains('.m3u8'),
           isDash: kind == 'mpd' || kind == 'dash',
           extractorName: readString(entry['extractor']),

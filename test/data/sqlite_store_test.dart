@@ -34,15 +34,15 @@ void main() {
     });
 
     PluginRepository repository({String id = 'repo-1'}) => PluginRepository(
-      id: id,
-      name: 'Repo $id',
-      url: 'https://example.com/$id.json',
-      ecosystem: PluginEcosystem.cloudstream,
-      description: 'A repository',
-      pluginLists: const <String>['https://example.com/plugins.json'],
-      addedAt: DateTime.utc(2024, 1, 1),
-      lastCheckedAt: DateTime.utc(2024, 1, 2),
-    );
+          id: id,
+          name: 'Repo $id',
+          url: 'https://example.com/$id.json',
+          ecosystem: PluginEcosystem.cloudstream,
+          description: 'A repository',
+          pluginLists: const <String>['https://example.com/plugins.json'],
+          addedAt: DateTime.utc(2024, 1, 1),
+          lastCheckedAt: DateTime.utc(2024, 1, 2),
+        );
 
     InstalledPlugin plugin({
       String id = 'dev.example.plugin',
@@ -99,7 +99,8 @@ void main() {
         () async {
       await storeInstall(store, plugin());
 
-      final stored = await store.installedPlugin('skystream:dev.example.plugin');
+      final stored =
+          await store.installedPlugin('skystream:dev.example.plugin');
       expect(stored, isNotNull);
       expect(stored!.info.version, PluginVersion.parse(3));
       expect(stored.info.capabilities.streams, isTrue);
@@ -131,13 +132,15 @@ void main() {
       await store.setEnabled('skystream:dev.example.plugin', enabled: false);
       await store.setPriority('skystream:dev.example.plugin', priority: -5);
 
-      final stored = await store.installedPlugin('skystream:dev.example.plugin');
+      final stored =
+          await store.installedPlugin('skystream:dev.example.plugin');
       expect(stored!.info.enabled, isFalse);
       expect(stored.info.priority, -5);
       expect(stored.info.name, 'Plugin dev.example.plugin');
 
       await store.deleteInstalledPlugin('skystream:dev.example.plugin');
-      expect(await store.installedPlugin('skystream:dev.example.plugin'), isNull);
+      expect(
+          await store.installedPlugin('skystream:dev.example.plugin'), isNull);
     });
 
     test('orders plugins by priority', () async {

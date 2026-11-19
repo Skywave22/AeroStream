@@ -10,19 +10,17 @@ import '../../domain/entities/plugin_repository.dart';
 /// Plugins a repository offers.
 final repositoryPluginsProvider = FutureProvider.autoDispose
     .family<List<AvailablePlugin>, String>((ref, repositoryId) async {
-      final repositories = await ref.watch(repositoriesProvider.future);
-      final repository = repositories
-          .where((candidate) => candidate.id == repositoryId)
-          .firstOrNull;
-      if (repository == null) return const <AvailablePlugin>[];
-      final result = await ref
-          .watch(repositoryServiceProvider)
-          .browse(repository);
-      return switch (result) {
-        Ok<List<AvailablePlugin>>(:final value) => value,
-        Err<List<AvailablePlugin>>(:final error) => throw error,
-      };
-    });
+  final repositories = await ref.watch(repositoriesProvider.future);
+  final repository = repositories
+      .where((candidate) => candidate.id == repositoryId)
+      .firstOrNull;
+  if (repository == null) return const <AvailablePlugin>[];
+  final result = await ref.watch(repositoryServiceProvider).browse(repository);
+  return switch (result) {
+    Ok<List<AvailablePlugin>>(:final value) => value,
+    Err<List<AvailablePlugin>>(:final error) => throw error,
+  };
+});
 
 /// Ids of plugins currently being installed or updated, for progress UI.
 final busyPluginsProvider = StateProvider<Set<String>>((ref) => <String>{});
@@ -34,12 +32,13 @@ final busyPluginsProvider = StateProvider<Set<String>>((ref) => <String>{});
 final class ExtensionActions {
   const ExtensionActions(this._ref);
 
-  final Ref _ref;
+  final WidgetRef _ref;
 
   PlatformProfile get platform => _ref.read(platformProfileProvider);
 
   Future<Result<PluginRepository>> addRepository(String url) async {
-    final result = await _ref.read(repositoryServiceProvider).addRepository(url);
+    final result =
+        await _ref.read(repositoryServiceProvider).addRepository(url);
     _ref.invalidate(repositoriesProvider);
     return result;
   }
@@ -73,9 +72,8 @@ final class ExtensionActions {
   ) async {
     _markBusy(installed.info.id, true);
     try {
-      final result = await _ref
-          .read(extensionManagerProvider)
-          .update(installed, upgrade);
+      final result =
+          await _ref.read(extensionManagerProvider).update(installed, upgrade);
       _refreshInstalled();
       return result;
     } finally {
@@ -93,7 +91,8 @@ final class ExtensionActions {
     }
   }
 
-  Future<void> setEnabled(InstalledPlugin plugin, {required bool enabled}) async {
+  Future<void> setEnabled(InstalledPlugin plugin,
+      {required bool enabled}) async {
     await _ref
         .read(extensionManagerProvider)
         .setEnabled(plugin, enabled: enabled);
@@ -102,7 +101,7 @@ final class ExtensionActions {
 
   /// Newer listings for what is installed, across every repository.
   Future<List<({InstalledPlugin installed, AvailablePlugin upgrade})>>
-  findUpdates() async {
+      findUpdates() async {
     final repositories = await _ref.read(repositoriesProvider.future);
     final service = _ref.read(repositoryServiceProvider);
     final listings = <AvailablePlugin>[];
@@ -117,9 +116,8 @@ final class ExtensionActions {
 
   void _markBusy(String id, bool busy) {
     final current = _ref.read(busyPluginsProvider);
-    _ref.read(busyPluginsProvider.notifier).state = busy
-        ? <String>{...current, id}
-        : (current.toSet()..remove(id));
+    _ref.read(busyPluginsProvider.notifier).state =
+        busy ? <String>{...current, id} : (current.toSet()..remove(id));
   }
 
   void _refreshInstalled() {
@@ -148,6 +146,5 @@ final class ExtensionActions {
     return null;
   }
 
-  PluginError? describeFailure(Result<Object?> result) =>
-      result.errorOrNull;
+  PluginError? describeFailure(Result<Object?> result) => result.errorOrNull;
 }

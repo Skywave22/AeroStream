@@ -36,7 +36,7 @@ abstract interface class CloudStreamBridge {
 /// as a crash: the whole feature is gated on [isAvailable].
 final class MethodChannelCloudStreamBridge implements CloudStreamBridge {
   MethodChannelCloudStreamBridge({MethodChannel? channel})
-    : _channel = channel ?? const MethodChannel(channelName);
+      : _channel = channel ?? const MethodChannel(channelName);
 
   static const String channelName = 'dev.aerostream/cloudstream';
 
@@ -111,8 +111,7 @@ final class MethodChannelCloudStreamBridge implements CloudStreamBridge {
     final result = <String, Object?>{};
     for (final entry in raw.entries) {
       final value = entry.value;
-      result[entry.key.toString()] =
-          value is Map ? _stringKeyed(value) : value;
+      result[entry.key.toString()] = value is Map ? _stringKeyed(value) : value;
     }
     return result;
   }

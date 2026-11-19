@@ -109,7 +109,7 @@ class MediaHeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final url = item.backdropUrl?.isNotEmpty == true
+    final url = item.backdropUrl?.isNotEmpty ?? false
         ? item.backdropUrl
         : item.posterUrl;
 

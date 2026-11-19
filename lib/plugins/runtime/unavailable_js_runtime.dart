@@ -7,13 +7,13 @@ import 'js_runtime.dart';
 /// it out — plugins fail with a clear, typed error instead of a crash, and the
 /// UI shows "JavaScript plugins cannot run on this platform".
 final class UnavailableJsRuntime implements JsRuntime {
-  UnavailableJsRuntime({this.reason = 'The JavaScript engine is not available'});
+  UnavailableJsRuntime(
+      {this.reason = 'The JavaScript engine is not available'});
 
   final String reason;
 
   @override
-  Future<void> start() async =>
-      throw JsEvalException(reason, isTimeout: false);
+  Future<void> start() async => throw JsEvalException(reason, isTimeout: false);
 
   @override
   Future<String?> evaluate(String script) async =>

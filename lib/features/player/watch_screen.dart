@@ -42,8 +42,8 @@ class _WatchScreenState extends ConsumerState<WatchScreen> {
           widget.request.episode == null
               ? widget.request.item.title
               : '${widget.request.item.title} · '
-                    'S${widget.request.episode!.seasonNumber}'
-                    'E${widget.request.episode!.number}',
+                  'S${widget.request.episode!.seasonNumber}'
+                  'E${widget.request.episode!.number}',
           style: const TextStyle(fontSize: 16),
         ),
         actions: [
@@ -54,8 +54,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> {
           ),
           IconButton(
             tooltip: 'Reload links',
-            onPressed: () =>
-                ref.invalidate(streamsProvider(widget.request)),
+            onPressed: () => ref.invalidate(streamsProvider(widget.request)),
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -112,15 +111,15 @@ class _Body extends StatelessWidget {
     final engineSurface = source == null
         ? null
         : engine?.supports(source) ?? false
-        ? engine!.buildSurface(context, source)
-        : null;
+            ? engine!.buildSurface(context, source)
+            : null;
 
     return Column(
       children: [
         Expanded(
           child: Center(
-            child: engineSurface ??
-                _EngineMissing(source: source, result: result),
+            child:
+                engineSurface ?? _EngineMissing(source: source, result: result),
           ),
         ),
         if (showSources)
@@ -150,7 +149,8 @@ class _EngineMissing extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.movie_filter_outlined, size: 44, color: Colors.white38),
+          const Icon(Icons.movie_filter_outlined,
+              size: 44, color: Colors.white38),
           const SizedBox(height: 16),
           Text(
             source == null ? 'No playable links' : 'No player in this build',
@@ -161,8 +161,8 @@ class _EngineMissing extends StatelessWidget {
             source == null
                 ? 'The extension returned no sources for this title.'
                 : 'The links resolved, but this build has no video engine '
-                      'attached. Copy the link into a player that supports '
-                      '${source!.isHls ? 'HLS' : source!.isDash ? 'DASH' : 'this format'}.',
+                    'attached. Copy the link into a player that supports '
+                    '${source!.isHls ? 'HLS' : source!.isDash ? 'DASH' : 'this format'}.',
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.white54, height: 1.4),
           ),
@@ -217,7 +217,8 @@ class _SourceList extends StatelessWidget {
             indicatorColor: Theme.of(context).colorScheme.primary,
             tabs: [
               Tab(text: 'Sources (${result.sources.length})'),
-              if (subtitles.isNotEmpty) Tab(text: 'Subtitles (${subtitles.length})'),
+              if (subtitles.isNotEmpty)
+                Tab(text: 'Subtitles (${subtitles.length})'),
             ],
           ),
           Expanded(
@@ -235,8 +236,8 @@ class _SourceList extends StatelessWidget {
                         source.isHls
                             ? Icons.stream
                             : source.isDash
-                            ? Icons.dynamic_feed
-                            : Icons.movie,
+                                ? Icons.dynamic_feed
+                                : Icons.movie,
                         color: isSelected
                             ? Theme.of(context).colorScheme.primary
                             : Colors.white54,
@@ -248,8 +249,12 @@ class _SourceList extends StatelessWidget {
                       subtitle: Text(
                         <String>[
                           if (source.quality != null) source.quality!,
-                          if (source.isHls) 'HLS' else if (source.isDash) 'DASH',
-                          if (source.extractorName != null) source.extractorName!,
+                          if (source.isHls)
+                            'HLS'
+                          else if (source.isDash)
+                            'DASH',
+                          if (source.extractorName != null)
+                            source.extractorName!,
                           if (source.headers.isNotEmpty) 'needs headers',
                         ].join(' · '),
                         style: const TextStyle(color: Colors.white38),

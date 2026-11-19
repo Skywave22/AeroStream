@@ -98,8 +98,8 @@ abstract final class AdapterSupport {
       id: itemId(pluginId, url: url, title: title),
       pluginId: pluginId,
       title: title,
-      originalTitle: readString(raw['originalTitle']) ??
-          readString(raw['original_title']),
+      originalTitle:
+          readString(raw['originalTitle']) ?? readString(raw['original_title']),
       type: type,
       url: url,
       posterUrl: imageUrl(
@@ -107,7 +107,10 @@ abstract final class AdapterSupport {
         baseUrl: baseUrl,
       ),
       backdropUrl: imageUrl(
-        raw['bannerUrl'] ?? raw['backdropUrl'] ?? raw['backdrop'] ?? raw['cover'],
+        raw['bannerUrl'] ??
+            raw['backdropUrl'] ??
+            raw['backdrop'] ??
+            raw['cover'],
         baseUrl: baseUrl,
       ),
       year: year(raw['year'] ?? raw['releaseDate'] ?? raw['release_date']),

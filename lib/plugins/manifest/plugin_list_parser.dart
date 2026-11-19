@@ -74,9 +74,8 @@ abstract final class PluginListParser {
       );
     }
 
-    final ecosystem = hint ??
-        detectEcosystem(entries) ??
-        PluginEcosystem.skystream;
+    final ecosystem =
+        hint ?? detectEcosystem(entries) ?? PluginEcosystem.skystream;
 
     final base = Uri.tryParse(sourceUrl);
     final plugins = <AvailablePlugin>[];
@@ -106,7 +105,8 @@ abstract final class PluginListParser {
 
     // Vega: `value` + `display_name` and no download URL of its own.
     if (first.containsKey('value') &&
-        (first.containsKey('display_name') || first.containsKey('displayName'))) {
+        (first.containsKey('display_name') ||
+            first.containsKey('displayName'))) {
       return PluginEcosystem.vega;
     }
     // CloudStream: .cs3 artifacts, tvTypes, or a `status` int.
@@ -142,9 +142,8 @@ abstract final class PluginListParser {
       authors: readStringList(entry['authors']),
       language: readString(entry['language']),
       iconUrl: _absolute(readString(entry['iconUrl']), base),
-      supportedTypes: readStringList(entry['tvTypes'])
-          .map(MediaType.fromWire)
-          .toSet(),
+      supportedTypes:
+          readStringList(entry['tvTypes']).map(MediaType.fromWire).toSet(),
       downloadUrl: downloadUrl,
       ecosystem: PluginEcosystem.cloudstream,
       repositoryId: repositoryId,

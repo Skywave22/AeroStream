@@ -29,7 +29,8 @@ class LibraryScreen extends ConsumerWidget {
           ? const _EmptyLibrary()
           : LayoutBuilder(
               builder: (context, constraints) {
-                final columns = (constraints.maxWidth / 150).floor().clamp(2, 8);
+                final columns =
+                    (constraints.maxWidth / 150).floor().clamp(2, 8);
                 return GridView.builder(
                   padding: const EdgeInsets.all(16),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(

@@ -30,8 +30,8 @@ final class JsPluginHost {
     this.manifestJson,
     this.prelude = const <String>[],
     this.limits = const RuntimeLimits(),
-  }) : _runtime = runtime,
-       _api = api;
+  })  : _runtime = runtime,
+        _api = api;
 
   final JsRuntime _runtime;
   final JsHostApi _api;
@@ -224,11 +224,12 @@ final class JsPluginHost {
 
   Future<String?> _evaluate(String script) async {
     try {
-      return await _runtime
-          .evaluate(script)
-          .timeout(limits.evaluationTimeout);
+      return await _runtime.evaluate(script).timeout(limits.evaluationTimeout);
     } on TimeoutException {
-      throw JsEvalException('Script evaluation timed out', isTimeout: true);
+      throw const JsEvalException(
+        'Script evaluation timed out',
+        isTimeout: true,
+      );
     } on JsEvalException {
       rethrow;
     } on Object catch (error) {
@@ -284,7 +285,8 @@ final class JsPluginHost {
 
   PluginError _pluginError(Object? raw) {
     final map = readMap(raw);
-    final message = readString(map['message']) ?? 'The plugin reported an error';
+    final message =
+        readString(map['message']) ?? 'The plugin reported an error';
     final kind = readString(map['kind']);
     final stack = readString(map['stack']);
     if (kind == 'unsupported') {

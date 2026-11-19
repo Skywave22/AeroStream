@@ -39,10 +39,16 @@ bool readBool(Object? value, {bool fallback = false}) {
   if (value is num) return value != 0;
   if (value is String) {
     final normalized = value.trim().toLowerCase();
-    if (normalized == 'true' || normalized == '1' || normalized == 'yes') {
+    if (normalized == 'true' ||
+        normalized == '1' ||
+        normalized == 'yes' ||
+        normalized == 'on') {
       return true;
     }
-    if (normalized == 'false' || normalized == '0' || normalized == 'no') {
+    if (normalized == 'false' ||
+        normalized == '0' ||
+        normalized == 'no' ||
+        normalized == 'off') {
       return false;
     }
   }

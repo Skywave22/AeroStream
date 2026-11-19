@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/providers.dart';
 import '../../core/result.dart';
 import '../../core/utils/version.dart';
-import '../../domain/entities/enums.dart';
 import '../../domain/entities/installed_plugin.dart';
 import '../../domain/entities/plugin_repository.dart';
 import 'extensions_providers.dart';
@@ -257,8 +256,7 @@ class _RepositoryBrowserState extends ConsumerState<_RepositoryBrowser> {
               return ListView.separated(
                 padding: const EdgeInsets.only(bottom: 32),
                 itemCount: available.length,
-                separatorBuilder: (context, index) =>
-                    const Divider(height: 1),
+                separatorBuilder: (context, index) => const Divider(height: 1),
                 itemBuilder: (context, index) {
                   final listed = available[index];
                   final matching = installed
@@ -313,7 +311,7 @@ class _AvailableTile extends ConsumerWidget {
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (plugin.description?.isNotEmpty == true)
+          if (plugin.description?.isNotEmpty ?? false)
             Text(
               plugin.description!,
               maxLines: 2,
@@ -322,7 +320,8 @@ class _AvailableTile extends ConsumerWidget {
           Text(
             <String>[
               'v${plugin.version.raw}',
-              if (installedVersion != null) 'installed v${installedVersion.raw}',
+              if (installedVersion != null)
+                'installed v${installedVersion.raw}',
               if (reason != null) reason,
             ].join(' · '),
             style: Theme.of(context).textTheme.bodySmall,
@@ -493,7 +492,7 @@ class _RepositoriesTab extends ConsumerWidget {
                                 ),
                               ),
                             );
-                          case Err<PluginRepository>(:final failure):
+                          case Err<PluginRepository>(error: final failure):
                             setState(() {
                               busy = false;
                               error = failure.userMessage;

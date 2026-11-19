@@ -69,17 +69,17 @@ final class PluginCapabilities {
       );
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'home': home,
-    'search': search,
-    'details': details,
-    'episodes': episodes,
-    'streams': streams,
-    'subtitles': subtitles,
-    'settings': settings,
-    'catalogs': catalogs,
-    'downloads': downloads,
-    'cast': cast,
-  };
+        'home': home,
+        'search': search,
+        'details': details,
+        'episodes': episodes,
+        'streams': streams,
+        'subtitles': subtitles,
+        'settings': settings,
+        'catalogs': catalogs,
+        'downloads': downloads,
+        'cast': cast,
+      };
 
   factory PluginCapabilities.fromJson(Map<String, Object?> json) =>
       PluginCapabilities(
@@ -111,17 +111,17 @@ final class PluginCapabilities {
 
   @override
   int get hashCode => Object.hash(
-    home,
-    search,
-    details,
-    episodes,
-    streams,
-    subtitles,
-    settings,
-    catalogs,
-    downloads,
-    cast,
-  );
+        home,
+        search,
+        details,
+        episodes,
+        streams,
+        subtitles,
+        settings,
+        catalogs,
+        downloads,
+        cast,
+      );
 }
 
 /// One installed plugin.
@@ -236,56 +236,57 @@ final class PluginInfo {
       );
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'id': id,
-    'name': name,
-    'ecosystem': ecosystem.wire,
-    'version': version.raw,
-    if (description != null) 'description': description,
-    if (authors.isNotEmpty) 'authors': authors,
-    if (language != null) 'language': language,
-    if (iconUrl != null) 'iconUrl': iconUrl,
-    'supportedTypes': supportedTypes.map((type) => type.wire).toList(
-      growable: false,
-    ),
-    'capabilities': capabilities.toJson(),
-    if (repositoryId != null) 'repositoryId': repositoryId,
-    if (sourceUrl != null) 'sourceUrl': sourceUrl,
-    if (installedAt != null) 'installedAt': installedAt!.toIso8601String(),
-    'enabled': enabled,
-    'priority': priority,
-    if (apiVersion != null) 'apiVersion': apiVersion,
-    if (sizeBytes != null) 'sizeBytes': sizeBytes,
-    if (requiresProxy) 'requiresProxy': true,
-    'settings': settings.map((setting) => setting.toJson()).toList(
-      growable: false,
-    ),
-  };
+        'id': id,
+        'name': name,
+        'ecosystem': ecosystem.wire,
+        'version': version.raw,
+        if (description != null) 'description': description,
+        if (authors.isNotEmpty) 'authors': authors,
+        if (language != null) 'language': language,
+        if (iconUrl != null) 'iconUrl': iconUrl,
+        'supportedTypes': supportedTypes.map((type) => type.wire).toList(
+              growable: false,
+            ),
+        'capabilities': capabilities.toJson(),
+        if (repositoryId != null) 'repositoryId': repositoryId,
+        if (sourceUrl != null) 'sourceUrl': sourceUrl,
+        if (installedAt != null) 'installedAt': installedAt!.toIso8601String(),
+        'enabled': enabled,
+        'priority': priority,
+        if (apiVersion != null) 'apiVersion': apiVersion,
+        if (sizeBytes != null) 'sizeBytes': sizeBytes,
+        if (requiresProxy) 'requiresProxy': true,
+        'settings': settings.map((setting) => setting.toJson()).toList(
+              growable: false,
+            ),
+      };
 
   factory PluginInfo.fromJson(Map<String, Object?> json) => PluginInfo(
-    id: readString(json['id']) ?? '',
-    name: readString(json['name']) ?? 'Unknown plugin',
-    ecosystem: PluginEcosystem.fromWire(json['ecosystem']),
-    version: PluginVersion.parse(json['version']),
-    description: readString(json['description']),
-    authors: readStringList(json['authors']),
-    language: readString(json['language']),
-    iconUrl: readString(json['iconUrl']),
-    supportedTypes: readStringList(json['supportedTypes'])
-        .map(MediaType.fromWire)
-        .toSet(),
-    capabilities: PluginCapabilities.fromJson(readMap(json['capabilities'])),
-    repositoryId: readString(json['repositoryId']),
-    sourceUrl: readString(json['sourceUrl']),
-    installedAt: readDate(json['installedAt']),
-    enabled: readBool(json['enabled'], fallback: true),
-    priority: readInt(json['priority']) ?? 0,
-    apiVersion: readInt(json['apiVersion']),
-    sizeBytes: readInt(json['sizeBytes']),
-    requiresProxy: readBool(json['requiresProxy']),
-    settings: readMapList(json['settings'])
-        .map(PluginSetting.fromJson)
-        .toList(growable: false),
-  );
+        id: readString(json['id']) ?? '',
+        name: readString(json['name']) ?? 'Unknown plugin',
+        ecosystem: PluginEcosystem.fromWire(json['ecosystem']),
+        version: PluginVersion.parse(json['version']),
+        description: readString(json['description']),
+        authors: readStringList(json['authors']),
+        language: readString(json['language']),
+        iconUrl: readString(json['iconUrl']),
+        supportedTypes: readStringList(json['supportedTypes'])
+            .map(MediaType.fromWire)
+            .toSet(),
+        capabilities:
+            PluginCapabilities.fromJson(readMap(json['capabilities'])),
+        repositoryId: readString(json['repositoryId']),
+        sourceUrl: readString(json['sourceUrl']),
+        installedAt: readDate(json['installedAt']),
+        enabled: readBool(json['enabled'], fallback: true),
+        priority: readInt(json['priority']) ?? 0,
+        apiVersion: readInt(json['apiVersion']),
+        sizeBytes: readInt(json['sizeBytes']),
+        requiresProxy: readBool(json['requiresProxy']),
+        settings: readMapList(json['settings'])
+            .map(PluginSetting.fromJson)
+            .toList(growable: false),
+      );
 
   @override
   bool operator ==(Object other) =>
@@ -321,13 +322,13 @@ final class PluginSetting {
   final String? description;
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'key': key,
-    'title': title,
-    'type': type.name,
-    if (value != null) 'value': value,
-    if (options.isNotEmpty) 'options': options,
-    if (description != null) 'description': description,
-  };
+        'key': key,
+        'title': title,
+        'type': type.name,
+        if (value != null) 'value': value,
+        if (options.isNotEmpty) 'options': options,
+        if (description != null) 'description': description,
+      };
 
   factory PluginSetting.fromJson(Map<String, Object?> json) {
     final rawType = readString(json['type'])?.toLowerCase() ?? 'text';

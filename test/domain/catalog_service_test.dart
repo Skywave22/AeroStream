@@ -17,12 +17,16 @@ void main() {
       final first = _FakeProvider(
         id: 'a',
         priority: 0,
-        home: () async => Ok([_section('Trending', ['Dune'])]),
+        homeHandler: () async => Ok([
+          _section('Trending', ['Dune'])
+        ]),
       );
       final second = _FakeProvider(
         id: 'b',
         priority: 1,
-        home: () async => Ok([_section('New releases', ['Arrival'])]),
+        homeHandler: () async => Ok([
+          _section('New releases', ['Arrival'])
+        ]),
       );
 
       final sections = await CatalogService.home([first, second]);
@@ -37,11 +41,13 @@ void main() {
     test('drops a provider that fails, keeping the rest', () async {
       final broken = _FakeProvider(
         id: 'broken',
-        home: () async => const Err(PluginCrashError('boom')),
+        homeHandler: () async => const Err(PluginCrashError('boom')),
       );
       final healthy = _FakeProvider(
         id: 'healthy',
-        home: () async => Ok([_section('Trending', ['Dune'])]),
+        homeHandler: () async => Ok([
+          _section('Trending', ['Dune'])
+        ]),
       );
 
       final sections = await CatalogService.home([broken, healthy]);
@@ -53,11 +59,13 @@ void main() {
     test('drops a provider that throws instead of returning Err', () async {
       final thrower = _FakeProvider(
         id: 'thrower',
-        home: () async => throw StateError('boom'),
+        homeHandler: () async => throw StateError('boom'),
       );
       final healthy = _FakeProvider(
         id: 'healthy',
-        home: () async => Ok([_section('Trending', ['Dune'])]),
+        homeHandler: () async => Ok([
+          _section('Trending', ['Dune'])
+        ]),
       );
 
       final sections = await CatalogService.home([thrower, healthy]);
@@ -68,9 +76,11 @@ void main() {
     test('drops a provider that hangs past the timeout', () async {
       final slow = _FakeProvider(
         id: 'slow',
-        home: () async {
+        homeHandler: () async {
           await Future<void>.delayed(const Duration(seconds: 5));
-          return Ok([_section('Slow', ['Nope'])]);
+          return Ok([
+            _section('Slow', ['Nope'])
+          ]);
         },
       );
 
@@ -85,8 +95,9 @@ void main() {
     test('collapses duplicate titles within a row', () async {
       final provider = _FakeProvider(
         id: 'a',
-        home: () async =>
-            Ok([_section('Trending', ['Dune', 'dune', 'Arrival'])]),
+        homeHandler: () async => Ok([
+          _section('Trending', ['Dune', 'dune', 'Arrival'])
+        ]),
       );
 
       final sections = await CatalogService.home([provider]);
@@ -100,7 +111,7 @@ void main() {
     test('never emits an empty row', () async {
       final provider = _FakeProvider(
         id: 'a',
-        home: () async => Ok([_section('Empty', const [])]),
+        homeHandler: () async => Ok([_section('Empty', const [])]),
       );
 
       final sections = await CatalogService.home([provider]);
@@ -118,13 +129,13 @@ void main() {
       final ok = _FakeProvider(
         id: 'ok',
         priority: 5,
-        search: (query, page) async =>
+        searchHandler: (query, page) async =>
             Ok(SearchPage(items: [_item('Dune', 'ok')], hasMore: true)),
       );
       final failed = _FakeProvider(
         id: 'failed',
         priority: 0,
-        search: (query, page) async => const Err(PluginNetworkError('offline')),
+        searchHandler: (query, page) async => const Err(PluginNetworkError('offline')),
       );
 
       final groups = await CatalogService.search([failed, ok], 'dune');
@@ -138,7 +149,7 @@ void main() {
     test('skips plugins that returned nothing at all', () async {
       final empty = _FakeProvider(
         id: 'empty',
-        search: (query, page) async => const Ok(SearchPage(items: [])),
+        searchHandler: (query, page) async => const Ok(SearchPage(items: [])),
       );
 
       expect(await CatalogService.search([empty], 'dune'), isEmpty);
@@ -147,7 +158,7 @@ void main() {
     test('ignores a blank query', () async {
       final provider = _FakeProvider(
         id: 'p',
-        search: (q, p) async => fail('called'),
+        searchHandler: (q, p) async => fail('called'),
       );
 
       expect(await CatalogService.search([provider], '   '), isEmpty);
@@ -156,22 +167,23 @@ void main() {
 
   test('providerFor resolves the owning plugin', () {
     final provider = _FakeProvider(id: 'a');
-    expect(CatalogService.providerFor([provider], _item('Dune', 'a')), provider);
+    expect(
+        CatalogService.providerFor([provider], _item('Dune', 'a')), provider);
     expect(CatalogService.providerFor([provider], _item('Dune', 'b')), isNull);
   });
 }
 
 HomeSection _section(String title, List<String> titles) => HomeSection(
-  title: title,
-  items: titles.map((name) => _item(name, 'a')).toList(growable: false),
-);
+      title: title,
+      items: titles.map((name) => _item(name, 'a')).toList(growable: false),
+    );
 
 MediaItem _item(String title, String pluginId) => MediaItem(
-  id: '$pluginId:$title',
-  pluginId: pluginId,
-  title: title,
-  type: MediaType.movie,
-);
+      id: '$pluginId:$title',
+      pluginId: pluginId,
+      title: title,
+      type: MediaType.movie,
+    );
 
 /// A provider whose behaviour each test supplies, so the aggregator's contract
 /// is exercised without any JavaScript.
@@ -179,42 +191,47 @@ final class _FakeProvider implements MediaProvider {
   _FakeProvider({
     required String id,
     int priority = 0,
-    this.home,
-    this.search,
+    this.homeHandler,
+    this.searchHandler,
   }) : info = PluginInfo(
-         id: id,
-         name: 'Plugin $id',
-         ecosystem: PluginEcosystem.skystream,
-         priority: priority,
-       );
+          id: id,
+          name: 'Plugin $id',
+          ecosystem: PluginEcosystem.skystream,
+          priority: priority,
+        );
 
   @override
   final PluginInfo info;
 
-  final Future<Result<List<HomeSection>>> Function()? home;
-  final Future<Result<SearchPage>> Function(String query, int page)? search;
+  final Future<Result<List<HomeSection>>> Function()? homeHandler;
+  final Future<Result<SearchPage>> Function(String query, int page)?
+  searchHandler;
 
   @override
   PluginCapabilities get capabilities => PluginCapabilities.all;
 
   @override
   Future<Result<List<HomeSection>>> getHome() async =>
-      home == null ? const Ok(<HomeSection>[]) : home!();
+      homeHandler == null ? const Ok(<HomeSection>[]) : homeHandler!();
 
   @override
   Future<Result<SearchPage>> search(String query, {int page = 1}) async =>
-      search == null ? const Ok(SearchPage(items: [])) : search!(query, page);
+      searchHandler == null
+          ? const Ok(SearchPage(items: []))
+          : searchHandler!(query, page);
 
   @override
   Future<Result<MediaDetails>> getDetails(MediaItem item) async =>
       Err(PluginUnsupportedError('details', pluginId: info.id));
 
   @override
-  Future<Result<List<Episode>>> getEpisodes(MediaItem item, {Season? season}) async =>
+  Future<Result<List<Episode>>> getEpisodes(MediaItem item,
+          {Season? season}) async =>
       const Ok(<Episode>[]);
 
   @override
-  Future<Result<StreamResult>> getStreams(MediaItem item, {Episode? episode}) async =>
+  Future<Result<StreamResult>> getStreams(MediaItem item,
+          {Episode? episode}) async =>
       const Ok(StreamResult(sources: []));
 
   @override

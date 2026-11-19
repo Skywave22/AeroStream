@@ -20,7 +20,8 @@ final class AppPreferences {
   final bool allowUntrustedCertificates;
 }
 
-final preferencesProvider = NotifierProvider<PreferencesController, AppPreferences>(
+final preferencesProvider =
+    NotifierProvider<PreferencesController, AppPreferences>(
   PreferencesController.new,
 );
 
@@ -123,10 +124,12 @@ class SettingsScreen extends ConsumerWidget {
           ),
           SwitchListTile(
             title: const Text('Play next episode'),
-            subtitle: const Text('Continue with the next episode automatically'),
+            subtitle:
+                const Text('Continue with the next episode automatically'),
             value: prefs.autoplayNext,
-            onChanged: (value) =>
-                ref.read(preferencesProvider.notifier).setAutoplayNext(value: value),
+            onChanged: (value) => ref
+                .read(preferencesProvider.notifier)
+                .setAutoplayNext(value: value),
           ),
           SwitchListTile(
             title: const Text('Prefer HLS streams'),
@@ -134,8 +137,9 @@ class SettingsScreen extends ConsumerWidget {
               'Pick adaptive HLS links when a source offers several formats',
             ),
             value: prefs.preferHls,
-            onChanged: (value) =>
-                ref.read(preferencesProvider.notifier).setPreferHls(value: value),
+            onChanged: (value) => ref
+                .read(preferencesProvider.notifier)
+                .setPreferHls(value: value),
           ),
           const Divider(),
           const _SectionLabel('Platform'),
@@ -153,10 +157,10 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const Divider(),
           const _SectionLabel('About'),
-          ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: const Text('AeroStream'),
-            subtitle: const Text('Version 0.1.0 · open source'),
+          const ListTile(
+            leading: Icon(Icons.info_outline),
+            title: Text('AeroStream'),
+            subtitle: Text('Version 0.1.0 · open source'),
           ),
           ListTile(
             leading: const Icon(Icons.description_outlined),
@@ -170,7 +174,7 @@ class SettingsScreen extends ConsumerWidget {
           const Divider(),
           const _SectionLabel('Diagnostics'),
           ListTile(
-            leading: Icon(Icons.bug_report_outlined, color: scheme.outline),
+            leading: const Icon(Icons.bug_report_outlined),
             title: const Text('Installed extensions'),
             subtitle: Text(
               '${ref.watch(installedPluginsProvider).valueOrNull?.length ?? 0} '

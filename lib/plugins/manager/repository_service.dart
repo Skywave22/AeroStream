@@ -23,8 +23,8 @@ import '../manifest/repository_manifest.dart';
 ///   4. persist the repository so its plugins can be browsed.
 final class RepositoryService {
   RepositoryService({required HttpService http, required ExtensionStore store})
-    : _http = http,
-      _store = store;
+      : _http = http,
+        _store = store;
 
   final HttpService _http;
   final ExtensionStore _store;

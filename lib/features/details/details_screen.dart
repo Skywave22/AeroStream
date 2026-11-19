@@ -65,7 +65,8 @@ class _DetailsBody extends ConsumerWidget {
     final theme = Theme.of(context);
     final item = details.item;
     final seasons = details.effectiveSeasons;
-    final selectedSeason = season ?? (seasons.isEmpty ? 1 : seasons.first.number);
+    final selectedSeason =
+        season ?? (seasons.isEmpty ? 1 : seasons.first.number);
     final episodes = details.isEpisodic
         ? details.episodesOf(selectedSeason)
         : const <Episode>[];
@@ -192,7 +193,7 @@ class _DetailsBody extends ConsumerWidget {
               ),
             ),
           ),
-        if (eps.length != 0)
+        if (episodes.isNotEmpty)
           SliverList.builder(
             itemCount: episodes.length,
             itemBuilder: (context, index) => _EpisodeTile(
@@ -313,7 +314,7 @@ class _EpisodeTile extends StatelessWidget {
         ),
       ),
       title: Text(
-        episode.title?.isNotEmpty == true
+        episode.title?.isNotEmpty ?? false
             ? episode.title!
             : 'Episode ${episode.number}',
         maxLines: 1,
@@ -393,7 +394,8 @@ class _LibraryButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final saved = ref.watch(libraryProvider).any((entry) => entry.id == item.id);
+    final saved =
+        ref.watch(libraryProvider).any((entry) => entry.id == item.id);
     return FloatingActionButton.extended(
       onPressed: () => ref.read(libraryProvider.notifier).toggle(item),
       icon: Icon(saved ? Icons.bookmark : Icons.bookmark_add_outlined),
@@ -454,11 +456,11 @@ class _DetailsError extends StatelessWidget {
 /// Kept for the details screen's policy banner in phase 10.
 extension PlaybackPolicyLabel on PlaybackPolicy {
   String? get warning => switch (this) {
-    PlaybackPolicy.none => null,
-    PlaybackPolicy.vpnRecommended => 'This source recommends a VPN.',
-    PlaybackPolicy.torrent => 'This source streams over BitTorrent.',
-    PlaybackPolicy.externalPlayerOnly =>
-      'This source must be opened in an external player.',
-    PlaybackPolicy.internalPlayerOnly => null,
-  };
+        PlaybackPolicy.none => null,
+        PlaybackPolicy.vpnRecommended => 'This source recommends a VPN.',
+        PlaybackPolicy.torrent => 'This source streams over BitTorrent.',
+        PlaybackPolicy.externalPlayerOnly =>
+          'This source must be opened in an external player.',
+        PlaybackPolicy.internalPlayerOnly => null,
+      };
 }

@@ -51,8 +51,8 @@ final class CloudStreamAdapter implements MediaProvider {
     return switch (reply) {
       Err<Map<String, Object?>>(:final error) => Err<List<HomeSection>>(error),
       Ok<Map<String, Object?>>(:final value) => Ok<List<HomeSection>>(
-        mapHome(value),
-      ),
+          mapHome(value),
+        ),
     };
   }
 
@@ -62,8 +62,8 @@ final class CloudStreamAdapter implements MediaProvider {
     return switch (reply) {
       Err<Map<String, Object?>>(:final error) => Err<SearchPage>(error),
       Ok<Map<String, Object?>>(:final value) => Ok<SearchPage>(
-        SearchPage(items: _items(value['items']), pluginId: info.id),
-      ),
+          SearchPage(items: _items(value['items']), pluginId: info.id),
+        ),
     };
   }
 
@@ -79,8 +79,8 @@ final class CloudStreamAdapter implements MediaProvider {
     return switch (reply) {
       Err<Map<String, Object?>>(:final error) => Err<MediaDetails>(error),
       Ok<Map<String, Object?>>(:final value) => Ok<MediaDetails>(
-        mapDetails(value, fallback: item),
-      ),
+          mapDetails(value, fallback: item),
+        ),
     };
   }
 
@@ -93,8 +93,8 @@ final class CloudStreamAdapter implements MediaProvider {
     return switch (details) {
       Err<MediaDetails>(:final error) => Err<List<Episode>>(error),
       Ok<MediaDetails>(:final value) => Ok<List<Episode>>(
-        season == null ? value.episodes : value.episodesOf(season.number),
-      ),
+          season == null ? value.episodes : value.episodesOf(season.number),
+        ),
     };
   }
 
@@ -103,7 +103,7 @@ final class CloudStreamAdapter implements MediaProvider {
     MediaItem item, {
     Episode? episode,
   }) async {
-    final url = episode?.url.isNotEmpty == true ? episode!.url : item.url;
+    final url = (episode?.url.isNotEmpty ?? false) ? episode!.url : item.url;
     if (url == null || url.isEmpty) {
       return const Err<StreamResult>(
         PluginParseError('Nothing to resolve: the item has no handle'),
@@ -116,11 +116,11 @@ final class CloudStreamAdapter implements MediaProvider {
     return switch (reply) {
       Err<Map<String, Object?>>(:final error) => Err<StreamResult>(error),
       Ok<Map<String, Object?>>(:final value) => Ok<StreamResult>(
-        StreamResult(
-          sources: mapStreams(value),
-          subtitles: mapSubtitles(value),
+          StreamResult(
+            sources: mapStreams(value),
+            subtitles: mapSubtitles(value),
+          ),
         ),
-      ),
     };
   }
 
@@ -221,7 +221,8 @@ final class CloudStreamAdapter implements MediaProvider {
       description: readString(itemMap['description']),
       genres: readStringList(itemMap['tags'] ?? itemMap['genres']),
       seasons: numbers
-          .map((number) => Season(number: number, episodeCount: seasons[number]))
+          .map(
+              (number) => Season(number: number, episodeCount: seasons[number]))
           .toList(growable: false),
       episodes: List<Episode>.unmodifiable(episodes),
       headers: readStringMap(raw['headers']),
@@ -242,8 +243,8 @@ final class CloudStreamAdapter implements MediaProvider {
               'CloudStream',
           quality: readString(entry['quality']),
           headers: readStringMap(entry['headers']),
-          isHls: readBool(entry['isM3u8']) ||
-              url.toLowerCase().contains('.m3u8'),
+          isHls:
+              readBool(entry['isM3u8']) || url.toLowerCase().contains('.m3u8'),
           isDash: readBool(entry['isDash']),
           extractorName: readString(entry['extractor']),
         ),
@@ -281,12 +282,12 @@ final class CloudStreamAdapter implements MediaProvider {
   /// The JSON contract this adapter expects, for the host implementation and
   /// for the docs.
   static String get contractDescription => jsonEncode(<String, Object?>{
-    'handshake': '<bool>',
-    'loadPlugin': '{providers: [string]}',
-    'getMainPage': '{sections: [{name, items: [item]}]}',
-    'search': '{items: [item]}',
-    'load': '{item: item, episodes: [{name, url, season, episode, data}]}',
-    'loadLinks': '{links: [{url, name, quality, headers, isM3u8}], '
-        'subtitles: [...]}',
-  });
+        'handshake': '<bool>',
+        'loadPlugin': '{providers: [string]}',
+        'getMainPage': '{sections: [{name, items: [item]}]}',
+        'search': '{items: [item]}',
+        'load': '{item: item, episodes: [{name, url, season, episode, data}]}',
+        'loadLinks': '{links: [{url, name, quality, headers, isM3u8}], '
+            'subtitles: [...]}',
+      });
 }

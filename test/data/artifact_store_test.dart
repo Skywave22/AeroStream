@@ -90,12 +90,15 @@ void main() {
       expect(result.isOk, isTrue);
       final path = result.valueOrNull!;
       expect(File('$path/plugin.json').existsSync(), isTrue);
-      expect(await store.readEntry(path, 'plugin.json'), contains('packageName'));
+      expect(
+          await store.readEntry(path, 'plugin.json'), contains('packageName'));
       expect(await store.exists(path), isTrue);
-      expect(await store.listEntries(path), containsAll(<String>[
-        'plugin.json',
-        'plugin.js',
-      ]));
+      expect(
+          await store.listEntries(path),
+          containsAll(<String>[
+            'plugin.json',
+            'plugin.js',
+          ]));
       expect(await store.totalSize(), greaterThan(0));
     });
 
@@ -194,11 +197,11 @@ void main() {
     });
 
     test('reports a missing artifact as not existing', () async {
-      expect(await store.exists('${root.path}/plugins/skystream/nope/1'),
-          isFalse);
       expect(
-        await store.readEntry('${root.path}/plugins/skystream/nope/1',
-            'plugin.json'),
+          await store.exists('${root.path}/plugins/skystream/nope/1'), isFalse);
+      expect(
+        await store.readEntry(
+            '${root.path}/plugins/skystream/nope/1', 'plugin.json'),
         isNull,
       );
     });

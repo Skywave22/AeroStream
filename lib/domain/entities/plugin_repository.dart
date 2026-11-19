@@ -93,20 +93,21 @@ final class PluginRepository {
       );
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'id': id,
-    'name': name,
-    'url': url,
-    'ecosystem': ecosystem.wire,
-    if (description != null) 'description': description,
-    if (iconUrl != null) 'iconUrl': iconUrl,
-    'pluginLists': pluginLists,
-    if (includedRepos.isNotEmpty) 'includedRepos': includedRepos,
-    'manifestVersion': manifestVersion,
-    if (addedAt != null) 'addedAt': addedAt!.toIso8601String(),
-    if (lastCheckedAt != null) 'lastCheckedAt': lastCheckedAt!.toIso8601String(),
-    'enabled': enabled,
-    if (isBuiltIn) 'isBuiltIn': true,
-  };
+        'id': id,
+        'name': name,
+        'url': url,
+        'ecosystem': ecosystem.wire,
+        if (description != null) 'description': description,
+        if (iconUrl != null) 'iconUrl': iconUrl,
+        'pluginLists': pluginLists,
+        if (includedRepos.isNotEmpty) 'includedRepos': includedRepos,
+        'manifestVersion': manifestVersion,
+        if (addedAt != null) 'addedAt': addedAt!.toIso8601String(),
+        if (lastCheckedAt != null)
+          'lastCheckedAt': lastCheckedAt!.toIso8601String(),
+        'enabled': enabled,
+        if (isBuiltIn) 'isBuiltIn': true,
+      };
 
   factory PluginRepository.fromJson(Map<String, Object?> json) =>
       PluginRepository(
@@ -236,46 +237,47 @@ final class AvailablePlugin {
   }
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'id': id,
-    'name': name,
-    'version': version.raw,
-    if (description != null) 'description': description,
-    if (authors.isNotEmpty) 'authors': authors,
-    if (language != null) 'language': language,
-    if (iconUrl != null) 'iconUrl': iconUrl,
-    'supportedTypes': supportedTypes.map((type) => type.wire).toList(
-      growable: false,
-    ),
-    'downloadUrl': downloadUrl,
-    'ecosystem': ecosystem.wire,
-    'repositoryId': repositoryId,
-    if (fileSize != null) 'fileSize': fileSize,
-    if (fileHash != null) 'fileHash': fileHash,
-    if (apiVersion != null) 'apiVersion': apiVersion,
-    'status': status,
-    if (settings.isNotEmpty) 'settings': settings,
-  };
+        'id': id,
+        'name': name,
+        'version': version.raw,
+        if (description != null) 'description': description,
+        if (authors.isNotEmpty) 'authors': authors,
+        if (language != null) 'language': language,
+        if (iconUrl != null) 'iconUrl': iconUrl,
+        'supportedTypes': supportedTypes.map((type) => type.wire).toList(
+              growable: false,
+            ),
+        'downloadUrl': downloadUrl,
+        'ecosystem': ecosystem.wire,
+        'repositoryId': repositoryId,
+        if (fileSize != null) 'fileSize': fileSize,
+        if (fileHash != null) 'fileHash': fileHash,
+        if (apiVersion != null) 'apiVersion': apiVersion,
+        'status': status,
+        if (settings.isNotEmpty) 'settings': settings,
+      };
 
-  factory AvailablePlugin.fromJson(Map<String, Object?> json) => AvailablePlugin(
-    id: readString(json['id']) ?? '',
-    name: readString(json['name']) ?? 'Unknown plugin',
-    version: PluginVersion.parse(json['version']),
-    description: readString(json['description']),
-    authors: readStringList(json['authors']),
-    language: readString(json['language']),
-    iconUrl: readString(json['iconUrl']),
-    supportedTypes: readStringList(json['supportedTypes'])
-        .map(MediaType.fromWire)
-        .toSet(),
-    downloadUrl: readString(json['downloadUrl']) ?? '',
-    ecosystem: PluginEcosystem.fromWire(json['ecosystem']),
-    repositoryId: readString(json['repositoryId']) ?? '',
-    fileSize: readInt(json['fileSize']),
-    fileHash: readString(json['fileHash']),
-    apiVersion: readInt(json['apiVersion']),
-    status: readInt(json['status']) ?? 1,
-    settings: readStringList(json['settings']),
-  );
+  factory AvailablePlugin.fromJson(Map<String, Object?> json) =>
+      AvailablePlugin(
+        id: readString(json['id']) ?? '',
+        name: readString(json['name']) ?? 'Unknown plugin',
+        version: PluginVersion.parse(json['version']),
+        description: readString(json['description']),
+        authors: readStringList(json['authors']),
+        language: readString(json['language']),
+        iconUrl: readString(json['iconUrl']),
+        supportedTypes: readStringList(json['supportedTypes'])
+            .map(MediaType.fromWire)
+            .toSet(),
+        downloadUrl: readString(json['downloadUrl']) ?? '',
+        ecosystem: PluginEcosystem.fromWire(json['ecosystem']),
+        repositoryId: readString(json['repositoryId']) ?? '',
+        fileSize: readInt(json['fileSize']),
+        fileHash: readString(json['fileHash']),
+        apiVersion: readInt(json['apiVersion']),
+        status: readInt(json['status']) ?? 1,
+        settings: readStringList(json['settings']),
+      );
 
   @override
   bool operator ==(Object other) =>

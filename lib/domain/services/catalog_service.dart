@@ -60,7 +60,8 @@ abstract final class CatalogService {
           if (seen.add(key)) fresh.add(item);
         }
         if (fresh.isEmpty) continue;
-        sections.add(section.copyWith(items: List<MediaItem>.unmodifiable(fresh)));
+        sections
+            .add(section.copyWith(items: List<MediaItem>.unmodifiable(fresh)));
       }
     }
     return sections;
@@ -78,21 +79,20 @@ abstract final class CatalogService {
     final results = await Future.wait(
       providers.map((provider) async {
         try {
-          final result = await provider
-              .search(query, page: page)
-              .timeout(timeout);
+          final result =
+              await provider.search(query, page: page).timeout(timeout);
           return switch (result) {
             Ok<SearchPage>(:final value) => SearchGroup(
-              plugin: provider.info,
-              items: value.items,
-              hasMore: value.hasMore,
-              nextPage: value.nextPage,
-            ),
+                plugin: provider.info,
+                items: value.items,
+                hasMore: value.hasMore,
+                nextPage: value.nextPage,
+              ),
             Err<SearchPage>(:final error) => SearchGroup(
-              plugin: provider.info,
-              items: const <MediaItem>[],
-              error: error,
-            ),
+                plugin: provider.info,
+                items: const <MediaItem>[],
+                error: error,
+              ),
           };
         } on Object catch (error) {
           return SearchGroup(
@@ -105,9 +105,8 @@ abstract final class CatalogService {
     );
 
     // Plugins that returned results first, then the ones that errored.
-    final groups = results
-        .where((group) => !group.isEmpty)
-        .toList(growable: false);
+    final groups =
+        results.where((group) => !group.isEmpty).toList(growable: false);
     groups.sort((a, b) {
       if (a.error == null && b.error != null) return -1;
       if (a.error != null && b.error == null) return 1;

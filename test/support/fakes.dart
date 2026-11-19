@@ -163,9 +163,9 @@ final class InMemoryArtifactStore implements ArtifactStore {
 
   @override
   Future<int> totalSize() async => installed.values.fold<int>(
-    0,
-    (sum, files) => sum + files.values.fold<int>(0, (a, b) => a + b.length),
-  );
+        0,
+        (sum, files) => sum + files.values.fold<int>(0, (a, b) => a + b.length),
+      );
 }
 
 /// In-memory [SettingsStore].
@@ -205,7 +205,7 @@ final class InMemorySettingsStore implements SettingsStore {
 
   @override
   Map<String, String> entriesWithPrefix(String prefix) => <String, String>{
-    for (final entry in values.entries)
-      if (entry.key.startsWith(prefix)) entry.key: entry.value,
-  };
+        for (final entry in values.entries)
+          if (entry.key.startsWith(prefix)) entry.key: entry.value,
+      };
 }

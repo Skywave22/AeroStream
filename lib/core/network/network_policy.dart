@@ -75,7 +75,8 @@ final class NetworkPolicy {
     }
     if (host == '::1' || host == '[::1]' || host == '0.0.0.0') return true;
 
-    final ipv4 = RegExp(r'^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$').firstMatch(host);
+    final ipv4 = RegExp(r'^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$')
+        .firstMatch(host);
     if (ipv4 == null) return false;
     final a = int.parse(ipv4.group(1)!);
     final b = int.parse(ipv4.group(2)!);
