@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:aerostream/plugins/runtime/js_runtime.dart';
 
@@ -101,8 +102,9 @@ final class FakePlugin {
   }
 
   static String _encode(Object? value) {
-    if (value is String) return '"$value"';
-    return '$value';
+    // JSON, not Dart's `toString`: a plugin hands the host real payloads, and
+    // a list printed as `[{title: Dune}]` is not something jsonDecode accepts.
+    return jsonEncode(value);
   }
 }
 

@@ -16,17 +16,14 @@ const PluginInfo _info = PluginInfo(
 
 /// A host that answers from a script instead of a DEX file.
 final class _ScriptedBridge implements CloudStreamBridge {
-  _ScriptedBridge({
-    Map<String, Map<String, Object?>>? replies,
-    this.available = true,
-  }) : replies = replies ?? const <String, Map<String, Object?>>{};
+  _ScriptedBridge({Map<String, Map<String, Object?>>? replies})
+    : replies = replies ?? const <String, Map<String, Object?>>{};
 
   final Map<String, Map<String, Object?>> replies;
-  final bool available;
   final List<String> commands = <String>[];
 
   @override
-  Future<bool> isAvailable() async => available;
+  Future<bool> isAvailable() async => true;
 
   @override
   Future<Result<Map<String, Object?>>> invoke(
@@ -36,9 +33,11 @@ final class _ScriptedBridge implements CloudStreamBridge {
   }) async {
     commands.add(command);
     final reply = replies[command];
-    if (reply == null) return const Err<Map<String, Object?>>(
-      PluginNetworkError('no such command'),
-    );
+    if (reply == null) {
+      return const Err<Map<String, Object?>>(
+        PluginNetworkError('no such command'),
+      );
+    }
     return Ok<Map<String, Object?>>(reply);
   }
 }

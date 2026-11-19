@@ -64,7 +64,7 @@ void main() {
 
       final result = await adapter.getHome();
 
-      expect(result.isOk, isTrue);
+      expect(result.isOk, isTrue, reason: result.errorOrNull?.toString());
       final items = result.valueOrNull!.single.items;
       expect(items, hasLength(1), reason: 'the blank entry is not an item');
       expect(items.single.title, 'Dune');

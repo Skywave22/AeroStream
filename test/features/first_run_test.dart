@@ -41,7 +41,10 @@ void main() {
 
     expect(find.text('AeroStream'), findsOneWidget);
     expect(find.text('Nothing installed yet'), findsOneWidget);
-    expect(find.text('Add a repository'), findsOneWidget);
+    expect(
+      find.textContaining('AeroStream has no built-in catalogue'),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
 
     // The shell is a bottom bar at phone width, and every tab is reachable.
