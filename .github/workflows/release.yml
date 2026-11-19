@@ -110,6 +110,16 @@ jobs:
           cp "$src/app-release.apk"               "$out/AeroStream-$version-android-universal.apk"
           ls -lh "$out"
 
+      - name: Check the artifacts exist
+        shell: bash
+        run: |
+          ls -lh build/dist
+          for pattern in build/dist/*.apk; do
+            if ! ls $pattern > /dev/null 2>&1; then
+              echo "::error::expected $pattern, which was not produced"
+              exit 1
+            fi
+          done
       - name: Publish artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -172,6 +182,16 @@ jobs:
             "build/dist/AeroStream-$version-linux-x64.tar.gz" bundle
           ls -lh build/dist
 
+      - name: Check the artifacts exist
+        shell: bash
+        run: |
+          ls -lh build/dist
+          for pattern in build/dist/*.tar.gz; do
+            if ! ls $pattern > /dev/null 2>&1; then
+              echo "::error::expected $pattern, which was not produced"
+              exit 1
+            fi
+          done
       - name: Publish artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -227,8 +247,12 @@ jobs:
           version="${{ steps.version.outputs.value }}"
           mkdir -p build/dist
           cd build/windows/x64/runner/Release
-          7z a -tzip "../../../../../dist/AeroStream-$version-windows-x64-portable.zip" . > /dev/null
+          # Absolute destination: this directory is five levels below the
+          # repository root, and the previous count put the zip outside
+          # build/dist, where the upload step could not see it.
+          7z a -tzip "$GITHUB_WORKSPACE/build/dist/AeroStream-$version-windows-x64-portable.zip" . > /dev/null
           cd -
+          ls -lh "$GITHUB_WORKSPACE/build/dist"
           ls -lh build/dist
 
       - name: Installer (best effort)
@@ -258,6 +282,16 @@ jobs:
           "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" build/installer.iss
           ls -lh build/dist
 
+      - name: Check the artifacts exist
+        shell: bash
+        run: |
+          ls -lh build/dist
+          for pattern in build/dist/*.zip build/dist/*.exe; do
+            if ! ls $pattern > /dev/null 2>&1; then
+              echo "::error::expected $pattern, which was not produced"
+              exit 1
+            fi
+          done
       - name: Publish artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -324,6 +358,16 @@ jobs:
           cd -
           ls -lh build/dist
 
+      - name: Check the artifacts exist
+        shell: bash
+        run: |
+          ls -lh build/dist
+          for pattern in build/dist/*.zip; do
+            if ! ls $pattern > /dev/null 2>&1; then
+              echo "::error::expected $pattern, which was not produced"
+              exit 1
+            fi
+          done
       - name: Publish artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -381,6 +425,16 @@ jobs:
           rm -rf Payload
           ls -lh build/dist
 
+      - name: Check the artifacts exist
+        shell: bash
+        run: |
+          ls -lh build/dist
+          for pattern in build/dist/*.ipa; do
+            if ! ls $pattern > /dev/null 2>&1; then
+              echo "::error::expected $pattern, which was not produced"
+              exit 1
+            fi
+          done
       - name: Publish artifacts
         uses: actions/upload-artifact@v4
         with:
