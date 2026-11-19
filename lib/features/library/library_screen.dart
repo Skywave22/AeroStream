@@ -136,8 +136,7 @@ class _SavedTab extends StatelessWidget {
                   },
                 );
               },
-            ),
-    );
+            );
   }
 }
 
