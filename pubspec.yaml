@@ -45,6 +45,14 @@ dependencies:
   collection: ^1.18.0
   logger: ^2.2.0
 
+dependency_overrides:
+  # flutter_qjs 0.3.7 was published against ffi 1.x, and modern
+  # path_provider_windows requires ffi 2.x — the two cannot coexist by
+  # constraint. The package only uses `Utf8` and `calloc` from dart:ffi's
+  # helper package, which are unchanged in 2.x, so the newer ffi is forced on
+  # everyone. Drop this override when a released flutter_qjs moves to ffi 2.
+  ffi: ^2.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
