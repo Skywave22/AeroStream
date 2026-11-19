@@ -50,6 +50,24 @@
     if (state.logs.length > 500) state.logs.splice(0, state.logs.length - 500);
   }
 
+  // Plugin return values can be anything, including DOM nodes with parent
+  // cycles. Serialising must never take the context down.
+  function safeStringify(value) {
+    var seen = [];
+    try {
+      return JSON.stringify(value, function (key, item) {
+        if (typeof item === 'function') return undefined;
+        if (item && typeof item === 'object') {
+          if (seen.indexOf(item) >= 0) return undefined;
+          seen.push(item);
+        }
+        return item;
+      });
+    } catch (error) {
+      return JSON.stringify({ message: 'unserialisable plugin result' });
+    }
+  }
+
   globalThis.console = {
     log: function () { record('info', arguments); },
     info: function () { record('info', arguments); },
@@ -67,7 +85,7 @@
       state.calls.push({
         id: id,
         channel: channel,
-        payload: typeof payload === 'string' ? payload : JSON.stringify(payload)
+        payload: typeof payload === 'string' ? payload : safeStringify(payload)
       });
     });
   };
@@ -116,12 +134,17 @@
     };
 
     try {
-      var result = fn.length > args.length
+      // A function that declares one more parameter than it was given is
+      // callback-style; anything else returns its value (or a promise).
+      var expectsCallback = fn.length > args.length;
+      var result = expectsCallback
         ? fn.apply(null, args.concat([callback]))
         : fn.apply(null, args);
       if (result && typeof result.then === 'function') {
         result.then(function (value) { settle(true, value); },
                     function (error) { settle(false, describe(error)); });
+      } else if (!expectsCallback) {
+        settle(true, result);
       }
     } catch (error) {
       settle(false, describe(error));
@@ -141,17 +164,17 @@
 
   globalThis.__aeroPoll = function () {
     if (state.calls.length > 0) {
-      return JSON.stringify(state.calls.shift());
+      return safeStringify(state.calls.shift());
     }
     if (state.error) {
       var error = state.error;
       state.error = null;
-      return JSON.stringify({ done: true, error: error });
+      return safeStringify({ done: true, error: error });
     }
     if (state.done) {
       var value = state.done.value;
       state.done = null;
-      return JSON.stringify({ done: true, value: value === undefined ? null : value });
+      return safeStringify({ done: true, value: value === undefined ? null : value });
     }
     return 'null';
   };

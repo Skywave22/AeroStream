@@ -28,6 +28,7 @@ final class JsPluginHost {
     required this.bootstrap,
     this.pluginSource,
     this.manifestJson,
+    this.prelude = const <String>[],
     this.limits = const RuntimeLimits(),
   }) : _runtime = runtime,
        _api = api;
@@ -44,6 +45,12 @@ final class JsPluginHost {
 
   /// The plugin manifest, injected as the `manifest` global.
   final String? manifestJson;
+
+  /// Scripts evaluated after the bootstrap and before the plugin source.
+  ///
+  /// This is how a multi-module ecosystem (Vega) registers its provider
+  /// modules before anything calls into them.
+  final List<String> prelude;
 
   final RuntimeLimits limits;
 
@@ -200,6 +207,10 @@ final class JsPluginHost {
     if (_started) return;
     await _runtime.start();
     await _evaluate(bootstrap);
+
+    for (final script in prelude) {
+      await _evaluate(script);
+    }
 
     final source = pluginSource;
     if (source != null) {

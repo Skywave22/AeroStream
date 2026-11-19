@@ -11,7 +11,7 @@ class AeroStreamApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final variant = ref.watch(themeVariantProvider);
+    final variant = ref.watch(persistedThemeProvider);
     return MaterialApp.router(
       title: 'AeroStream',
       debugShowCheckedModeBanner: false,

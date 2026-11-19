@@ -22,6 +22,34 @@ env:
   CI_REPORT_ISSUE: '1'
 
 jobs:
+  js-selftest:
+    name: JS runtime self-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The plugin runtime is JavaScript; these tests execute the same files the
+      # app loads, in a VM that speaks the host bridge protocol.
+      - name: Run self-test
+        id: js
+        run: |
+          set +e
+          node tool/js_selftest.mjs > /tmp/js.log 2>&1
+          status=$?
+          tail -40 /tmp/js.log
+          exit $status
+
+      - name: Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JS_RESULT: ${{ steps.js.outcome }}
+        run: bash scripts/ci_report.sh
+
   verify:
     name: Verify
     runs-on: ubuntu-latest
@@ -81,6 +109,7 @@ jobs:
           FORMAT_RESULT: ${{ steps.format.outcome }}
           ANALYZE_RESULT: ${{ steps.analyze.outcome }}
           TEST_RESULT: ${{ steps.test.outcome }}
+          JS_RESULT: success
         run: bash scripts/ci_report.sh
 
       - name: Fail if any verifier step failed
