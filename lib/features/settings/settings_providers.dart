@@ -27,11 +27,12 @@ final class AppPreferences {
     String? preferredQuality,
     bool? autoplayNext,
     bool? preferHls,
-  }) => AppPreferences(
-    preferredQuality: preferredQuality ?? this.preferredQuality,
-    autoplayNext: autoplayNext ?? this.autoplayNext,
-    preferHls: preferHls ?? this.preferHls,
-  );
+  }) =>
+      AppPreferences(
+        preferredQuality: preferredQuality ?? this.preferredQuality,
+        autoplayNext: autoplayNext ?? this.autoplayNext,
+        preferHls: preferHls ?? this.preferHls,
+      );
 
   @override
   bool operator ==(Object other) =>
@@ -46,8 +47,8 @@ final class AppPreferences {
 
 final preferencesProvider =
     NotifierProvider<PreferencesController, AppPreferences>(
-      PreferencesController.new,
-    );
+  PreferencesController.new,
+);
 
 class PreferencesController extends Notifier<AppPreferences> {
   static const String qualityKey = 'playback.preferredQuality';

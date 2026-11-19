@@ -220,10 +220,10 @@ final class StreamResult {
     if (preferHls && ordered.length > 1) {
       // A stable partition: HLS first, everything else after, within each
       // group keeping the quality ranking.
-      final hls = ordered.where((source) => source.isHls).toList(growable: false);
-      final rest = ordered
-          .where((source) => !source.isHls)
-          .toList(growable: false);
+      final hls =
+          ordered.where((source) => source.isHls).toList(growable: false);
+      final rest =
+          ordered.where((source) => !source.isHls).toList(growable: false);
       ordered
         ..clear()
         ..addAll(hls)
@@ -233,12 +233,10 @@ final class StreamResult {
     final target = _heightOf(preferredQuality ?? '');
     if (target == null) return ordered;
 
-    final matching = ordered
-        .where((source) {
-          final height = _heightOf(source.quality ?? '');
-          return height != null && height <= target;
-        })
-        .toList(growable: false);
+    final matching = ordered.where((source) {
+      final height = _heightOf(source.quality ?? '');
+      return height != null && height <= target;
+    }).toList(growable: false);
     return matching.isEmpty ? ordered : matching;
   }
 
