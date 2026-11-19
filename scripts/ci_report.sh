@@ -144,6 +144,13 @@ fi
     echo
   fi
 
+  if [ -s /tmp/coverage.md ]; then
+    echo "### Coverage"
+    echo
+    cat /tmp/coverage.md
+    echo
+  fi
+
   if [ "${TEST_RESULT:-}" != "success" ]; then
     echo "<details><summary>flutter test</summary>"
     echo

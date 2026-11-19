@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../data/maintenance/plugin_data_store.dart';
 
 /// Playback preferences that the rest of the app honours.
 ///
@@ -44,6 +45,16 @@ final class AppPreferences {
   @override
   int get hashCode => Object.hash(preferredQuality, autoplayNext, preferHls);
 }
+
+/// The plugin-owned half of storage, for the "delete plugin data" action.
+final pluginDataStoreProvider = Provider<PluginDataStore>(
+  (ref) => PluginDataStore(ref.watch(settingsStoreProvider)),
+);
+
+/// How many values that action would delete, so the number is not a surprise.
+final providerPluginDataCount = Provider<int>(
+  (ref) => ref.watch(pluginDataStoreProvider).stored().length,
+);
 
 final preferencesProvider =
     NotifierProvider<PreferencesController, AppPreferences>(

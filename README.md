@@ -30,9 +30,14 @@ including the case where Android is present but the CloudStream host is not
 | 7 | Adaptive UI/UX | done |
 | 8 | Player | done — source selection, libmpv playback, subtitles |
 | 9 | Library, history, downloads | done — saved titles, continue watching, resume, off-line downloads |
-| 10 | Settings, security, privacy | settings and persisted theme done |
+| 10 | Settings, security, privacy | done — appearance, playback, platform matrix, data controls |
 | 11 | Platform polish | done — support matrix, cleartext, generated runners |
-| 12 | Testing, performance, release | in progress |
+| 12 | Testing, performance, release | done except store publishing — see `docs/RELEASING.md` |
+
+Remaining work is not a phase: it is the "Not implemented" table in
+`docs/PLUGIN_SPEC.md` (one endpoint per plugin, editable plugin settings, DRM,
+byte proxy) plus the CloudStream Kotlin host, which is a separate Android module
+and does not exist in this repository.
 
 Plugins run on QuickJS, one isolate per plugin, behind a bridge that only
 exposes HTTP, HTML parsing, hashing, base64 and namespaced storage. Playback is
@@ -76,7 +81,7 @@ lib/plugins/    runtime (sandbox), adapters (3 ecosystems), managers, parsers
 lib/data/       SQLite store, filesystem artifacts, preferences
 lib/features/   screens: home, search, details, player, library, extensions…
 tool/           js_selftest.mjs — runs the real JS in a Node VM
-docs/           architecture, plugin spec, platforms, disclaimer
+docs/           architecture, plugin spec, platforms, releasing, disclaimer
 ```
 
 The JavaScript tests run without Flutter:

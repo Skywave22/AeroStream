@@ -3,6 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme/theme_providers.dart';
+import '../../core/app_info.dart';
+import '../downloads/download_providers.dart';
+import '../library/history_providers.dart';
+import '../library/library_providers.dart';
 import 'settings_providers.dart';
 
 /// Settings and diagnostics.
@@ -116,8 +120,8 @@ class SettingsScreen extends ConsumerWidget {
           const _SectionLabel('About'),
           const ListTile(
             leading: Icon(Icons.info_outline),
-            title: Text('AeroStream'),
-            subtitle: Text('Version 0.1.0 · open source'),
+            title: Text(appName),
+            subtitle: Text('Version $appVersionLabel · open source'),
           ),
           ListTile(
             leading: const Icon(Icons.description_outlined),
@@ -127,6 +131,37 @@ class SettingsScreen extends ConsumerWidget {
               context: context,
               applicationName: 'AeroStream',
             ),
+          ),
+          const Divider(),
+          const _SectionLabel('Your data'),
+          ListTile(
+            leading: const Icon(Icons.history_toggle_off),
+            title: const Text('Clear watch history'),
+            subtitle: const Text(
+              'Removes continue-watching entries and resume positions',
+            ),
+            onTap: () => _clearHistory(context, ref),
+          ),
+          ListTile(
+            leading: const Icon(Icons.bookmark_remove_outlined),
+            title: const Text('Clear saved titles'),
+            subtitle: const Text('Empties the library; nothing is uninstalled'),
+            onTap: () => _clearLibrary(context, ref),
+          ),
+          ListTile(
+            leading: const Icon(Icons.download_done_outlined),
+            title: const Text('Remove finished downloads'),
+            subtitle: const Text('Deletes the files that already downloaded'),
+            onTap: () => _removeFinishedDownloads(context, ref),
+          ),
+          ListTile(
+            leading: const Icon(Icons.key_off_outlined),
+            title: const Text('Delete plugin data'),
+            subtitle: Text(
+              '${ref.watch(providerPluginDataCount)} stored values: logins, '
+              'cached tokens and mirror choices. Plugins stay installed.',
+            ),
+            onTap: () => _deletePluginData(context, ref),
           ),
           const Divider(),
           const _SectionLabel('Diagnostics'),
@@ -172,6 +207,110 @@ class SettingsScreen extends ConsumerWidget {
     if (choice != null) {
       await ref.read(preferencesProvider.notifier).setQuality(choice);
     }
+  }
+
+  // ---- "Your data" ---------------------------------------------------------
+
+  /// Every destructive action here is a confirmation first: these are the only
+  /// buttons in the app that throw something away without a plugin to blame.
+  Future<bool> _confirm(
+    BuildContext context, {
+    required String title,
+    required String message,
+    required String action,
+  }) async {
+    final answer = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(action),
+          ),
+        ],
+      ),
+    );
+    return answer ?? false;
+  }
+
+  void _toast(BuildContext context, String message) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _clearHistory(BuildContext context, WidgetRef ref) async {
+    final confirmed = await _confirm(
+      context,
+      title: 'Clear watch history?',
+      message: 'Resume positions and continue watching go with it. Saved '
+          'titles and downloads are untouched.',
+      action: 'Clear',
+    );
+    if (!confirmed) return;
+    await ref.read(historyProvider.notifier).clear();
+    _toast(context, 'Watch history cleared.');
+  }
+
+  Future<void> _clearLibrary(BuildContext context, WidgetRef ref) async {
+    final confirmed = await _confirm(
+      context,
+      title: 'Clear saved titles?',
+      message: 'The library empties. Plugins, downloads and history stay.',
+      action: 'Clear',
+    );
+    if (!confirmed) return;
+    await ref.read(libraryProvider.notifier).clear();
+    _toast(context, 'Library cleared.');
+  }
+
+  Future<void> _removeFinishedDownloads(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final confirmed = await _confirm(
+      context,
+      title: 'Remove finished downloads?',
+      message: 'Deletes the downloaded files from this device. Titles that are '
+          'still downloading keep going.',
+      action: 'Remove',
+    );
+    if (!confirmed) return;
+    await ref.read(downloadsProvider.notifier).removeFinished();
+    _toast(context, 'Finished downloads removed.');
+  }
+
+  Future<void> _deletePluginData(BuildContext context, WidgetRef ref) async {
+    final store = ref.read(pluginDataStoreProvider);
+    final count = store.stored().length;
+    if (count == 0) {
+      _toast(context, 'No plugin data stored.');
+      return;
+    }
+
+    final confirmed = await _confirm(
+      context,
+      title: 'Delete plugin data?',
+      message: 'Deletes $count stored values — logins a plugin saved, cached '
+          'tokens and mirror choices. Installed plugins stay, and will ask for '
+          'credentials again if they need them.',
+      action: 'Delete',
+    );
+    if (!confirmed) return;
+
+    final removed = await store.forgetAll();
+    ref.invalidate(providerPluginDataCount);
+    // Providers cache their settings; a plugin whose token just vanished must
+    // not keep running on the copy it read at startup.
+    ref.invalidate(mediaProvidersProvider);
+    _toast(context, 'Deleted $removed plugin values.');
   }
 }
 

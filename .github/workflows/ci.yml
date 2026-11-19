@@ -108,6 +108,8 @@ jobs:
           if [ $status -ne 0 ]; then
             python3 scripts/annotate_log.py /tmp/test.log test
           fi
+          # Informational: the number appears in the report comment either way.
+          python3 scripts/coverage_summary.py coverage/lcov.info > /tmp/coverage.md 2>&1 || true
           exit $status
 
       - name: Report
