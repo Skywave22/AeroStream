@@ -192,7 +192,10 @@ void main() {
       expect(invoke, contains(r'[\"dune\"]'));
       expect(invoke, isNot(contains('page')));
       expect(result.valueOrNull!.items.single.title, 'Dune');
-      expect(result.valueOrNull!.nextPage, 4);
+      // Nothing to page with: SkyStream's SDK has no page parameter and hands
+      // back a bare array, so the plugin decides how much it returns.
+      expect(result.valueOrNull!.hasMore, isFalse);
+      expect(result.valueOrNull!.nextPage, isNull);
     });
   });
 }
