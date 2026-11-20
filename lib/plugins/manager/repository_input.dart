@@ -320,16 +320,31 @@ final class RepositoryInputResolver {
   /// `!code` is CloudStream's explicit py.md namespace, so it wins outright;
   /// otherwise SkyStream's `sky-` form is tried before the bare code, which is
   /// anyone's — the same order SkyStream itself uses.
+  ///
+  /// Both spellings of the code are tried. cutt.ly is case-sensitive, and the
+  /// codes people paste are not: the SkyStream repository is published as
+  /// `cutt.ly/sky-universe`, so `Universe` — the capitalised way the app and
+  /// every screenshot writes it — only resolves through the lowercased
+  /// candidate. Trying the token as typed first keeps an upper-case code that
+  /// someone really did register working.
   static List<Uri> _shortcodeCandidates(String token) {
     if (token.startsWith('!')) {
-      return <Uri>[Uri.parse('https://py.md/${token.substring(1)}')];
+      final code = token.substring(1);
+      return <Uri>[
+        _pyMd(code),
+        if (code != code.toLowerCase()) _pyMd(code.toLowerCase()),
+      ];
     }
+    final lower = token.toLowerCase();
+    final codes = token == lower ? <String>[token] : <String>[token, lower];
     return <Uri>[
-      Uri.parse('https://cutt.ly/sky-$token'),
-      Uri.parse('https://cutt.ly/$token'),
-      Uri.parse('https://py.md/$token'),
+      for (final code in codes) Uri.parse('https://cutt.ly/sky-$code'),
+      for (final code in codes) Uri.parse('https://cutt.ly/$code'),
+      for (final code in codes) _pyMd(code),
     ];
   }
+
+  static Uri _pyMd(String code) => Uri.parse('https://py.md/$code');
 
   Result<RepositoryInput> _vegaAuthor(String author, {required String host}) {
     if (!RegExp(r'^[A-Za-z0-9_.-]+$').hasMatch(author)) {

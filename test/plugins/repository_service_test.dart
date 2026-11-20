@@ -300,6 +300,53 @@ void main() {
       );
     });
 
+    test('a SkyStream mega-repository keeps its children SkyStream',
+        () async {
+      // `cutt.ly/sky-universe` is exactly this shape: a manifest with `repos`
+      // and no lists of its own, whose children publish `.sky` plugins. The
+      // children used to be read with a CloudStream hint, which parses fine —
+      // a SkyStream entry has a name and a url — and then hands the installer a
+      // `.sky` file it would only accept as a DEX.
+      const megaUrl = 'https://mega.example/mega_repo.json';
+      const innerUrl = 'https://inner.example/repo.json';
+      const innerList = 'https://inner.example/dist/plugins.json';
+
+      final http = FakeHttpService(<String, Object>{
+        megaUrl: '{\"name\":\"Universe\",\"manifestVersion\":1,'
+            '\"repos\":[\"$innerUrl\"]}',
+        innerUrl: '{\"name\":\"Inner\",\"pluginLists\":[\"$innerList\"]}',
+        innerList: _skyPlugins,
+      });
+      final service = RepositoryService(
+        http: http,
+        store: InMemoryExtensionStore(),
+      );
+
+      final repository = (await service.addRepository(megaUrl)).valueOrNull!;
+      expect(repository.ecosystem, PluginEcosystem.skystream);
+
+      final browsing = await service.browse(repository);
+      expect(browsing.isOk, isTrue, reason: browsing.errorOrNull?.toString());
+      final plugin = browsing.valueOrNull!.single;
+      expect(plugin.ecosystem, PluginEcosystem.skystream);
+      expect(plugin.id, 'dev.example.one');
+      expect(plugin.downloadUrl, 'https://example.com/one.sky');
+    });
+
+    test('a list is read as what its entries are, not what was hinted',
+        () async {
+      final service = RepositoryService(
+        http: FakeHttpService(<String, Object>{_listUrl: _skyPlugins}),
+        store: InMemoryExtensionStore(),
+      );
+      final listing = await service.fetchPluginList(
+        _listUrl,
+        repositoryId: 'r',
+        hint: PluginEcosystem.cloudstream,
+      );
+      expect(listing.valueOrNull!.ecosystem, PluginEcosystem.skystream);
+    });
+
     test('reports an error when nothing could be read', () async {
       final service = RepositoryService(
         http: FakeHttpService(),

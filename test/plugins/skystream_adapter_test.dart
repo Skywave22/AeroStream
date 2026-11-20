@@ -156,4 +156,41 @@ void main() {
       expect(sections.last.layout, HomeSectionLayout.posterRow);
     });
   });
+
+  group('SkyStreamAdapter search', () {
+    // `search(query, cb)` takes one argument plus the callback. An earlier
+    // adapter sent `[query, page]`, which put the page number in the callback
+    // slot, so every callback-style plugin threw instead of answering.
+    test('passes the query and no page', () async {
+      final runtime = ScriptedJsRuntime(
+        onEvaluate: FakePlugin(value: <Object?>[
+          <String, Object?>{'title': 'Dune', 'url': 'dune-1', 'type': 'movie'},
+        ]).onEvaluate,
+      );
+      final host = JsPluginHost(
+        runtime: runtime,
+        api: JsHostApi(
+          http: FakeHttpService(),
+          settings: InMemorySettingsStore(),
+          pluginId: _info.id,
+        ),
+        pluginId: _info.id,
+        bootstrap: '/* bootstrap */',
+        pluginSource: '// plugin',
+      );
+      final adapter = SkyStreamAdapter(
+        info: _info,
+        host: host,
+        baseUrl: 'https://example.com',
+      );
+
+      final result = await adapter.search('dune', page: 3);
+
+      expect(result.isOk, isTrue, reason: result.errorOrNull?.toString());
+      final invoke = runtime.scriptsStartingWith('__aeroInvoke').single;
+      expect(invoke, contains('["dune"]'));
+      expect(result.valueOrNull!.items.single.title, 'Dune');
+      expect(result.valueOrNull!.nextPage, 4);
+    });
+  });
 }

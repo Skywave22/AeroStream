@@ -60,10 +60,11 @@ final class SkyStreamAdapter implements MediaProvider {
   @override
   Future<Result<SearchPage>> search(String query, {int page = 1}) async {
     if (!capabilities.search) return _unsupported('search');
-    final response = await _host.call(
-      'search',
-      args: <Object?>[query, page],
-    );
+    // One argument, like SkyStream: the SDK's `search(query, cb)` has no page
+    // parameter, and passing one puts the page number where the plugin expects
+    // its callback — `r({success: …})` on a number, which throws.
+    // Pagination is the host's business; the plugin returns what it returns.
+    final response = await _host.call('search', args: <Object?>[query]);
     return switch (response) {
       Err<Object?>(:final error) => Err<SearchPage>(error),
       Ok<Object?>(:final value) => Ok<SearchPage>(mapSearchPage(value)),

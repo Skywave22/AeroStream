@@ -3,7 +3,56 @@
 Notable changes, newest first. The version numbers match `pubspec.yaml`; a test
 keeps `lib/core/app_info.dart` in step with it.
 
-## 0.2.0 — unreleased
+## Unreleased
+
+Found by pointing the shipped runtime at the three sources people add first:
+the SkyStream `universe` shortcode, the TJ-Plugins repository, and the Vega
+source `vega-org` / `zenda-cross`.
+
+### Extensions
+* **Shortcodes that are typed with a capital work.** cutt.ly is case-sensitive
+  and the SkyStream repository is published as `cutt.ly/sky-universe`, so
+  `Universe` — the spelling the app's own documentation uses — resolved to a
+  404 and fell through to "no repository answered". Both spellings are now
+  tried, as SkyStream itself does, and the short link that does not exist is
+  reported as such instead of looking like a network failure.
+* **Short links that answer with a page resolve too.** Some shorteners reply
+  `200` with the destination in a meta refresh or a `window.location`
+  assignment rather than a 302; only the header was read. The lookup now also
+  asks as a browser (a bare `Dart/3.x` User-Agent gets turned away) and
+  distinguishes "no such code" (404/410) from "slow down" (429).
+* **Vega installs stop requesting files that do not exist per provider.**
+  `headers.js` and `providerContext.js` are published once at the source's
+  `dist/`, not in every provider folder, so each install made two requests that
+  always 404'd.
+* **Vega providers could not run at all.** Their bundles call the global
+  `fetch` and read a Response — `if (!res.ok) throw`, then `await res.text()` —
+  and the sandbox handed back `{status, url, body}`, so every provider threw on
+  its first request. `fetch` now returns the Response surface (`ok`, `status`,
+  `headers.get`, `text()`, `json()`, `clone()`), and `providerContext` carries
+  the names providers destructure (`commonHeaders`, `Crypto`, `kvStore`).
+* **SkyStream `search` passes the query and nothing else.** The SDK's
+  signature is `search(query, cb)`; sending `[query, page]` put the page number
+  where the plugin expects its callback, so callback-style plugins threw instead
+  of answering.
+* **A mega-repository's children keep their ecosystem.** `repos` is how
+  SkyStream publishes its own mega-repository, and the child lists were read
+  with a CloudStream hint; a SkyStream entry parses either way, so its `.sky`
+  URL ended up installed as if it were a DEX. The entries now decide.
+* **Callback entry points no longer depend on declared arity.** A plugin
+  written as `getHome(cb = () => {})` or `(...args)` has `length === 0`, so the
+  arity guess handed it no callback and the call hung until it timed out. The
+  callback is appended to every call, which is what SkyStream's engine does, and
+  a promise or a plain return is still accepted.
+
+### Verification
+* `tool/live_check.mjs` runs the three real inputs against the real network —
+  the shortcode, the repository (whose `.sky` is downloaded, unpacked, and asked
+  for its home screen), and both Vega source names — and the CI workflow runs it
+  as **Live ecosystem check**. A runner without internet is reported as a skip,
+  not a failure, so an upstream outage is not mistaken for a broken build.
+
+## 0.2.0 — released 2026-11-19
 
 Sections, detection fixes and a new coat of paint. `v0.1.0` was the first
 release; this is the first one where all three ecosystems' sources add

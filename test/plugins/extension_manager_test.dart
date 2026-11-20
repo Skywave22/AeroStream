@@ -214,6 +214,27 @@ void main() {
       expect(first, contains('?v=2&t='));
     });
 
+    test('only asks the provider folder for modules it has', () async {
+      // `headers.js` and `providerContext.js` are published once at
+      // `<source>/dist/`, never inside a provider's folder, so requesting them
+      // per provider was two guaranteed 404s per install.
+      publishRequiredBundle();
+
+      final result = await manager().install(
+        listing(ecosystem: PluginEcosystem.vega, id: 'example'),
+      );
+
+      expect(result.isOk, isTrue, reason: result.errorOrNull?.toString());
+      expect(
+        http.requested.where((url) => url.contains('headers.js')),
+        isEmpty,
+      );
+      expect(
+        http.requested.where((url) => url.contains('providerContext.js')),
+        isEmpty,
+      );
+    });
+
     test('refuses a bundle that is missing a required module', () async {
       // posts.js alone: enough to look installed, not enough to work.
       http.routes['https://example.com/dist/example/posts.js'] =

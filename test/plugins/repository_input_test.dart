@@ -3,6 +3,10 @@ import 'package:aerostream/core/result.dart';
 import 'package:aerostream/plugins/manager/repository_input.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+/// Where the SkyStream `universe` shortcode points.
+const String _universeManifest =
+    'https://raw.githubusercontent.com/akashdh11/sky-universe/refs/heads/main/mega_repo.json';
+
 /// The redirect table a test resolver uses: shortcode URL -> target.
 final class _Redirects {
   _Redirects([Map<String, String>? table])
@@ -112,6 +116,57 @@ void main() {
       });
       await _resolve('!xyz', redirects);
       expect(redirects.asked.single, 'https://py.md/xyz');
+    });
+
+    // cutt.ly is case-sensitive and the SkyStream repository is published in
+    // lower case, so the capitalised spelling people type — the app itself
+    // writes "Universe" — only resolves through the lower-case candidate.
+    test('a capitalised code also tries its lower-case spelling', () async {
+      final redirects = _Redirects(<String, String>{
+        'https://cutt.ly/sky-universe': _universeManifest,
+      });
+      final input = await _resolve('Universe', redirects);
+
+      expect(redirects.asked, <String>[
+        'https://cutt.ly/sky-Universe',
+        'https://cutt.ly/sky-universe',
+        'https://cutt.ly/Universe',
+        'https://cutt.ly/universe',
+        'https://py.md/Universe',
+        'https://py.md/universe',
+      ]);
+      expect(input.primary.toString(), _universeManifest);
+      expect(input.kind, RepositoryInputKind.shortcode);
+    });
+
+    test('the spelling as typed still wins when it is the one that exists',
+        () async {
+      final redirects = _Redirects(<String, String>{
+        'https://cutt.ly/sky-Universe': 'https://repo.example/upper/repo.json',
+        'https://cutt.ly/sky-universe': 'https://repo.example/lower/repo.json',
+      });
+      final input = await _resolve('Universe', redirects);
+      expect(input.primary.toString(), 'https://repo.example/upper/repo.json');
+      expect(redirects.asked.first, 'https://cutt.ly/sky-Universe');
+    });
+
+    test('a lower-case code is only looked up once', () async {
+      final redirects = _Redirects();
+      await _resolve('universe', redirects);
+      expect(redirects.asked, <String>[
+        'https://cutt.ly/sky-universe',
+        'https://cutt.ly/universe',
+        'https://py.md/universe',
+      ]);
+    });
+
+    test('a "!" code also tries its lower-case spelling', () async {
+      final redirects = _Redirects();
+      await _resolve('!Xyz', redirects);
+      expect(
+        redirects.asked,
+        <String>['https://py.md/Xyz', 'https://py.md/xyz'],
+      );
     });
   });
 
@@ -228,6 +283,56 @@ void main() {
       expect(parseRedirectLocation('https://cutt.ly', base), isNull);
       expect(parseRedirectLocation(null, base), isNull);
       expect(parseRedirectLocation('   ', base), isNull);
+    });
+
+    // A shortener that never redirects still answers 200 with the destination
+    // in the page. Reading only the header made those codes look dead.
+    test('reads a meta refresh', () {
+      const body = '<html><head><meta http-equiv="refresh" '
+          'content="0; url=https://repo.example/repo.json"></head></html>';
+      expect(
+        parseRedirectPage(body, base)?.toString(),
+        'https://repo.example/repo.json',
+      );
+    });
+
+    test('reads a relative meta refresh against the short link', () {
+      const body = "<meta http-equiv='refresh' content='0;URL=/repo.json'>";
+      expect(
+        parseRedirectPage(body, base)?.toString(),
+        'https://cutt.ly/repo.json',
+      );
+    });
+
+    test('reads a window.location assignment in both quote styles', () {
+      expect(
+        parseRedirectPage(
+          'window.location = "https://repo.example/a.json";',
+          base,
+        )?.toString(),
+        'https://repo.example/a.json',
+      );
+      expect(
+        parseRedirectPage(
+          "location.href = 'https://repo.example/b.json';",
+          base,
+        )?.toString(),
+        'https://repo.example/b.json',
+      );
+    });
+
+    test('a page that points at the shortener itself is a dead end', () {
+      expect(parseRedirectPage('window.location = "/404";', base), isNull);
+      expect(parseRedirectPage('<html>nothing here</html>', base), isNull);
+      expect(parseRedirectPage('', base), isNull);
+    });
+
+    test('only 404 and 410 mean the code does not exist', () {
+      expect(isDeadShortLink(404), isTrue);
+      expect(isDeadShortLink(410), isTrue);
+      expect(isDeadShortLink(429), isFalse);
+      expect(isDeadShortLink(500), isFalse);
+      expect(isDeadShortLink(null), isFalse);
     });
   });
 }

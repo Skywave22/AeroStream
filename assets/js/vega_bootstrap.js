@@ -157,9 +157,23 @@
       axios: axios,
       cheerio: global.cheerioLite,
       crypto: cryptoShim,
+      // Vega's own context names the crypto module `Crypto` and the shared
+      // platform headers `commonHeaders`; providers destructure those names.
+      Crypto: cryptoShim,
+      commonHeaders: {},
       utils: utils,
       providerValue: providerValue === undefined ? null : providerValue,
-      headers: {}
+      headers: {},
+      // Nothing persists between launches on this build, but a provider that
+      // calls the key-value surface must not crash on its absence.
+      kvStore: {
+        get: function () { return Promise.resolve(undefined); },
+        set: function () { return Promise.resolve(); },
+        remove: function () { return Promise.resolve(); },
+        delete: function () { return Promise.resolve(); },
+        keys: function () { return Promise.resolve([]); },
+        clear: function () { return Promise.resolve(); }
+      }
     };
   }
 

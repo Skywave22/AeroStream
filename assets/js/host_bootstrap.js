@@ -117,7 +117,14 @@
 
     // SkyStream plugins are callback-based: `getHome(cb)`. Vega providers
     // return promises. Support both without the caller caring.
-    var callback = function (res) {
+    //
+    // The callback is appended to *every* call, which is what SkyStream's own
+    // engine does. Counting declared parameters instead looks equivalent and is
+    // not: `getHome()` written with a default (`function (cb = () => {})`) or
+    // with a rest parameter reports `fn.length === 0`, so an arity guess hands
+    // it no callback at all and the invoke hangs until the host times out.
+    // Extra arguments are ignored by functions that do not want them.
+    function accept(res) {
       if (res && typeof res === 'object' && 'success' in res) {
         if (res.success === false) {
           settle(false, {
@@ -131,20 +138,23 @@
       } else {
         settle(true, res);
       }
+    }
+
+    var callback = function (res) {
+      accept(res);
     };
 
     try {
-      // A function that declares one more parameter than it was given is
-      // callback-style; anything else returns its value (or a promise).
-      var expectsCallback = fn.length > args.length;
-      var result = expectsCallback
-        ? fn.apply(null, args.concat([callback]))
-        : fn.apply(null, args);
+      var result = fn.apply(null, args.concat([callback]));
       if (result && typeof result.then === 'function') {
-        result.then(function (value) { settle(true, value); },
-                    function (error) { settle(false, describe(error)); });
-      } else if (!expectsCallback) {
-        settle(true, result);
+        // Promise-style: the callback may still fire, settle() keeps the first.
+        result.then(
+          function (value) { accept(value); },
+          function (error) { settle(false, describe(error)); }
+        );
+      } else if (result !== undefined) {
+        // Plain synchronous return: no callback will ever come.
+        accept(result);
       }
     } catch (error) {
       settle(false, describe(error));
@@ -397,13 +407,94 @@
     );
   };
 
+  /**
+   * `fetch` as the two ecosystems' bundles use it.
+   *
+   * Both call sites read a Response, not AeroStream's internal reply object:
+   * Vega's provider bundles do `if (!res.ok) throw …; await res.text()`, and
+   * SkyStream plugins reach for `res.json()` and `res.headers.get()`. Handing
+   * them `{status, url, body}` made `res.ok` undefined, so every Vega provider
+   * threw on its first request. This wraps the reply in the fetch surface they
+   * expect, with the body kept as text and parsed on demand.
+   */
+  function aeroResponse(reply) {
+    var raw = reply && reply.body !== undefined && reply.body !== null
+      ? String(reply.body)
+      : '';
+    var status = reply && typeof reply.status === 'number' ? reply.status : 0;
+    var headerMap = (reply && reply.headers) || {};
+
+    function findHeader(name) {
+      var wanted = String(name).toLowerCase();
+      for (var key in headerMap) {
+        if (Object.prototype.hasOwnProperty.call(headerMap, key) &&
+            String(key).toLowerCase() === wanted) {
+          return headerMap[key];
+        }
+      }
+      return null;
+    }
+
+    var response = {
+      ok: status >= 200 && status < 300,
+      status: status,
+      statusText: '',
+      url: (reply && reply.url) || '',
+      redirected: false,
+      type: 'basic',
+      headers: {
+        get: function (name) { return findHeader(name); },
+        has: function (name) { return findHeader(name) !== null; },
+        forEach: function (fn) {
+          for (var key in headerMap) {
+            if (Object.prototype.hasOwnProperty.call(headerMap, key)) {
+              fn(headerMap[key], key, this);
+            }
+          }
+        },
+        entries: function () {
+          var out = [];
+          for (var key in headerMap) {
+            if (Object.prototype.hasOwnProperty.call(headerMap, key)) {
+              out.push([key, headerMap[key]]);
+            }
+          }
+          return out;
+        },
+        raw: function () { return headerMap; }
+      },
+      // Not part of the fetch API (where `body` is a stream), but plugins
+      // written against SkyStream's looser `fetch` read the text here.
+      body: raw,
+      text: function () { return Promise.resolve(raw); },
+      json: function () {
+        return new Promise(function (resolve, reject) {
+          try {
+            resolve(JSON.parse(raw));
+          } catch (error) {
+            reject(error);
+          }
+        });
+      },
+      clone: function () {
+        return aeroResponse({
+          status: status,
+          body: raw,
+          headers: headerMap,
+          url: (reply && reply.url) || ''
+        });
+      }
+    };
+    return response;
+  }
+
   globalThis.fetch = function (url, options) {
     var opts = options || {};
     var headers = opts.headers || {};
-    if (opts.method && String(opts.method).toUpperCase() === 'POST') {
-      return http_post(String(url), headers, opts.body);
-    }
-    return http_get(String(url), headers);
+    var request = opts.method && String(opts.method).toUpperCase() === 'POST'
+      ? http_post(String(url), headers, opts.body)
+      : http_get(String(url), headers);
+    return request.then(aeroResponse);
   };
 
   // ---- HTML -------------------------------------------------------------

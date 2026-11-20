@@ -143,6 +143,125 @@ await run('HTTP bridge', async () => {
   check('response body returns to the plugin', result.value.body === '<html>ok</html>');
 });
 
+await run('fetch() returns a Response', async () => {
+  const context = createContext();
+  vm.runInContext(`
+    globalThis.load = async function (url) {
+      const response = await fetch(url, { headers: { Referer: 'https://example.com' } });
+      return {
+        ok: response.ok,
+        status: response.status,
+        type: response.headers.get('content-type'),
+        text: await response.text()
+      };
+    };
+    globalThis.loadJson = async function (url) {
+      const response = await fetch(url);
+      const body = await response.json();
+      return body.items.map(function (item) { return item.name; });
+    };
+  `, context);
+
+  const result = await invoke(context, 'load', ['https://example.com/a'], (message) => ({
+    status: 200,
+    url: 'https://example.com/a',
+    body: '<html>ok</html>',
+    headers: { 'Content-Type': 'text/html' },
+  }));
+
+  // The shape Vega's bundles read: `if (!res.ok) throw`, then `await res.text()`.
+  check('ok is a boolean derived from the status', result.value.ok === true, JSON.stringify(result));
+  check('status is the response status', result.value.status === 200, JSON.stringify(result));
+  check('headers.get is case-insensitive', result.value.type === 'text/html', JSON.stringify(result));
+  check('text() resolves the body', result.value.text === '<html>ok</html>', JSON.stringify(result));
+
+  const parsed = await invoke(context, 'loadJson', ['https://example.com/api'], () => ({
+    status: 200,
+    body: '{"items":[{"name":"one"},{"name":"two"}]}',
+    headers: {},
+  }));
+  check('json() parses the body', parsed.value.join(',') === 'one,two', JSON.stringify(parsed));
+
+  const missing = await invoke(context, 'load', ['https://example.com/missing'], () => ({
+    status: 404,
+    body: 'nope',
+    headers: {},
+  }));
+  check('a 404 is not ok', missing.value.ok === false && missing.value.status === 404, JSON.stringify(missing));
+});
+
+await run('Vega provider using global fetch', async () => {
+  const context = createContext();
+  // The real bundles call the global `fetch` and read a Response; they do not
+  // require axios for every module.
+  const posts = `"use strict";
+    function posts(baseUrl, url, signal, headers, axios, cheerio) {
+      return fetch(url, { headers: headers }).then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.text();
+      }).then(function (html) {
+        var $ = cheerio.load(html);
+        var out = [];
+        $('.card').each(function (i, el) {
+          out.push({ title: $(el).text().trim(), link: $(el).attr('href') });
+        });
+        return out;
+      });
+    }
+    exports.getPosts = function (args) {
+      var providerContext = args.providerContext;
+      return posts(
+        'https://example.com',
+        'https://example.com/list',
+        args.signal,
+        {},
+        providerContext.axios,
+        providerContext.cheerio
+      );
+    };`;
+
+  const loaded = JSON.parse(vm.runInContext(`__vegaLoad('fetchposts', ${JSON.stringify(posts)})`, context));
+  check('module loads', loaded.ok === true, JSON.stringify(loaded));
+
+  const result = await invoke(context, '__vegaCall', ['fetchposts', 'getPosts', '{}'], (message) => ({
+    status: 200,
+    body: '<div><a class="card" href="/a">One</a><a class="card" href="/b">Two</a></div>',
+    headers: {},
+  }));
+
+  check('provider reads the fetched page',
+    Array.isArray(result.value) && result.value.length === 2, JSON.stringify(result));
+  check('provider maps titles', result.value[0].title === 'One', JSON.stringify(result.value));
+});
+
+await run('Callback detection does not depend on arity', async () => {
+  const context = createContext();
+  // A default parameter or a rest parameter makes fn.length 0, so an
+  // arity-based guess passes no callback and the invoke never settles.
+  vm.runInContext(`
+    globalThis.getHome = function (cb = function () {}) {
+      cb({ success: true, data: ['default-param'] });
+    };
+    globalThis.search = function (...args) {
+      const cb = args[args.length - 1];
+      cb({ success: true, data: ['rest-param'] });
+    };
+    globalThis.load = function (url, cb) {
+      cb({ success: true, data: ['normal'] });
+      cb({ success: true, data: ['second-call-is-ignored'] });
+    };
+  `, context);
+
+  const home = await invoke(context, 'getHome');
+  check('a default parameter still gets a callback', home.value && home.value[0] === 'default-param', JSON.stringify(home));
+
+  const search = await invoke(context, 'search', ['dune']);
+  check('a rest parameter still gets a callback', search.value && search.value[0] === 'rest-param', JSON.stringify(search));
+
+  const load = await invoke(context, 'load', ['https://e/1']);
+  check('the first callback wins', load.value && load.value[0] === 'normal', JSON.stringify(load));
+});
+
 await run('Timers', async () => {
   const context = createContext();
   vm.runInContext(`

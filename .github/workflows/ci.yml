@@ -50,6 +50,39 @@ jobs:
           JS_RESULT: ${{ steps.js.outcome }}
         run: bash scripts/ci_report.sh
 
+  # The three ecosystems are somebody else's servers. The unit tests prove the
+  # parsing; this proves the files are still where the app looks for them: the
+  # `universe` shortcode, the TJ-Plugins repository (whose .sky is downloaded,
+  # unpacked and asked for its home screen), and the two Vega source names.
+  # tool/live_check.mjs treats "no network from this runner" as a skip, so an
+  # outage upstream does not turn into a red build for an unrelated change.
+  live-ecosystems:
+    name: Live ecosystem check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run live check
+        id: live
+        run: |
+          set +e
+          node tool/live_check.mjs > /tmp/live.log 2>&1
+          status=$?
+          tail -80 /tmp/live.log
+          exit $status
+
+      - name: Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LIVE_RESULT: ${{ steps.live.outcome }}
+        run: bash scripts/ci_report.sh
+
   # A release-mode build is a different compiler: AOT catches things the JIT
   # never instantiates — package FFI bindings that only fail when compiled, for
   # example. Linux is the cheapest target to prove it on, and it is the one the

@@ -125,6 +125,16 @@ final class DioHttpService implements HttpService {
               },
       );
 
+  /// The User-Agent shorteners are asked with.
+  ///
+  /// `cutt.ly` answers a bare `Dart/3.x (dart:io)` like a bot — with a 403, or
+  /// with a captcha page instead of the redirect — and the shortcode then looks
+  /// like it does not exist. The browsers every other client imitates get the
+  /// plain redirect.
+  static const String shortLinkUserAgent =
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+      '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
   @override
   Future<Result<Uri>> resolveRedirect(Uri url) async {
     if (url.scheme != 'http' && url.scheme != 'https') {
@@ -140,21 +150,62 @@ final class DioHttpService implements HttpService {
         url.toString(),
         options: Options(
           followRedirects: false,
-          validateStatus: (int? status) => status != null && status < 400,
+          // Below 500: a 404 means "no such code" and a 429 means "slow down",
+          // and both are worth reporting by name rather than as a transport
+          // error.
+          validateStatus: (int? status) => status != null && status < 500,
           responseType: ResponseType.bytes,
+          headers: const <String, Object?>{'User-Agent': shortLinkUserAgent},
         ),
       );
-      final location = response.headers.value('location');
-      final target = parseRedirectLocation(location, url);
-      if (target == null) {
+      final status = response.statusCode ?? 0;
+      if (status >= 300 && status < 400) {
+        final target = parseRedirectLocation(
+          response.headers.value('location'),
+          url,
+        );
+        if (target == null) {
+          return Err<Uri>(
+            PluginNetworkError(
+              '${url.host} did not redirect anywhere useful',
+              url: url.toString(),
+            ),
+          );
+        }
+        return Ok<Uri>(target);
+      }
+      if (isDeadShortLink(status)) {
         return Err<Uri>(
           PluginNetworkError(
-            '${url.host} did not redirect anywhere useful',
+            '${url.host} has no link at that address',
+            statusCode: status,
             url: url.toString(),
           ),
         );
       }
-      return Ok<Uri>(target);
+      if (status >= 400) {
+        return Err<Uri>(
+          PluginNetworkError(
+            status == 429
+                ? '${url.host} is limiting shortcode lookups; try again in a '
+                    'minute'
+                : '${url.host} answered $status',
+            statusCode: status,
+            url: url.toString(),
+          ),
+        );
+      }
+      // A 200 page: the destination is in a meta refresh or a script.
+      final body =
+          utf8.decode(response.data ?? const <int>[], allowMalformed: true);
+      final page = parseRedirectPage(body, url);
+      if (page != null) return Ok<Uri>(page);
+      return Err<Uri>(
+        PluginNetworkError(
+          '${url.host} did not point anywhere',
+          url: url.toString(),
+        ),
+      );
     } on DioException catch (error) {
       return Err<Uri>(
         PluginNetworkError(

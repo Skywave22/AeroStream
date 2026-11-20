@@ -106,6 +106,7 @@ fi
   echo "| --- | --- |"
   echo "| format | ${FORMAT_RESULT:-unknown} |"
   echo "| js-selftest | ${JS_RESULT:-unknown} |"
+  echo "| live-ecosystems | ${LIVE_RESULT:-unknown} |"
   echo "| analyze | ${ANALYZE_RESULT:-unknown} |"
   echo "| test | ${TEST_RESULT:-unknown} |"
   echo
@@ -129,6 +130,16 @@ fi
     echo
     echo '```'
     tail -c 12000 /tmp/js.log
+    echo '```'
+    echo "</details>"
+    echo
+  fi
+
+  if [ -n "${LIVE_RESULT:-}" ] && [ "${LIVE_RESULT}" != "success" ] && [ -s /tmp/live.log ]; then
+    echo "<details><summary>node tool/live_check.mjs</summary>"
+    echo
+    echo '```'
+    tail -c 12000 /tmp/live.log
     echo '```'
     echo "</details>"
     echo

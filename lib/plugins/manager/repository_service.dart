@@ -295,11 +295,19 @@ final class RepositoryService {
       return Err<ParsedPluginList>(response.error);
     }
     final body = (response as Ok<HttpPayload>).value.text;
+
+    // The entries say which ecosystem owns a list, and that beats the hint: a
+    // mega-repo pulls in child lists of every kind, and reading a SkyStream
+    // list as CloudStream yields entries whose `.sky` URL is then installed as
+    // if it were a DEX. The hint still decides anything the shapes cannot.
+    final detected = PluginListParser.detectEcosystemInBody(body);
+    final effectiveHint = detected ?? hint;
+
     final primary = PluginListParser.parse(
       body,
       sourceUrl: url,
       repositoryId: repositoryId,
-      hint: hint,
+      hint: effectiveHint,
     );
 
     // A hint is a guess, and a wrong guess parses to an empty list rather than
@@ -314,7 +322,7 @@ final class RepositoryService {
     ParsedPluginList? best =
         primary is Ok<ParsedPluginList> ? primary.value : null;
     for (final ecosystem in PluginEcosystem.values) {
-      if (ecosystem == hint) continue;
+      if (ecosystem == effectiveHint) continue;
       final attempt = PluginListParser.parse(
         body,
         sourceUrl: url,
@@ -397,7 +405,10 @@ final class RepositoryService {
       final listing = await fetchPluginList(
         listUrl,
         repositoryId: parent.id,
-        hint: PluginEcosystem.cloudstream,
+        // The parent's ecosystem, not CloudStream: `repos` is how SkyStream
+        // publishes its mega-repository too (`cutt.ly/sky-universe` is a list
+        // of SkyStream `repo.json` files).
+        hint: parent.ecosystem,
       );
       if (listing is! Ok<ParsedPluginList>) continue;
       for (final plugin in listing.value.plugins) {

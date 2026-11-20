@@ -58,9 +58,11 @@ final class PluginRuntimeFactory {
   final RuntimeLimits limits;
 
   /// Vega modules, in load order.
+  ///
+  /// `providerContext` is built by `vega_bootstrap.js` inside the sandbox and
+  /// `headers.js` is a repo-level file, so neither is expected in an installed
+  /// bundle; a module that is not there is simply skipped.
   static const List<String> vegaModules = <String>[
-    'providerContext.js',
-    'headers.js',
     'posts.js',
     'catalog.js',
     'meta.js',

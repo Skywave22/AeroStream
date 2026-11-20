@@ -43,6 +43,12 @@ final class ExtensionManager {
 
   /// Vega providers are published as separate modules; these are the ones the
   /// adapter knows how to call. Missing optional modules are fine.
+  ///
+  /// `headers.js` and `providerContext.js` are not in this list on purpose:
+  /// they live once at `<source>/dist/`, not inside a provider's folder, and
+  /// nothing needs them here — a provider bundle is self-contained (esbuild
+  /// inlines what it imports) and the sandbox supplies its own
+  /// `providerContext`. Requesting them per provider only 404s.
   static const List<String> vegaModules = <String>[
     'posts.js',
     'stream.js',
@@ -50,8 +56,6 @@ final class ExtensionManager {
     'catalog.js',
     'episodes.js',
     'settings.js',
-    'headers.js',
-    'providerContext.js',
   ];
 
   /// Modules Vega's own loader treats as mandatory: a bundle missing one of
