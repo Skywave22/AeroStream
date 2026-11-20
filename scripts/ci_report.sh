@@ -135,7 +135,10 @@ fi
     echo
   fi
 
-  if [ -n "${LIVE_RESULT:-}" ] && [ "${LIVE_RESULT}" != "success" ] && [ -s /tmp/live.log ]; then
+  # Always, success included: what the three real repositories answered is the
+  # evidence for the change, and the run log this would normally live in is not
+  # reachable from the development sandbox.
+  if [ -n "${LIVE_RESULT:-}" ] && [ -s /tmp/live.log ]; then
     echo "<details><summary>node tool/live_check.mjs</summary>"
     echo
     echo '```'
