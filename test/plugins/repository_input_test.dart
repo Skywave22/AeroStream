@@ -37,12 +37,16 @@ void main() {
       expect(input.kind, RepositoryInputKind.url);
     });
 
-    test('a folder URL also offers <folder>/manifest.json', () async {
+    test('a folder URL offers every ecosystem\'s manifest name', () async {
       final input = await _resolve('https://repo.example/repos/vega');
       expect(input.primary.toString(), 'https://repo.example/repos/vega');
       expect(
-        input.fallbacks.single.toString(),
-        'https://repo.example/repos/vega/manifest.json',
+        input.fallbacks.map((uri) => uri.toString()),
+        <String>[
+          'https://repo.example/repos/vega/manifest.json',
+          'https://repo.example/repos/vega/repo.json',
+          'https://repo.example/repos/vega/plugins.json',
+        ],
       );
       expect(input.kind, RepositoryInputKind.vegaFolder);
     });
@@ -116,8 +120,12 @@ void main() {
         'main',
       );
       expect(
-        input.fallbacks.single.toString(),
+        input.fallbacks.first.toString(),
         endsWith('/manifest.json'),
+      );
+      expect(
+        input.fallbacks.map((uri) => uri.pathSegments.last),
+        <String>['manifest.json', 'repo.json', 'plugins.json'],
       );
     });
 

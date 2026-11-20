@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/theme/app_theme.dart';
+
 /// The adaptive navigation frame.
 ///
 /// One codebase, three layouts: a bottom bar on phones, a rail on tablets and a
@@ -76,17 +78,29 @@ class AppShell extends ConsumerWidget {
 
     return Scaffold(
       body: child,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: navigate,
-        destinations: [
-          for (final destination in _destinations)
-            NavigationDestination(
-              icon: Icon(destination.icon),
-              selectedIcon: Icon(destination.selectedIcon),
-              label: destination.label,
+      bottomNavigationBar: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(
+              color:
+                  Theme.of(context).colorScheme.outlineVariant.withValues(
+                        alpha: 0.35,
+                      ),
             ),
-        ],
+          ),
+        ),
+        child: NavigationBar(
+          selectedIndex: index,
+          onDestinationSelected: navigate,
+          destinations: [
+            for (final destination in _destinations)
+              NavigationDestination(
+                icon: Icon(destination.icon),
+                selectedIcon: Icon(destination.selectedIcon),
+                label: destination.label,
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -120,7 +134,23 @@ class _Brand extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.play_circle_fill_rounded, color: theme.colorScheme.primary),
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: <Color>[AppTheme.seed, AppTheme.accent],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: const Icon(
+            Icons.play_arrow_rounded,
+            size: 20,
+            color: Colors.white,
+          ),
+        ),
         if (!compact) ...[
           const SizedBox(width: 8),
           Text(

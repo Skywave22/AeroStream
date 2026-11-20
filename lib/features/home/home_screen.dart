@@ -3,10 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
+import '../../app/theme/app_theme.dart';
 import '../../domain/entities/enums.dart';
 import '../../domain/entities/home_section.dart';
 import '../../domain/entities/media_item.dart';
 import '../common/media_card.dart';
+import '../extensions/ecosystem_info.dart';
+import '../extensions/extension_widgets.dart';
 import '../library/history_providers.dart';
 import 'home_providers.dart';
 
@@ -160,41 +163,106 @@ class _FirstRun extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(20, 40, 20, 40),
       children: [
-        const SizedBox(height: 48),
-        Icon(
-          Icons.live_tv_rounded,
-          size: 56,
-          color: theme.colorScheme.primary,
-        ),
-        const SizedBox(height: 24),
-        Text(
-          'Nothing installed yet',
-          style: theme.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w700,
+        Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: <Color>[AppTheme.seed, AppTheme.accent],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: const Icon(
+            Icons.play_arrow_rounded,
+            size: 36,
+            color: Colors.white,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 22),
         Text(
-          'AeroStream has no built-in catalogue. Add a repository and install '
-          'an extension — SkyStream, Vega or CloudStream — and its home rows, '
-          'search and streams appear here.',
+          'Nothing installed yet',
+          style: theme.textTheme.headlineMedium,
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'AeroStream has no built-in catalogue. Pick the ecosystem your sources '
+          'belong to, add a repository there, and install what it offers.',
           style: theme.textTheme.bodyLarge?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
             height: 1.5,
           ),
         ),
-        const SizedBox(height: 28),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: FilledButton.icon(
-            onPressed: () => context.go('/extensions'),
-            icon: const Icon(Icons.add_link_rounded),
-            label: const Text('Add a repository'),
+        const SizedBox(height: 26),
+        for (final info in EcosystemInfo.all) ...[
+          _FirstRunEcosystem(info: info),
+          const SizedBox(height: 10),
+        ],
+        const SizedBox(height: 6),
+        Text(
+          'Extensions live under Extensions and in Settings at any time.',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
       ],
+    );
+  }
+}
+
+/// One ecosystem, offered as the first step of a fresh install.
+class _FirstRunEcosystem extends StatelessWidget {
+  const _FirstRunEcosystem({required this.info});
+
+  final EcosystemInfo info;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: InkWell(
+        onTap: () => openEcosystem(context, info.ecosystem),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(11),
+                decoration: BoxDecoration(
+                  color: info.accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(info.icon, color: info.accent, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      info.title,
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      info.tagline,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

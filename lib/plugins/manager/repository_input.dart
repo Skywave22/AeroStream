@@ -180,6 +180,13 @@ final class RepositoryInputResolver {
         if (segments.length < 2) return null;
         final author = segments[0];
         final repo = segments[1];
+        // A web link to a file (`/blob/<branch>/<path>`) is the file itself.
+        if (segments.length > 4 && segments[2] == 'blob') {
+          return Uri.parse(
+            'https://raw.githubusercontent.com/$author/$repo/refs/heads/'
+            '${segments.sublist(3).join('/')}',
+          );
+        }
         final branch = segments.length > 3 && segments[2] == 'tree'
             ? segments.sublist(3).join('/')
             : vegaDefaultBranch;
@@ -240,7 +247,8 @@ final class RepositoryInputResolver {
     Uri uri, {
     required RepositoryInputKind kind,
   }) {
-    final isJson = uri.path.toLowerCase().endsWith('.json');
+    final lower = uri.path.toLowerCase();
+    final isJson = lower.endsWith('.json');
     final base =
         uri.toString().endsWith('/') ? uri : Uri.parse('${uri.toString()}/');
     final display = _displayFor(uri);
@@ -252,7 +260,7 @@ final class RepositoryInputResolver {
     return Ok<RepositoryInput>(
       RepositoryInput(
         primary: uri,
-        fallbacks: <Uri>[base.resolve('manifest.json')],
+        fallbacks: _folderFiles(base),
         display: display,
         kind: RepositoryInputKind.vegaFolder,
       ),
@@ -323,14 +331,28 @@ final class RepositoryInputResolver {
     final folder = Uri.parse(base.endsWith('/') ? base : '$base/');
     return Ok<RepositoryInput>(
       RepositoryInput(
-        // A Vega source is a folder; the only fetchable file in it is the
-        // provider manifest.
+        // A Vega source is a folder; every ecosystem names its manifest
+        // differently, so all three names are tried from here.
         primary: folder.resolve('manifest.json'),
+        fallbacks: _folderFiles(folder),
         display: folder.toString(),
         kind: RepositoryInputKind.vegaAuthor,
       ),
     );
   }
+
+  /// The files a repository folder may publish, in the order they are tried.
+  ///
+  /// All three ecosystems put a *folder* behind a share link, but they disagree
+  /// on the file name: Vega reads `manifest.json`, CloudStream reads
+  /// `repo.json`, and plenty of SkyStream repositories publish the plugin array
+  /// itself as `plugins.json`. Trying all three is what makes one URL box work
+  /// for every ecosystem instead of only the one whose file we guessed.
+  static List<Uri> _folderFiles(Uri base) => <Uri>[
+        base.resolve('manifest.json'),
+        base.resolve('repo.json'),
+        base.resolve('plugins.json'),
+      ];
 
   static String _displayFor(Uri uri) {
     final text = uri.toString();

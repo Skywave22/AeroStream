@@ -6,6 +6,8 @@ import '../domain/entities/media_item.dart';
 import '../features/details/details_providers.dart';
 import '../features/details/details_screen.dart';
 import '../features/downloads/downloads_view.dart';
+import '../features/extensions/ecosystem_info.dart';
+import '../features/extensions/ecosystem_screen.dart';
 import '../features/extensions/extensions_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/library/library_screen.dart';
@@ -44,6 +46,20 @@ final GoRouter appRouter = GoRouter(
           path: '/extensions',
           name: 'extensions',
           builder: (context, state) => const ExtensionsScreen(),
+          routes: <RouteBase>[
+            // One page per ecosystem, named the way that ecosystem names it.
+            GoRoute(
+              path: ':ecosystem',
+              name: 'ecosystem',
+              builder: (context, state) {
+                final info = EcosystemInfo.fromWire(
+                  state.pathParameters['ecosystem'],
+                );
+                if (info == null) return const _MissingRouteData();
+                return EcosystemScreen(info: info);
+              },
+            ),
+          ],
         ),
         GoRoute(
           path: '/settings',

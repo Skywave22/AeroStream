@@ -5,6 +5,9 @@ import '../../app/providers.dart';
 import '../../app/theme/theme_providers.dart';
 import '../../core/app_info.dart';
 import '../downloads/download_providers.dart';
+import '../extensions/ecosystem_info.dart';
+import '../extensions/ecosystem_providers.dart';
+import '../extensions/extension_widgets.dart';
 import '../library/history_providers.dart';
 import '../library/library_providers.dart';
 import 'settings_providers.dart';
@@ -81,6 +84,13 @@ class SettingsScreen extends ConsumerWidget {
                 .read(preferencesProvider.notifier)
                 .setPreferHls(value: value),
           ),
+          const Divider(),
+          const _SectionLabel('Extensions'),
+          // Three ecosystems, three destinations — the same split the
+          // Extensions tab makes, reachable from Settings the way the other
+          // clients put their provider pages here.
+          for (final info in EcosystemInfo.all)
+            _EcosystemSettingsTile(info: info),
           const Divider(),
           const _SectionLabel('Platform'),
           ListTile(
@@ -315,6 +325,41 @@ class SettingsScreen extends ConsumerWidget {
     // not keep running on the copy it read at startup.
     ref.invalidate(mediaProvidersProvider);
     _toast(context, 'Deleted $removed plugin values.');
+  }
+}
+
+/// One ecosystem's row in Settings: counts on the left, its page on tap.
+class _EcosystemSettingsTile extends ConsumerWidget {
+  const _EcosystemSettingsTile({required this.info});
+
+  final EcosystemInfo info;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final repositories = ref.watch(ecosystemRepositoriesProvider(info.ecosystem));
+    final installed = ref.watch(ecosystemInstalledProvider(info.ecosystem));
+    final status = statusOf(context, ref, info.ecosystem);
+
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(9),
+        decoration: BoxDecoration(
+          color: info.accent.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(11),
+        ),
+        child: Icon(info.icon, color: info.accent, size: 20),
+      ),
+      title: Text(info.title),
+      subtitle: Text(
+        <String>[
+          '${repositories.length} source${repositories.length == 1 ? '' : 's'}',
+          '${installed.length} installed',
+          status == null ? null : (status.runs ? 'runs here' : 'unavailable'),
+        ].whereType<String>().join(' · '),
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => openEcosystem(context, info.ecosystem),
+    );
   }
 }
 

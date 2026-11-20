@@ -11,6 +11,7 @@ import '../../domain/entities/plugin_info.dart';
 import '../../domain/entities/plugin_repository.dart';
 import '../../plugins/manager/plugin_endpoint_store.dart';
 import '../home/home_providers.dart';
+import 'ecosystem_providers.dart';
 
 /// Plugins a repository offers.
 final repositoryPluginsProvider = FutureProvider.autoDispose
@@ -41,10 +42,23 @@ final class ExtensionActions {
 
   PlatformProfile get platform => _ref.read(platformProfileProvider);
 
-  Future<Result<PluginRepository>> addRepository(String url) async {
-    final result =
-        await _ref.read(repositoryServiceProvider).addRepository(url);
+  /// Adds a repository, read as [expect]'s ecosystem.
+  ///
+  /// The section the user added it from is passed through so an ambiguous list
+  /// cannot be classified by a heuristic: the entries still decide, but a tie
+  /// goes to the section the user chose.
+  Future<Result<PluginRepository>> addRepository(
+    String url, {
+    PluginEcosystem? expect,
+  }) async {
+    final result = await _ref
+        .read(repositoryServiceProvider)
+        .addRepository(url, expect: expect);
     _ref.invalidate(repositoriesProvider);
+    _ref.invalidate(repositoryPluginsProvider);
+    for (final ecosystem in PluginEcosystem.values) {
+      _ref.invalidate(ecosystemCatalogProvider(ecosystem));
+    }
     return result;
   }
 
@@ -70,12 +84,14 @@ final class ExtensionActions {
     await _ref.read(repositoryServiceProvider).remove(repository);
     _ref.invalidate(repositoriesProvider);
     _ref.invalidate(repositoryPluginsProvider);
+    _ref.invalidate(ecosystemCatalogProvider(repository.ecosystem));
   }
 
   Future<void> refreshRepository(PluginRepository repository) async {
     await _ref.read(repositoryServiceProvider).refresh(repository);
     _ref.invalidate(repositoriesProvider);
     _ref.invalidate(repositoryPluginsProvider);
+    _ref.invalidate(ecosystemCatalogProvider(repository.ecosystem));
   }
 
   Future<Result<InstalledPlugin>> install(AvailablePlugin plugin) async {

@@ -96,6 +96,22 @@ abstract final class PluginListParser {
     );
   }
 
+  /// Guesses the ecosystem of a plugin list from its raw JSON body.
+  ///
+  /// Used before parsing, when a URL turns out to publish the plugin array
+  /// itself rather than a repository manifest: the array's shape, not the
+  /// order of the checks, decides which section owns it.
+  static PluginEcosystem? detectEcosystemInBody(String body) {
+    Object? decoded;
+    try {
+      decoded = jsonDecode(body);
+    } on FormatException {
+      return null;
+    }
+    if (decoded is! List) return null;
+    return detectEcosystem(readMapList(decoded));
+  }
+
   /// Guesses the ecosystem from the shape of the entries.
   static PluginEcosystem? detectEcosystem(
     List<Map<String, Object?>> entries,

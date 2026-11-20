@@ -9,6 +9,23 @@ First complete pass of the app: foundation through playback, history and
 offline downloads, with every repository-add and plugin-install path audited
 against SkyStream, Vega and CloudStream as they actually publish.
 
+### Extensions
+* **Three ecosystems, three sections.** Extensions is now a hub of SkyStream
+  Providers, CloudStream Extensions and Vega Providers — the split SkyStream and
+  CloudStream use — and each section has its own *Installed / Browse / Sources*
+  pages, its own add-repository sheet, its own accents and its own status. All
+  three are also listed under **Settings › Extensions** with their source and
+  install counts.
+* **Adding a repository works for every ecosystem.** A URL that publishes the
+  plugin array itself (a `plugins.json`, not a `repo.json`) is now classified
+  from its entries instead of being assumed to be Vega, which is why CloudStream
+  and SkyStream lists used to add to the wrong section and list nothing. Folder
+  inputs try `manifest.json`, `repo.json` and `plugins.json` in turn, and a
+  guessed ecosystem is corrected by reading the list without the guess.
+* **CloudStream is honest about the host.** The section manages `.cs3`
+  extensions everywhere but says, on the page, why they cannot run on a build
+  without the native Kotlin host.
+
 ### Plugins
 
 * **Repository input** accepts every convention the three ecosystems use:

@@ -36,7 +36,10 @@ final class RepositoryService {
   /// `cloudstreamrepo://` deep link, a `cutt.ly` shortcode, a Vega author name —
   /// so normalisation happens in [RepositoryInputResolver] and this method only
   /// has to try the resulting URLs until one parses.
-  Future<Result<PluginRepository>> addRepository(String input) async {
+  Future<Result<PluginRepository>> addRepository(
+    String input, {
+    PluginEcosystem? expect,
+  }) async {
     final resolved = await RepositoryInputResolver(
       followRedirect: _followRedirect,
     ).resolve(input);
@@ -55,10 +58,17 @@ final class RepositoryService {
       final body = (fetched as Ok<HttpPayload>).value.text;
       final decoded = _tryDecode(body);
 
-      // Vega publishes the provider array itself; the other two publish a
-      // repository manifest that points at plugin lists.
+      // Some repositories publish the plugin array itself instead of a
+      // manifest that points at one. Which ecosystem owns that array is read
+      // from its entries — assuming Vega here used to file CloudStream and
+      // SkyStream lists as Vega sources, where every entry then looked
+      // unreadable.
       if (decoded is List) {
-        return _addVegaRepository(uri, body);
+        final detected = PluginListParser.detectEcosystemInBody(body) ?? expect;
+        if (detected == null || detected == PluginEcosystem.vega) {
+          return _addVegaRepository(uri, body);
+        }
+        return _addListRepository(uri, body, detected);
       }
       if (decoded is! Map) {
         lastError = const PluginParseError(
@@ -77,6 +87,7 @@ final class RepositoryService {
       return _storeRepository(
         (manifest as Ok<RepositoryManifest>).value,
         sourceUrl: uri.toString(),
+        hint: expect,
       );
     }
 
@@ -102,6 +113,7 @@ final class RepositoryService {
   Future<Result<PluginRepository>> _storeRepository(
     RepositoryManifest parsed, {
     required String sourceUrl,
+    PluginEcosystem? hint,
   }) async {
     if (!parsed.isUsable) {
       return const Err<PluginRepository>(
@@ -127,12 +139,20 @@ final class RepositoryService {
 
     final id = _repositoryId(parsed, sourceUrl);
 
-    // Learn the ecosystem from the first list we can read.
-    PluginEcosystem ecosystem = PluginEcosystem.skystream;
+    // Learn the ecosystem from the first list we can read. The section the
+    // user added it from is a hint, not an override: a repository that answers
+    // with another ecosystem's entries is filed where its entries belong, so
+    // the plugin list is never parsed as the wrong shape later.
+    PluginEcosystem ecosystem = hint ?? PluginEcosystem.skystream;
     for (final listUrl in parsed.pluginLists) {
-      final listing = await fetchPluginList(listUrl, repositoryId: id);
-      if (listing is Ok<ParsedPluginList>) {
-        ecosystem = listing.value.ecosystem;
+      final listing = await fetchPluginList(
+        listUrl,
+        repositoryId: id,
+        hint: hint,
+      );
+      if (listing case Ok<ParsedPluginList>(:final value)
+          when value.plugins.isNotEmpty) {
+        ecosystem = value.ecosystem;
         break;
       }
     }
@@ -194,6 +214,70 @@ final class RepositoryService {
     return Ok<PluginRepository>(repository);
   }
 
+  /// A repository that publishes its plugin array directly, in [ecosystem].
+  ///
+  /// SkyStream and CloudStream both do this: the repository manifest is
+  /// optional, and the plugin list is the file people actually share. Filing
+  /// the list where its entries belong is what makes "add the URL someone
+  /// gave me" work in every section.
+  Future<Result<PluginRepository>> _addListRepository(
+    Uri uri,
+    String body,
+    PluginEcosystem ecosystem,
+  ) async {
+    final repositoryId = _hashId('${ecosystem.wire}|$uri');
+    final listing = PluginListParser.parse(
+      body,
+      sourceUrl: uri.toString(),
+      repositoryId: repositoryId,
+      hint: ecosystem,
+    );
+    if (listing is Err<ParsedPluginList>) {
+      return Err<PluginRepository>(listing.error);
+    }
+    if ((listing as Ok<ParsedPluginList>).value.plugins.isEmpty) {
+      return Err<PluginRepository>(
+        PluginParseError(
+          'That ${ecosystem.label} plugin list has no readable entries',
+          field: 'pluginLists',
+        ),
+      );
+    }
+    final repository = PluginRepository(
+      id: repositoryId,
+      name: _listRepositoryName(uri),
+      url: uri.toString(),
+      ecosystem: ecosystem,
+      description: '${ecosystem.label} plugin list',
+      pluginLists: <String>[uri.toString()],
+      addedAt: DateTime.now(),
+      lastCheckedAt: DateTime.now(),
+    );
+    // Re-adding the same list refreshes it in place, like a manifest.
+    final existing = (await _store.repositories())
+        .where((candidate) => candidate.id == repository.id)
+        .firstOrNull;
+    final merged = existing == null
+        ? repository
+        : repository.copyWith(addedAt: existing.addedAt);
+    await _store.upsertRepository(merged);
+    AppLog.info('${ecosystem.label} plugin list added: ${merged.name}');
+    return Ok<PluginRepository>(merged);
+  }
+
+  /// A readable name for a repository known only by the file it publishes.
+  ///
+  /// `raw.githubusercontent.com/<owner>/<repo>/<branch>/plugins.json` is named
+  /// after its repository; anything else falls back to the folder or the host.
+  static String _listRepositoryName(Uri uri) {
+    final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+    if (segments.length >= 3 && uri.host.contains('githubusercontent')) {
+      return '${segments[0]}/${segments[1]}';
+    }
+    if (segments.length >= 2) return segments[segments.length - 2];
+    return uri.host.isEmpty ? 'Plugin list' : uri.host;
+  }
+
   /// Fetches and parses one plugin list.
   Future<Result<ParsedPluginList>> fetchPluginList(
     String url, {
@@ -210,12 +294,41 @@ final class RepositoryService {
     if (response is Err<HttpPayload>) {
       return Err<ParsedPluginList>(response.error);
     }
-    return PluginListParser.parse(
-      (response as Ok<HttpPayload>).value.text,
+    final body = (response as Ok<HttpPayload>).value.text;
+    final primary = PluginListParser.parse(
+      body,
       sourceUrl: url,
       repositoryId: repositoryId,
       hint: hint,
     );
+
+    // A hint is a guess, and a wrong guess parses to an empty list rather than
+    // to an error — every ecosystem's entries are objects. So when the hinted
+    // parse finds nothing, the same body is read as each ecosystem and the
+    // richest reading wins. No second request: this is all local.
+    if (primary case Ok<ParsedPluginList>(:final value)
+        when value.plugins.isNotEmpty) {
+      return primary;
+    }
+
+    ParsedPluginList? best = primary is Ok<ParsedPluginList> ? primary.value : null;
+    for (final ecosystem in PluginEcosystem.values) {
+      if (ecosystem == hint) continue;
+      final attempt = PluginListParser.parse(
+        body,
+        sourceUrl: url,
+        repositoryId: repositoryId,
+        hint: ecosystem,
+      );
+      if (attempt case Ok<ParsedPluginList>(:final value)
+          when value.plugins.isNotEmpty) {
+        if (best == null || value.plugins.length > best.plugins.length) {
+          best = value;
+        }
+      }
+    }
+    if (best != null) return Ok<ParsedPluginList>(best);
+    return primary;
   }
 
   /// Every plugin offered by [repository], across all of its plugin lists.
