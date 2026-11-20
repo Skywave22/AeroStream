@@ -311,7 +311,8 @@ final class RepositoryService {
       return primary;
     }
 
-    ParsedPluginList? best = primary is Ok<ParsedPluginList> ? primary.value : null;
+    ParsedPluginList? best =
+        primary is Ok<ParsedPluginList> ? primary.value : null;
     for (final ecosystem in PluginEcosystem.values) {
       if (ecosystem == hint) continue;
       final attempt = PluginListParser.parse(

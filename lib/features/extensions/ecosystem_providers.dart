@@ -6,7 +6,6 @@ import '../../core/errors/plugin_error.dart';
 import '../../core/result.dart';
 import '../../domain/entities/enums.dart';
 import '../../domain/entities/installed_plugin.dart';
-import '../../domain/entities/plugin_info.dart';
 import '../../domain/entities/plugin_repository.dart';
 
 /// Everything one ecosystem's repositories offer, plus what could not be read.
@@ -30,7 +29,7 @@ final class EcosystemCatalog {
 
   bool get isComplete => failures.isEmpty;
 
-  /// The listing for [installed], when its repository still offers it.
+  /// The listing for a plugin id, when its repository still offers it.
   AvailablePlugin? listingFor(String id) {
     for (final listing in listings) {
       if (listing.id == id) return listing;
@@ -59,7 +58,7 @@ final ecosystemInstalledProvider =
       .toList(growable: false);
 });
 
-/// Browses every repository of [ecosystem] and merges the results.
+/// Browses every repository of one ecosystem and merges the results.
 ///
 /// Keyed by ecosystem rather than by repository: the sections are where a user
 /// looks for "what can I install from CloudStream", and one request per

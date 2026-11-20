@@ -778,8 +778,11 @@ class RepositoryTile extends ConsumerWidget {
 }
 
 /// A section heading that matches the rest of the app.
-class SectionHeader extends StatelessWidget {
-  const SectionHeader({
+///
+/// Named apart from the media shelves' `SectionHeader` so a screen can import
+/// both.
+class ExtensionsSectionHeader extends StatelessWidget {
+  const ExtensionsSectionHeader({
     required this.title,
     this.subtitle,
     this.trailing,

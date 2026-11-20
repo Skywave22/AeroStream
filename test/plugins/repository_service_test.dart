@@ -294,8 +294,10 @@ void main() {
       final browsing = await service.browse(repository);
 
       expect(browsing.isOk, isTrue);
-      expect(browsing.valueOrNull!.single.ecosystem,
-          PluginEcosystem.cloudstream);
+      expect(
+        browsing.valueOrNull!.single.ecosystem,
+        PluginEcosystem.cloudstream,
+      );
     });
 
     test('reports an error when nothing could be read', () async {

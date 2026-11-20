@@ -77,7 +77,7 @@ class _EcosystemScreenState extends ConsumerState<EcosystemScreen>
       ),
       floatingActionButton: _tabs.index == 2 || repositories.isEmpty
           ? FloatingActionButton.extended(
-              onPressed: () => _addRepository(),
+              onPressed: _addRepository,
               icon: const Icon(Icons.add_link),
               label: const Text('Add repository'),
             )
@@ -221,7 +221,7 @@ class _InstalledTab extends ConsumerWidget {
       separatorBuilder: (context, index) => const SizedBox.shrink(),
       itemBuilder: (context, index) {
         if (index == 0) {
-          return SectionHeader(
+          return ExtensionsSectionHeader(
             title: 'Installed',
             subtitle: '$enabled of ${installed.length} enabled',
           );
