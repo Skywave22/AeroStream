@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/theme/app_theme.dart';
 import '../../domain/entities/media_item.dart';
 
 /// A poster tile for a grid or a row.
@@ -25,11 +26,12 @@ class MediaPosterCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    const radius = BorderRadius.all(Radius.circular(AppTheme.posterRadius));
     return SizedBox(
       width: width,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: radius,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -37,18 +39,43 @@ class MediaPosterCard extends StatelessWidget {
             AspectRatio(
               aspectRatio: 2 / 3,
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: radius,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
                     MediaPoster(item: item),
+                    // A scrim under the progress bar: a bright poster must not
+                    // swallow the only cue that a title was started.
+                    if (progress != null)
+                      const Align(
+                        alignment: Alignment.bottomCenter,
+                        child: SizedBox(
+                          height: 44,
+                          width: double.infinity,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: <Color>[
+                                  Colors.transparent,
+                                  Color(0x99000000),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     if (progress != null)
                       Align(
                         alignment: Alignment.bottomCenter,
-                        child: LinearProgressIndicator(
-                          value: progress!.clamp(0.0, 1.0),
-                          minHeight: 3,
-                          backgroundColor: Colors.black45,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: LinearProgressIndicator(
+                            value: progress!.clamp(0.0, 1.0),
+                            minHeight: 4,
+                            backgroundColor: Colors.white24,
+                          ),
                         ),
                       ),
                   ],
@@ -133,11 +160,12 @@ class MediaHeroCard extends StatelessWidget {
         ? item.backdropUrl
         : item.posterUrl;
 
+    const radius = BorderRadius.all(Radius.circular(AppTheme.radiusMedium));
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: radius,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: radius,
         child: AspectRatio(
           aspectRatio: 16 / 9,
           child: Stack(
@@ -178,6 +206,9 @@ class MediaHeroCard extends StatelessWidget {
                       style: theme.textTheme.headlineSmall?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
+                        shadows: const <Shadow>[
+                          Shadow(blurRadius: 12, color: Colors.black54),
+                        ],
                       ),
                     ),
                     if (item.description != null)

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../domain/entities/media_item.dart';
 import '../common/media_card.dart';
+import '../common/ui_kit.dart';
 import '../downloads/downloads_view.dart';
 import 'history_providers.dart';
 import 'library_providers.dart';
@@ -115,7 +116,14 @@ class _SavedTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (items.isEmpty) return const _EmptyLibrary();
+    if (items.isEmpty) {
+      return const EmptyState(
+        icon: Icons.bookmark_border,
+        title: 'Nothing saved yet',
+        body: 'Tap Save on a title to keep it here. Saved entries stay even if '
+            'you remove the extension that provided them.',
+      );
+    }
     return LayoutBuilder(
       builder: (context, constraints) {
         final columns = (constraints.maxWidth / 150).floor().clamp(2, 8);
@@ -151,34 +159,11 @@ class _HistoryTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     if (entries.isEmpty) {
-      return Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 380),
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.history,
-                  size: 48,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(height: 16),
-                Text('No history yet', style: theme.textTheme.titleMedium),
-                const SizedBox(height: 8),
-                Text(
-                  'Anything you start watching shows up here, so you can pick '
-                  'it up where you stopped.',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+      return const EmptyState(
+        icon: Icons.history,
+        title: 'No history yet',
+        body: 'Anything you start watching shows up here, so you can pick it '
+            'up where you stopped.',
       );
     }
 
@@ -259,43 +244,5 @@ class _HistoryTab extends ConsumerWidget {
     if (entry.isFinished) return '${label}Finished';
     if (minutes <= 0) return '${label}Watched';
     return '$label$minutes min left';
-  }
-}
-
-class _EmptyLibrary extends StatelessWidget {
-  const _EmptyLibrary();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 380),
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.bookmark_border,
-                size: 48,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(height: 16),
-              Text('Nothing saved yet', style: theme.textTheme.titleMedium),
-              const SizedBox(height: 8),
-              Text(
-                'Tap Save on a title to keep it here. Saved entries stay even '
-                'if you remove the extension that provided them.',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }

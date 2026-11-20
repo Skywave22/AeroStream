@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/providers.dart';
 import '../../domain/entities/installed_plugin.dart';
 import '../../domain/entities/plugin_repository.dart';
-import 'ecosystem_info.dart';
+import '../common/ecosystem_info.dart';
 import 'ecosystem_providers.dart';
 import 'extension_widgets.dart';
 import 'extensions_providers.dart';

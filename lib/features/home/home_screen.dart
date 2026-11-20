@@ -8,7 +8,7 @@ import '../../domain/entities/enums.dart';
 import '../../domain/entities/home_section.dart';
 import '../../domain/entities/media_item.dart';
 import '../common/media_card.dart';
-import '../extensions/ecosystem_info.dart';
+import '../common/ecosystem_info.dart';
 import '../extensions/extension_widgets.dart';
 import '../library/history_providers.dart';
 import 'home_providers.dart';

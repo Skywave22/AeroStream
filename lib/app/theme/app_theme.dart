@@ -20,6 +20,10 @@ abstract final class AppTheme {
   static const double radiusMedium = 18;
   static const double radiusLarge = 26;
 
+  /// Posters are a little rounder than controls: they are the one surface the
+  /// artwork fills edge to edge.
+  static const double posterRadius = 14;
+
   static ThemeData light() => _build(Brightness.light);
 
   static ThemeData dark() => _build(Brightness.dark);

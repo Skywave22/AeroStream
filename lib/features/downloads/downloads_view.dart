@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../domain/entities/download.dart';
 import '../../domain/entities/stream_source.dart';
+import '../common/ui_kit.dart';
 import '../player/watch_screen.dart';
 import 'download_providers.dart';
 
@@ -17,38 +18,12 @@ class DownloadsView extends ConsumerWidget {
     final theme = Theme.of(context);
 
     if (tasks.isEmpty) {
-      return Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.download_outlined,
-                  size: 48,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Nothing downloaded',
-                  style: theme.textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Open a title, pick a source and tap the download icon. '
-                  'AeroStream saves progressive HTTP links; playlist formats '
-                  '(HLS, DASH) play directly instead.',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+      return const EmptyState(
+        icon: Icons.download_outlined,
+        title: 'Nothing downloaded',
+        body: 'Open a title, pick a source and tap the download icon. '
+            'AeroStream saves progressive HTTP links; playlist formats '
+            '(HLS, DASH) play directly instead.',
       );
     }
 

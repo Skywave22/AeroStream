@@ -6,7 +6,7 @@ import '../domain/entities/media_item.dart';
 import '../features/details/details_providers.dart';
 import '../features/details/details_screen.dart';
 import '../features/downloads/downloads_view.dart';
-import '../features/extensions/ecosystem_info.dart';
+import '../features/common/ecosystem_info.dart';
 import '../features/extensions/ecosystem_screen.dart';
 import '../features/extensions/extensions_screen.dart';
 import '../features/home/home_screen.dart';
