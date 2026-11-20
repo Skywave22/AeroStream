@@ -354,8 +354,8 @@ class _EcosystemSettingsTile extends ConsumerWidget {
         <String>[
           '${repositories.length} source${repositories.length == 1 ? '' : 's'}',
           '${installed.length} installed',
-          status == null ? null : (status.runs ? 'runs here' : 'unavailable'),
-        ].whereType<String>().join(' · '),
+          if (status != null) status.runs ? 'runs here' : 'unavailable',
+        ].join(' · '),
       ),
       trailing: const Icon(Icons.chevron_right),
       onTap: () => openEcosystem(context, info.ecosystem),
