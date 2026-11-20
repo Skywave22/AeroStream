@@ -163,10 +163,22 @@ fi
   fi
 
   if [ "${TEST_RESULT:-}" != "success" ]; then
+    # Failures first, then the tail: the tail alone cut the failing test out of
+    # the comment whenever the log was long enough, which is exactly when it was
+    # needed.
+    if [ -s /tmp/test.log ] && grep -q '\[E\]' /tmp/test.log; then
+      echo "<details><summary>flutter test — failures</summary>"
+      echo
+      echo '```'
+      grep -m 6 -B 3 -A 18 '\[E\]' /tmp/test.log | head -c 16000
+      echo '```'
+      echo "</details>"
+      echo
+    fi
     echo "<details><summary>flutter test</summary>"
     echo
     echo '```'
-    tail -c 24000 /tmp/test.log 2>/dev/null || echo "(no log)"
+    tail -c 8000 /tmp/test.log 2>/dev/null || echo "(no log)"
     echo '```'
     echo "</details>"
     echo
