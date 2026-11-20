@@ -119,6 +119,9 @@ jobs:
           if [ -s /tmp/format.patch ]; then
             echo "::error::dart format changed files; see the report comment"
             python3 scripts/annotate_log.py /tmp/format.log format
+            # The patch itself, base64, in annotations: the sandbox can read
+            # those even when it cannot read the log or post a comment.
+            python3 scripts/emit_patch.py /tmp/format.patch format-patch
             exit 1
           fi
           exit 0
