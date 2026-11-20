@@ -354,13 +354,15 @@ class _Backdrop extends StatelessWidget {
           )
         else
           ColoredBox(color: scheme.surfaceContainerHigh),
-        const DecoratedBox(
+        // Fades into the page rather than into black: the artwork then sits on
+        // the same surface as the text under it, in light and dark themes.
+        DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: <Color>[Color(0x22000000), Color(0xFF000000)],
-              stops: <double>[0.3, 1],
+              colors: <Color>[Colors.transparent, scheme.surface],
+              stops: const <double>[0.45, 1],
             ),
           ),
         ),
@@ -376,13 +378,22 @@ class _Chip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+        color: theme.colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
+        ),
       ),
-      child: Text(text, style: Theme.of(context).textTheme.labelSmall),
+      child: Text(
+        text,
+        style: theme.textTheme.labelMedium?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
     );
   }
 }
