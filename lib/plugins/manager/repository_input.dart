@@ -331,7 +331,6 @@ final class RepositoryInputResolver {
     ];
   }
 
-
   Result<RepositoryInput> _vegaAuthor(String author, {required String host}) {
     if (!RegExp(r'^[A-Za-z0-9_.-]+$').hasMatch(author)) {
       return const Err<RepositoryInput>(
