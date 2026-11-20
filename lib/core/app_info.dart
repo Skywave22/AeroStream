@@ -9,10 +9,10 @@ library;
 
 /// `version:` in pubspec.yaml, without the build number.
 const String appName = 'AeroStream';
-const String appVersion = '0.1.0';
+const String appVersion = '0.2.0';
 
 /// The `+N` part of `version:`.
-const int appBuildNumber = 1;
+const int appBuildNumber = 2;
 
 /// What the About tile shows.
 String get appVersionLabel => '$appVersion ($appBuildNumber)';

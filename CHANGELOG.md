@@ -3,11 +3,11 @@
 Notable changes, newest first. The version numbers match `pubspec.yaml`; a test
 keeps `lib/core/app_info.dart` in step with it.
 
-## 0.1.0 — unreleased
+## 0.2.0 — unreleased
 
-First complete pass of the app: foundation through playback, history and
-offline downloads, with every repository-add and plugin-install path audited
-against SkyStream, Vega and CloudStream as they actually publish.
+Sections, detection fixes and a new coat of paint. `v0.1.0` was the first
+release; this is the first one where all three ecosystems' sources add
+correctly.
 
 ### Extensions
 * **Three ecosystems, three sections.** Extensions is now a hub of SkyStream
@@ -25,6 +25,24 @@ against SkyStream, Vega and CloudStream as they actually publish.
 * **CloudStream is honest about the host.** The section manages `.cs3`
   extensions everywhere but says, on the page, why they cannot run on a build
   without the native Kotlin host.
+
+### UI
+* **A new frame.** Tighter headings, one radius family, tinted surfaces instead
+  of borders, a gradient brand mark, restyled dialogs, sheets, menus and tabs,
+  and per-platform page transitions left to Material rather than overridden.
+* **Settings is grouped cards**: a chip row for the palette, a sheet for the
+  quality choice, and an Extensions group with the three ecosystem pages.
+* **Search** moved its field into the body, counts what it found, and badges
+  each group with its ecosystem. Library, Downloads and Search share one empty
+  state.
+* **First run** offers the three ecosystems directly instead of pointing at a
+  menu, and details fades its backdrop into the page.
+
+## 0.1.0 — released 2026-11-19
+
+First complete pass of the app: foundation through playback, history and
+offline downloads, with every repository-add and plugin-install path audited
+against SkyStream, Vega and CloudStream as they actually publish.
 
 ### Plugins
 
