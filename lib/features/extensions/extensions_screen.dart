@@ -20,12 +20,10 @@ class ExtensionsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final repositories =
-        ref.watch(repositoriesProvider).valueOrNull ??
-            const <PluginRepository>[];
-    final installed =
-        ref.watch(installedPluginsProvider).valueOrNull ??
-            const <InstalledPlugin>[];
+    final repositories = ref.watch(repositoriesProvider).valueOrNull ??
+        const <PluginRepository>[];
+    final installed = ref.watch(installedPluginsProvider).valueOrNull ??
+        const <InstalledPlugin>[];
 
     return Scaffold(
       appBar: AppBar(

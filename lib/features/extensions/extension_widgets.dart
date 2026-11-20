@@ -335,8 +335,7 @@ class _AddRepositorySheetState extends ConsumerState<_AddRepositorySheet> {
               ),
               const SizedBox(width: 12),
               TextButton(
-                onPressed:
-                    _busy ? null : () => Navigator.of(context).pop(),
+                onPressed: _busy ? null : () => Navigator.of(context).pop(),
                 child: const Text('Cancel'),
               ),
               const SizedBox(width: 8),

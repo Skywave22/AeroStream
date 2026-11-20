@@ -294,12 +294,10 @@ class _BrowseTabState extends ConsumerState<_BrowseTab> {
         ),
       ),
       data: (data) {
-        final status = ref
-            .watch(ecosystemStatusesProvider)
-            .valueOrNull
-            ?.firstWhereOrNull(
-              (entry) => entry.ecosystem == info.ecosystem,
-            );
+        final status =
+            ref.watch(ecosystemStatusesProvider).valueOrNull?.firstWhereOrNull(
+                  (entry) => entry.ecosystem == info.ecosystem,
+                );
         final runsHere = status?.runs ?? true;
         final query = _filter.text.trim().toLowerCase();
         final visible = data.listings.where((plugin) {
@@ -440,9 +438,7 @@ class _SourcesTab extends ConsumerWidget {
     return RefreshIndicator(
       onRefresh: () async {
         for (final repository in repositories) {
-          await ref
-              .read(repositoryServiceProvider)
-              .refresh(repository);
+          await ref.read(repositoryServiceProvider).refresh(repository);
         }
         ref.invalidate(repositoriesProvider);
         ref.invalidate(ecosystemCatalogProvider(info.ecosystem));
