@@ -336,7 +336,8 @@ class _EcosystemSettingsTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final repositories = ref.watch(ecosystemRepositoriesProvider(info.ecosystem));
+    final repositories =
+        ref.watch(ecosystemRepositoriesProvider(info.ecosystem));
     final installed = ref.watch(ecosystemInstalledProvider(info.ecosystem));
     final status = statusOf(context, ref, info.ecosystem);
 
