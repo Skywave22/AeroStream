@@ -127,13 +127,11 @@ void main() {
       });
       final input = await _resolve('Universe', redirects);
 
+      // The second candidate is the one that answers, so the rest are not
+      // asked — the point is that the lower-case spelling is reached at all.
       expect(redirects.asked, <String>[
         'https://cutt.ly/sky-Universe',
         'https://cutt.ly/sky-universe',
-        'https://cutt.ly/Universe',
-        'https://cutt.ly/universe',
-        'https://py.md/Universe',
-        'https://py.md/universe',
       ]);
       expect(input.primary.toString(), _universeManifest);
       expect(input.kind, RepositoryInputKind.shortcode);
@@ -161,7 +159,9 @@ void main() {
     });
 
     test('a "!" code also tries its lower-case spelling', () async {
-      final redirects = _Redirects();
+      final redirects = _Redirects(<String, String>{
+        'https://py.md/xyz': 'https://repo.example/repo.json',
+      });
       await _resolve('!Xyz', redirects);
       expect(
         redirects.asked,

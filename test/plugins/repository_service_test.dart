@@ -300,8 +300,7 @@ void main() {
       );
     });
 
-    test('a SkyStream mega-repository keeps its children SkyStream',
-        () async {
+    test('a SkyStream mega-repository keeps its children SkyStream', () async {
       // `cutt.ly/sky-universe` is exactly this shape: a manifest with `repos`
       // and no lists of its own, whose children publish `.sky` plugins. The
       // children used to be read with a CloudStream hint, which parses fine —
@@ -312,9 +311,9 @@ void main() {
       const innerList = 'https://inner.example/dist/plugins.json';
 
       final http = FakeHttpService(<String, Object>{
-        megaUrl: '{\"name\":\"Universe\",\"manifestVersion\":1,'
-            '\"repos\":[\"$innerUrl\"]}',
-        innerUrl: '{\"name\":\"Inner\",\"pluginLists\":[\"$innerList\"]}',
+        megaUrl: '{"name":"Universe","manifestVersion":1,'
+            '"repos":["$innerUrl"]}',
+        innerUrl: '{"name":"Inner","pluginLists":["$innerList"]}',
         innerList: _skyPlugins,
       });
       final service = RepositoryService(

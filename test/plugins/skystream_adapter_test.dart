@@ -188,7 +188,9 @@ void main() {
 
       expect(result.isOk, isTrue, reason: result.errorOrNull?.toString());
       final invoke = runtime.scriptsStartingWith('__aeroInvoke').single;
-      expect(invoke, contains('["dune"]'));
+      // The query arrives as a JSON string: single argument, no page.
+      expect(invoke, contains(r'[\"dune\"]'));
+      expect(invoke, isNot(contains('page')));
       expect(result.valueOrNull!.items.single.title, 'Dune');
       expect(result.valueOrNull!.nextPage, 4);
     });
