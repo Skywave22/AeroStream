@@ -15,7 +15,6 @@ class DownloadsView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tasks = ref.watch(downloadsProvider);
-    final theme = Theme.of(context);
 
     if (tasks.isEmpty) {
       return const EmptyState(
