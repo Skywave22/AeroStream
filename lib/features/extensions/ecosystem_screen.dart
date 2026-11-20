@@ -41,7 +41,8 @@ class _EcosystemScreenState extends ConsumerState<EcosystemScreen>
 
   @override
   Widget build(BuildContext context) {
-    final repositories = ref.watch(ecosystemRepositoriesProvider(info.ecosystem));
+    final repositories =
+        ref.watch(ecosystemRepositoriesProvider(info.ecosystem));
     final installed = ref.watch(ecosystemInstalledProvider(info.ecosystem));
     final catalog = ref.watch(ecosystemCatalogProvider(info.ecosystem));
     final available = catalog.valueOrNull?.listings.length;
@@ -257,7 +258,8 @@ class _BrowseTabState extends ConsumerState<_BrowseTab> {
 
   @override
   Widget build(BuildContext context) {
-    final repositories = ref.watch(ecosystemRepositoriesProvider(info.ecosystem));
+    final repositories =
+        ref.watch(ecosystemRepositoriesProvider(info.ecosystem));
     if (repositories.isEmpty) {
       return EmptyState(
         icon: Icons.travel_explore,

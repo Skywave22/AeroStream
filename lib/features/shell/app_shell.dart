@@ -76,16 +76,14 @@ class AppShell extends ConsumerWidget {
       );
     }
 
+    final theme = Theme.of(context);
     return Scaffold(
       body: child,
       bottomNavigationBar: DecoratedBox(
         decoration: BoxDecoration(
           border: Border(
             top: BorderSide(
-              color:
-                  Theme.of(context).colorScheme.outlineVariant.withValues(
-                        alpha: 0.35,
-                      ),
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
             ),
           ),
         ),

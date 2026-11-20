@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../domain/entities/installed_plugin.dart';
 import '../../domain/entities/plugin_repository.dart';
 import 'ecosystem_info.dart';
 import 'ecosystem_providers.dart';
@@ -19,8 +20,12 @@ class ExtensionsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final repositories = ref.watch(repositoriesProvider);
-    final installed = ref.watch(installedPluginsProvider);
+    final repositories =
+        ref.watch(repositoriesProvider).valueOrNull ??
+            const <PluginRepository>[];
+    final installed =
+        ref.watch(installedPluginsProvider).valueOrNull ??
+            const <InstalledPlugin>[];
 
     return Scaffold(
       appBar: AppBar(
@@ -48,14 +53,12 @@ class ExtensionsScreen extends ConsumerWidget {
             for (final info in EcosystemInfo.all)
               _EcosystemCard(
                 info: info,
-                repositories: repositories.valueOrNull
-                        ?.where((entry) => entry.ecosystem == info.ecosystem)
-                        .toList(growable: false) ??
-                    const <PluginRepository>[],
-                installedCount: installed.valueOrNull
-                        ?.where((entry) => entry.info.ecosystem == info.ecosystem)
-                        .length ??
-                    0,
+                repositories: repositories
+                    .where((entry) => entry.ecosystem == info.ecosystem)
+                    .toList(growable: false),
+                installedCount: installed
+                    .where((entry) => entry.info.ecosystem == info.ecosystem)
+                    .length,
               ),
             const _HubFooter(),
           ],
@@ -204,10 +207,7 @@ class _EcosystemCard extends ConsumerWidget {
                       runSpacing: 8,
                       children: [
                         CountPill(
-                          label: repositories.isEmpty
-                              ? 'no sources yet'
-                              : '${repositories.length} '
-                                  'source${repositories.length == 1 ? '' : 's'}',
+                          label: _sourceLabel(repositories.length),
                           icon: Icons.link,
                         ),
                         CountPill(
@@ -243,6 +243,11 @@ class _EcosystemCard extends ConsumerWidget {
     );
   }
 
+  static String _sourceLabel(int count) {
+    if (count == 0) return 'no sources yet';
+    return '$count source${count == 1 ? '' : 's'}';
+  }
+
   Future<void> _add(BuildContext context, WidgetRef ref) async {
     final added = await showAddRepositorySheet(context, ref, info.ecosystem);
     if (added == null || !context.mounted) return;
@@ -270,7 +275,8 @@ class _HubFooter extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final repositories = ref.watch(repositoriesProvider).valueOrNull ?? const [];
+    final repositories =
+        ref.watch(repositoriesProvider).valueOrNull ?? const [];
     if (repositories.isEmpty) {
       return Padding(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
