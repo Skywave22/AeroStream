@@ -46,6 +46,14 @@ the native libraries reports that instead of showing a black rectangle.
 Progress is recorded as you watch, so "Continue watching" and the resume point
 in the player survive closing the app.
 
+Extensions are three sections, one per ecosystem, the way the ecosystems
+themselves present them: **SkyStream Providers**, **CloudStream Extensions** and
+**Vega Providers**, reachable from the Extensions tab and from
+*Settings › Extensions*. Each has its own sources, its own add-repository box
+(a SkyStream code is not a Vega author), and its own Installed / Browse pages;
+a repository added in one section is filed by what it publishes, so sharing a
+`plugins.json` link with a CloudStream user still works.
+
 See `docs/ARCHITECTURE.md` for the layer map, `docs/PLUGIN_SPEC.md` for the
 verified on-the-wire formats of all three ecosystems, and `docs/PLATFORMS.md`
 for per-target build notes.

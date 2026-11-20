@@ -94,7 +94,11 @@ void main() {
             'https://repo.example/user/repo/main/repo.json',
       });
       final input = await _resolve('abc123', redirects);
-      expect(redirects.asked.single, 'https://cutt.ly/abc123');
+      // SkyStream's namespace first, then the bare code.
+      expect(redirects.asked, <String>[
+        'https://cutt.ly/sky-abc123',
+        'https://cutt.ly/abc123',
+      ]);
       expect(
         input.primary.toString(),
         'https://repo.example/user/repo/main/repo.json',

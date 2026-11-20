@@ -297,20 +297,40 @@ final class RepositoryInputResolver {
       return _vegaAuthor(author, host: host);
     }
 
-    final redirectTarget = await followRedirect(_shortcodeUrl(token));
-    if (redirectTarget != null &&
-        (redirectTarget.scheme == 'http' || redirectTarget.scheme == 'https')) {
-      final canonical = _canonicalise(redirectTarget) ?? redirectTarget;
-      return _fromUrl(canonical, kind: RepositoryInputKind.shortcode);
+    // Codes are shared by both JavaScript ecosystems and the namespaces
+    // differ: SkyStream prefixes its own with `sky-`, CloudStream uses bare
+    // codes at cutt.ly and `!code` at py.md. Trying each in turn is what makes
+    // one box accept a code from either app.
+    for (final candidate in _shortcodeCandidates(token)) {
+      final redirectTarget = await followRedirect(candidate);
+      if (redirectTarget != null &&
+          (redirectTarget.scheme == 'http' ||
+              redirectTarget.scheme == 'https')) {
+        final canonical = _canonicalise(redirectTarget) ?? redirectTarget;
+        return _fromUrl(canonical, kind: RepositoryInputKind.shortcode);
+      }
     }
 
     // Not a shortcode the redirect service knows: try Vega's convention.
     return _vegaAuthor(token, host: 'github');
   }
 
-  static Uri _shortcodeUrl(String token) => token.startsWith('!')
-      ? Uri.parse('https://py.md/${token.substring(1)}')
-      : Uri.parse('https://cutt.ly/$token');
+  /// The short links a bare token is looked up at, most specific first.
+  ///
+  /// `!code` is CloudStream's explicit py.md namespace, so it wins outright;
+  /// otherwise SkyStream's `sky-` form is tried before the bare code, which is
+  /// anyone's — the same order SkyStream itself uses.
+  static List<Uri> _shortcodeCandidates(String token) {
+    if (token.startsWith('!')) {
+      return <Uri>[Uri.parse('https://py.md/${token.substring(1)}')];
+    }
+    return <Uri>[
+      Uri.parse('https://cutt.ly/sky-$token'),
+      Uri.parse('https://cutt.ly/$token'),
+      Uri.parse('https://py.md/$token'),
+    ];
+  }
+
 
   Result<RepositoryInput> _vegaAuthor(String author, {required String host}) {
     if (!RegExp(r'^[A-Za-z0-9_.-]+$').hasMatch(author)) {
