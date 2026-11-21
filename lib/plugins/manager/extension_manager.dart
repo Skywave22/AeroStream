@@ -70,7 +70,9 @@ final class ExtensionManager {
 
   /// Downloads and installs [listed].
   Future<Result<InstalledPlugin>> install(AvailablePlugin listed) async {
-    if (!listed.isInstallable(isAndroid: platform.isAndroid)) {
+    if (!listed.isInstallable(
+      isNative: platform.isSupportedNativeTarget,
+    )) {
       return Err<InstalledPlugin>(
         PluginUnsupportedError(
           platform.unsupportedReason(listed.ecosystem) ??
@@ -190,8 +192,10 @@ final class ExtensionManager {
       _store.setEnabled(installed.key, enabled: enabled);
 
   /// Reorders plugins; lower runs first in aggregated queries.
-  Future<void> setPriority(InstalledPlugin installed,
-          {required int priority}) =>
+  Future<void> setPriority(
+    InstalledPlugin installed, {
+    required int priority,
+  }) =>
       _store.setPriority(installed.key, priority: priority);
 
   /// Providers for every enabled plugin that can run on this platform.
@@ -273,8 +277,9 @@ final class ExtensionManager {
     }
     final bytes = (response as Ok<HttpPayload>).value.bytes;
     if (bytes.length < 4 || bytes[0] != 0x64 || bytes[1] != 0x65) {
-      // "de" — the DEX magic. A .cs3 that is not a DEX is not loadable by the
-      // Android host, and failing here is clearer than a ClassFormatError.
+      // "de" — the DEX magic. Android loads it directly; desktop and iOS
+      // convert it for their JVM hosts. Failing here is clearer than a later
+      // ClassFormatError on any platform.
       return _artifactError(
         listed,
         'The downloaded file is not a DEX (.cs3) artifact',
@@ -311,9 +316,7 @@ final class ExtensionManager {
           files: <String, List<int>>{
             'plugin.js': bytes.toList(growable: false),
             'plugin.json': utf8
-                .encode(
-                  jsonEncode(_fallbackManifest(listed)),
-                )
+                .encode(jsonEncode(_fallbackManifest(listed)))
                 .toList(growable: false),
           },
           archive: bytes,
@@ -390,10 +393,7 @@ final class ExtensionManager {
       final because = missing
           .map((module) => '$module (${errors[module] ?? 'not found'})')
           .join(', ');
-      return _artifactError(
-        listed,
-        'The provider bundle is missing $because',
-      );
+      return _artifactError(listed, 'The provider bundle is missing $because');
     }
 
     return Ok<_Artifact>(
@@ -403,11 +403,7 @@ final class ExtensionManager {
 
   Result<_Artifact> _artifactError(AvailablePlugin listed, String message) =>
       Err<_Artifact>(
-        PluginParseError(
-          message,
-          pluginId: listed.id,
-          field: 'artifact',
-        ),
+        PluginParseError(message, pluginId: listed.id, field: 'artifact'),
       );
 
   PluginInfo _infoFromListing(AvailablePlugin listed, {bool vega = false}) {
@@ -446,9 +442,7 @@ final class ExtensionManager {
       sourceUrl: listed.downloadUrl,
       apiVersion: listed.apiVersion,
       settings: listed.settings
-          .map(
-            (key) => PluginSetting(key: key, title: key),
-          )
+          .map((key) => PluginSetting(key: key, title: key))
           .toList(growable: false),
     );
   }

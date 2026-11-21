@@ -192,9 +192,9 @@ final class PluginInfo {
       ecosystem == PluginEcosystem.skystream ||
       ecosystem == PluginEcosystem.vega;
 
-  /// A plugin can only run where its runtime exists.
-  bool runsOnCurrentPlatform(bool isAndroid) =>
-      ecosystem == PluginEcosystem.cloudstream ? isAndroid : true;
+  /// A plugin can only run where its runtime exists. All three ecosystems run
+  /// on native targets; none has a web runtime in AeroStream.
+  bool runsOnCurrentPlatform(bool isNative) => isNative;
 
   PluginInfo copyWith({
     String? id,
@@ -250,9 +250,8 @@ final class PluginInfo {
         if (authors.isNotEmpty) 'authors': authors,
         if (language != null) 'language': language,
         if (iconUrl != null) 'iconUrl': iconUrl,
-        'supportedTypes': supportedTypes.map((type) => type.wire).toList(
-              growable: false,
-            ),
+        'supportedTypes':
+            supportedTypes.map((type) => type.wire).toList(growable: false),
         'capabilities': capabilities.toJson(),
         if (repositoryId != null) 'repositoryId': repositoryId,
         if (sourceUrl != null) 'sourceUrl': sourceUrl,
@@ -262,13 +261,12 @@ final class PluginInfo {
         if (apiVersion != null) 'apiVersion': apiVersion,
         if (sizeBytes != null) 'sizeBytes': sizeBytes,
         if (requiresProxy) 'requiresProxy': true,
-        'settings': settings.map((setting) => setting.toJson()).toList(
-              growable: false,
-            ),
+        'settings':
+            settings.map((setting) => setting.toJson()).toList(growable: false),
         if (endpoints.isNotEmpty)
-          'endpoints': endpoints.map((endpoint) => endpoint.toJson()).toList(
-                growable: false,
-              ),
+          'endpoints': endpoints
+              .map((endpoint) => endpoint.toJson())
+              .toList(growable: false),
       };
 
   factory PluginInfo.fromJson(Map<String, Object?> json) => PluginInfo(
@@ -280,9 +278,9 @@ final class PluginInfo {
         authors: readStringList(json['authors']),
         language: readString(json['language']),
         iconUrl: readString(json['iconUrl']),
-        supportedTypes: readStringList(json['supportedTypes'])
-            .map(MediaType.fromWire)
-            .toSet(),
+        supportedTypes: readStringList(
+          json['supportedTypes'],
+        ).map(MediaType.fromWire).toSet(),
         capabilities:
             PluginCapabilities.fromJson(readMap(json['capabilities'])),
         repositoryId: readString(json['repositoryId']),
@@ -293,12 +291,12 @@ final class PluginInfo {
         apiVersion: readInt(json['apiVersion']),
         sizeBytes: readInt(json['sizeBytes']),
         requiresProxy: readBool(json['requiresProxy']),
-        settings: readMapList(json['settings'])
-            .map(PluginSetting.fromJson)
-            .toList(growable: false),
-        endpoints: readMapList(json['endpoints'])
-            .map(PluginEndpoint.fromJson)
-            .toList(growable: false),
+        settings: readMapList(
+          json['settings'],
+        ).map(PluginSetting.fromJson).toList(growable: false),
+        endpoints: readMapList(
+          json['endpoints'],
+        ).map(PluginEndpoint.fromJson).toList(growable: false),
       );
 
   @override

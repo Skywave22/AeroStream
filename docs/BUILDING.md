@@ -34,17 +34,23 @@ device by CI.
 ./scripts/scaffold_platforms.sh   # adds android/ ios/ macos/ windows/ linux/
 flutter build apk --release --split-per-abi
 flutter build apk --release
-flutter build linux --release
-flutter build windows --release
-flutter build macos --release
+# On each desktop OS, use that OS/architecture's JDK 21 before its build:
+dart run packages/cs3_engine/tool/build_runtime.dart --java-home "$JAVA_HOME"
+flutter build linux --release     # or windows / macos on that target OS
 flutter build ios --release --no-codesign
 ```
 
-Linux needs GTK and libmpv headers:
+The runtime command uses `jlink` and bundles a trimmed Java image for
+CloudStream's desktop sidecar. It must run on the platform and architecture
+being packaged; otherwise developer builds fall back to machine Java 17+.
+Android executes DEX in-process and iOS carries its committed OpenJDK Zero
+framework, so neither uses this step.
+
+Linux needs GTK, libmpv and libVLC headers:
 
 ```bash
 sudo apt-get install clang cmake ninja-build pkg-config libgtk-3-dev \
-  liblzma-dev libmpv-dev mpv
+  liblzma-dev libmpv-dev mpv libvlc-dev vlc
 ```
 
 Windows needs Visual Studio's "Desktop development with C++" workload; macOS and

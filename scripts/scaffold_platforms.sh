@@ -4,10 +4,10 @@
 # `flutter create` only adds missing files and never overwrites what is already
 # tracked, so running this locally or in CI is safe and idempotent.
 #
-# Android is included even though the CloudStream *host* (the Kotlin side that
-# loads a .cs3 with a DexClassLoader) is not in this repository: without the
-# runner there is no Android build at all, and the app is perfectly usable there
-# with the two JavaScript ecosystems.
+# Android is included here and then adapted to cs3_engine's host activity. The
+# package itself contains the DEX engine; the generated app must supply the
+# AppCompat/CloudStream activity that extensions expect to cast their context
+# to, rather than Flutter's default FlutterActivity.
 #
 # Web is deliberately absent. The app reads files with `dart:io`, runs plugins
 # through FFI, and plays video through libmpv; a web runner would build nothing
@@ -29,6 +29,107 @@ flutter create \
 # test suite only ever runs real tests.
 rm -f test/widget_test.dart
 
+# CloudStream extensions cast their Activity to CloudStream's MainActivity.
+# Flutter's generated FlutterActivity cannot satisfy that contract, so host
+# Flutter in a FlutterFragment inside the compatible AppCompatActivity exactly
+# as cs3_engine documents. Plugin registration is manual for a fragment host.
+mkdir -p android/app/src/main/kotlin/dev/aerostream/aerostream
+cat > android/app/src/main/kotlin/dev/aerostream/aerostream/MainActivity.kt <<'KOTLIN'
+package dev.aerostream.aerostream
+
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Bundle
+import android.widget.FrameLayout
+import io.flutter.embedding.android.FlutterEngineConfigurator
+import io.flutter.embedding.android.FlutterFragment
+import io.flutter.embedding.android.RenderMode
+import io.flutter.embedding.android.TransparencyMode
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.embedding.engine.plugins.util.GeneratedPluginRegister
+
+/** A CloudStream-compatible activity that hosts AeroStream's Flutter UI. */
+class MainActivity : com.lagradost.cloudstream3.MainActivity(), FlutterEngineConfigurator {
+    private var flutterFragment: FlutterFragment? = null
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        GeneratedPluginRegister.registerGeneratedPlugins(flutterEngine)
+    }
+
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {}
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        switchLaunchThemeForNormalTheme()
+        super.onCreate(savedInstanceState)
+        setContentView(FrameLayout(this).apply { id = FRAGMENT_CONTAINER_ID })
+        flutterFragment = supportFragmentManager.findFragmentByTag(TAG_FLUTTER_FRAGMENT) as FlutterFragment?
+            ?: FlutterFragment.withNewEngine()
+                .shouldAutomaticallyHandleOnBackPressed(true)
+                .renderMode(RenderMode.surface)
+                .transparencyMode(TransparencyMode.opaque)
+                .build<FlutterFragment>()
+                .also {
+                    supportFragmentManager.beginTransaction()
+                        .add(FRAGMENT_CONTAINER_ID, it, TAG_FLUTTER_FRAGMENT)
+                        .commit()
+                }
+    }
+
+    /** Apply Flutter's normal theme after the launch theme, as FlutterActivity does. */
+    private fun switchLaunchThemeForNormalTheme() {
+        try {
+            val metadata = packageManager
+                .getActivityInfo(componentName, PackageManager.GET_META_DATA)
+                .metaData
+            val normalTheme = metadata?.getInt("io.flutter.embedding.android.NormalTheme", -1) ?: -1
+            if (normalTheme != -1) setTheme(normalTheme)
+        } catch (_: PackageManager.NameNotFoundException) {
+        }
+    }
+
+    // FlutterFragmentActivity forwards these host callbacks to its fragment.
+    override fun onPostResume() {
+        super.onPostResume()
+        flutterFragment?.onPostResume()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        flutterFragment?.onNewIntent(intent)
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        flutterFragment?.onUserLeaveHint()
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        flutterFragment?.onTrimMemory(level)
+    }
+
+    @Deprecated("Forwarded for extensions that still use startActivityForResult")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        flutterFragment?.onActivityResult(requestCode, resultCode, data)
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        flutterFragment?.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    }
+
+    companion object {
+        private const val TAG_FLUTTER_FRAGMENT = "flutter_fragment"
+        private val FRAGMENT_CONTAINER_ID = android.view.View.generateViewId()
+    }
+}
+KOTLIN
+
 # Plugins choose their own sources, and a good number of them are still plain
 # http. Android and Apple platforms refuse cleartext by default, which would
 # turn "this plugin's API is not https" into a confusing playback failure, so
@@ -37,6 +138,7 @@ rm -f test/widget_test.dart
 echo "==> Allowing cleartext for plugin sources"
 
 python3 - <<'PY'
+import glob
 import os
 import plistlib
 import re
@@ -68,6 +170,34 @@ def android(text):
         text,
         count=1,
     )
+
+
+def cloudstream_application(text):
+    # Stops extension-requested process restarts without killing the app, and
+    # installs the CloudStream compatibility context used by cs3_engine.
+    return re.sub(
+        r"<application\b",
+        '<application android:name="dev.akash.cs3engine.android.ExtensionHostApplication"',
+        text,
+        count=1,
+    )
+
+
+def android_appcompat_themes(path):
+    """Makes every generated launch/normal theme valid for AppCompatActivity."""
+    with open(path, encoding="utf-8") as handle:
+        text = handle.read()
+    patched = re.sub(
+        r'(<style\s+name="(?:LaunchTheme|NormalTheme)"\s+parent=")[^"]+("[^>]*>)',
+        r'\1Theme.MaterialComponents.DayNight.NoActionBar\2',
+        text,
+    )
+    if patched == text:
+        print(f"    already set in {path}")
+        return
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(patched)
+    print(f"    patched {path}")
 
 
 # `flutter create` puts android.permission.INTERNET in the *debug* and *profile*
@@ -106,25 +236,40 @@ def android_permissions(text):
     )
 
 
-# libVLC (vlc_player) requires minSdk 29; `flutter create` generates a lower
-# floor, and the manifest merger fails the Android build with an opaque
-# error. Patch both the Kotlin DSL and the legacy groovy template.
+# libVLC (vlc_player) requires minSdk 29; cs3_engine's CloudStream API is built
+# against Android 37. Patch both the Kotlin DSL and legacy groovy templates so
+# the app and every Android library resolve against the same SDK surface.
 def android_min_sdk(text):
     patched = re.sub(r"minSdk\s*=\s*flutter\.minSdkVersion", "minSdk = 29", text)
     patched = re.sub(r"minSdk\s*=\s*\d+", "minSdk = 29", patched)
-    patched = re.sub(
+    return re.sub(
         r"minSdkVersion\s+(?:flutter\.minSdkVersion|\d+)",
         "minSdkVersion 29",
         patched,
     )
-    return patched
 
-for gradle, marker in (
-    ("android/app/build.gradle.kts", "minSdk = 29"),
-    ("android/app/build.gradle", "minSdkVersion 29"),
+
+def android_compile_sdk(text):
+    patched = re.sub(
+        r"compileSdk\s*=\s*(?:flutter\.compileSdkVersion|\d+)",
+        "compileSdk = 37",
+        text,
+    )
+    return re.sub(
+        r"compileSdkVersion\s+(?:flutter\.compileSdkVersion|\d+)",
+        "compileSdkVersion 37",
+        patched,
+    )
+
+
+for gradle, min_marker, compile_marker in (
+    ("android/app/build.gradle.kts", "minSdk = 29", "compileSdk = 37"),
+    ("android/app/build.gradle", "minSdkVersion 29", "compileSdkVersion 37"),
 ):
-    # Marker is the post-patch text, so re-running the scaffolder is a no-op.
-    patch(gradle, marker, android_min_sdk)
+    # Independent markers matter when a newer Flutter already defaults to one
+    # required level but not the other.
+    patch(gradle, min_marker, android_min_sdk)
+    patch(gradle, compile_marker, android_compile_sdk)
 
 patch(
     "android/app/src/main/AndroidManifest.xml",
@@ -133,9 +278,16 @@ patch(
 )
 patch(
     "android/app/src/main/AndroidManifest.xml",
+    "dev.akash.cs3engine.android.ExtensionHostApplication",
+    cloudstream_application,
+)
+patch(
+    "android/app/src/main/AndroidManifest.xml",
     ANDROID_PERMISSIONS[0],
     android_permissions,
 )
+for styles in glob.glob("android/app/src/main/res/values*/styles.xml"):
+    android_appcompat_themes(styles)
 
 
 def apple_plist(path):
@@ -229,19 +381,20 @@ def plist_flag(path, key):
     print(f"    patched {path}")
 
 
-# vlc_player's CocoaPods targets require iOS 13 and macOS 12. Raising both the
-# app target and Podfile keeps CocoaPods from rejecting the generated runner.
+# cs3_engine's embedded OpenJDK host requires iOS 15; vlc_player requires
+# macOS 12. Raising both the app target and Podfile keeps CocoaPods from
+# rejecting the generated runner.
 deployment_floor(
     "ios/Runner.xcodeproj/project.pbxproj",
     "IPHONEOS_DEPLOYMENT_TARGET",
-    "13.0",
+    "15.0",
 )
 deployment_floor(
     "macos/Runner.xcodeproj/project.pbxproj",
     "MACOSX_DEPLOYMENT_TARGET",
     "12.0",
 )
-pod_platform_floor("ios/Podfile", "ios", "13.0")
+pod_platform_floor("ios/Podfile", "ios", "15.0")
 pod_platform_floor("macos/Podfile", "osx", "12.0")
 
 apple_plist("ios/Runner/Info.plist")

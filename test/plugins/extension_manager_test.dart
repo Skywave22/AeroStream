@@ -48,7 +48,8 @@ List<int> buildSkyPackage({
   });
   final archive = Archive()
     ..addFile(
-        ArchiveFile('plugin.json', manifest.length, utf8.encode(manifest)))
+      ArchiveFile('plugin.json', manifest.length, utf8.encode(manifest)),
+    )
     ..addFile(ArchiveFile('plugin.js', code.length, utf8.encode(code)));
   return ZipEncoder().encode(archive)!;
 }
@@ -146,10 +147,7 @@ void main() {
 
       expect(result.isOk, isTrue, reason: result.errorOrNull?.toString());
       expect(result.valueOrNull!.info.capabilities.home, isTrue);
-      expect(
-        artifacts.installed.values.single.keys,
-        contains('plugin.cs3'),
-      );
+      expect(artifacts.installed.values.single.keys, contains('plugin.cs3'));
     });
 
     test('rejects a file that is not DEX', () async {
@@ -161,14 +159,20 @@ void main() {
       expect(result.errorOrNull!.message, contains('DEX'));
     });
 
-    test('is refused on a platform without the Kotlin host', () async {
-      final result = await manager(platform: _linux).install(
-        listing(id: 'Provider', ecosystem: PluginEcosystem.cloudstream),
-      );
-      expect(result.isErr, isTrue);
-      expect(result.errorOrNull!.kind, 'unsupported');
-      expect(http.requested, isEmpty, reason: 'nothing should be downloaded');
-    });
+    test(
+      'installs the same DEX on desktop for cs3_engine conversion',
+      () async {
+        http.routes['https://example.com/Provider.bin'] = dexBytes();
+
+        final result = await manager(platform: _linux).install(
+          listing(id: 'Provider', ecosystem: PluginEcosystem.cloudstream),
+        );
+
+        expect(result.isOk, isTrue, reason: result.errorOrNull?.toString());
+        expect(http.requested, isNotEmpty);
+        expect(artifacts.installed.values.single, contains('plugin.cs3'));
+      },
+    );
   });
 
   group('Vega install', () {
@@ -252,29 +256,36 @@ void main() {
   });
 
   group('lifecycle', () {
-    test('update replaces the artifact and keeps the old one for rollback',
-        () async {
-      http.routes['https://example.com/dev.example.plugin.bin'] =
-          buildSkyPackage(version: 2);
-      final first = (await manager().install(listing(version: 2))).valueOrNull!;
+    test(
+      'update replaces the artifact and keeps the old one for rollback',
+      () async {
+        http.routes['https://example.com/dev.example.plugin.bin'] =
+            buildSkyPackage(version: 2);
+        final first = (await manager().install(
+          listing(version: 2),
+        ))
+            .valueOrNull!;
 
-      http.routes['https://example.com/dev.example.plugin.bin'] =
-          buildSkyPackage(version: 3);
-      final updated = (await manager().update(
-        first,
-        listing(version: 3),
-      ))
-          .valueOrNull!;
+        http.routes['https://example.com/dev.example.plugin.bin'] =
+            buildSkyPackage(version: 3);
+        final updated = (await manager().update(
+          first,
+          listing(version: 3),
+        ))
+            .valueOrNull!;
 
-      expect(updated.info.version, PluginVersion.parse(3));
-      expect(updated.previousArtifactPath, first.artifactPath);
-    });
+        expect(updated.info.version, PluginVersion.parse(3));
+        expect(updated.previousArtifactPath, first.artifactPath);
+      },
+    );
 
     test('refuses a "update" that is not newer', () async {
       http.routes['https://example.com/dev.example.plugin.bin'] =
           buildSkyPackage(version: 5);
-      final installed =
-          (await manager().install(listing(version: 5))).valueOrNull!;
+      final installed = (await manager().install(
+        listing(version: 5),
+      ))
+          .valueOrNull!;
       final result = await manager().update(installed, listing(version: 5));
       expect(result.isErr, isTrue);
       expect(result.errorOrNull!.kind, 'unsupported');
@@ -349,9 +360,8 @@ void main() {
       await manager().install(listing());
 
       final providers = await manager(
-        factory: (plugin) async => const Err<MediaProvider>(
-          PluginCrashError('runtime unavailable'),
-        ),
+        factory: (plugin) async =>
+            const Err<MediaProvider>(PluginCrashError('runtime unavailable')),
       ).activeProviders();
 
       expect(providers, isEmpty);
@@ -366,8 +376,11 @@ void main() {
 
       http.routes['https://example.com/dev.example.plugin.bin'] =
           buildSkyPackage(version: 3);
-      final updated =
-          (await manager().update(first, listing(version: 3))).valueOrNull!;
+      final updated = (await manager().update(
+        first,
+        listing(version: 3),
+      ))
+          .valueOrNull!;
 
       final restored = (await manager().rollback(updated)).valueOrNull!;
       expect(restored.artifactPath, first.artifactPath);

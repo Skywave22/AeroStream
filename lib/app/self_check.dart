@@ -152,10 +152,7 @@ Future<void> _checkHome(
   await _reportHome(report, provider);
 }
 
-Future<void> _checkVega(
-  ProviderContainer container,
-  _Report report,
-) async {
+Future<void> _checkVega(ProviderContainer container, _Report report) async {
   stdout.writeln('');
   stdout.writeln('Vega: "vega-org"');
   final repositories = container.read(repositoryServiceProvider);
@@ -218,8 +215,10 @@ Future<void> _checkVegaStreams(
     (plugin) => plugin.id == 'internetArchive',
   );
   if (listed == null) {
-    report.skip('Vega getStream returns a playable source',
-        'Internet Archive is not listed');
+    report.skip(
+      'Vega getStream returns a playable source',
+      'Internet Archive is not listed',
+    );
     return;
   }
 
@@ -241,8 +240,10 @@ Future<void> _checkVegaStreams(
     if (!identical(candidate, provider)) await candidate.dispose();
   }
   if (provider == null) {
-    report.fail('Vega getStream returns a playable source',
-        'the installed stream probe provider did not start');
+    report.fail(
+      'Vega getStream returns a playable source',
+      'the installed stream probe provider did not start',
+    );
     return;
   }
 
@@ -370,14 +371,15 @@ Future<void> _checkCloudStream(
   stdout.writeln('CloudStream');
   final platform = container.read(platformProfileProvider);
   final host = await container.read(cloudStreamHostProvider.future);
-  if (!platform.isAndroid) {
-    report.skip(
-      'the Kotlin host is Android only',
-      'this is ${platform.operatingSystem}',
-    );
+  if (platform.isWeb) {
+    report.skip('the CloudStream engine is native-only', 'this is web');
     return;
   }
-  report.expect(host, 'the Kotlin host answers the handshake', '$host');
+  report.expect(
+    host,
+    'the cross-platform CloudStream engine answers hello',
+    '${platform.operatingSystem}: $host',
+  );
 }
 
 /// Counts and prints the findings.

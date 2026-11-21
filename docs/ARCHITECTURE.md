@@ -95,13 +95,28 @@ plugin's manifest global → the plugin source. Every violation disposes the
 context and bumps `generation`, so a stale callback can never resolve a call
 belonging to a newer context.
 
-### 4. `CloudStreamBridge` — the native seam
+### 4. `CloudStreamBridge` — one protocol, three native hosts
 
-CloudStream plugins are compiled Kotlin, not JavaScript, so the runtime is a
-`MethodChannel` (`dev.aerostream/cloudstream`) to a native host. The interface
-is the same shape as everything else — `Future<Result<Map<String, Object?>>>` —
-and a missing implementation (`MissingPluginException`) is reported as
-"unsupported on this platform", never as a crash.
+CloudStream plugins are compiled Kotlin/DEX, not JavaScript. AeroStream vendors
+SkyStream's `packages/cs3_engine` and owns one lazy `Cs3Engine` through
+`Cs3EngineBridge`:
+
+* Android loads the DEX and executes it in-process;
+* Linux, Windows and macOS convert DEX to JVM classes and communicate with a
+  Java sidecar over newline-delimited JSON;
+* iOS runs the same JVM engine in an embedded OpenJDK Zero VM with no JIT.
+
+Android and iOS use the package's `cs3_engine` method channel internally;
+desktop uses stdin/stdout. That transport is below AeroStream's bridge. Above
+it, every platform calls the same JSON methods (`hello`, `loadPlugin`,
+`providers`, `mainPage`, `search`, `load`, `loadLinks`, repository state and
+lifecycle calls) and receives the same maps. Engine startup failures become a
+typed `PluginError` and do not prevent the rest of the app from opening.
+
+One extension can register several CloudStream providers. The adapter queries
+all of them for Home and search, tags each `MediaItem` with its owning provider,
+and routes details and opaque episode/movie data back to that exact provider
+for `loadLinks`. It does not reinterpret CloudStream episode `data` as a URL.
 
 ## The bridge protocol
 
@@ -146,15 +161,23 @@ Every request passes `NetworkPolicy` first: no `localhost`, no `.local` or
 ## Playback
 
 `PlaybackEngine` is the second seam. `WatchScreen` resolves links through the
-plugin, ranks them, and shows the list; the chosen source goes to the engine.
-`MediaKitPlaybackEngine` owns one `Player` per surface — created with the
-surface, disposed with it — so switching sources tears the old decoder down
-rather than leaving it running behind the new one. Plugin headers travel with
-the media, and a preferred external subtitle is loaded when one exists.
+plugin, ranks them, and shows the list; the chosen source goes to one of two
+internal players. `VlcPlaybackEngine` is the default and
+`MediaKitPlaybackEngine` (libmpv) is the secondary choice. Each owns one native
+surface at a time, so switching sources tears the old decoder down rather than
+leaving it running behind the new one. No WebView is used for video playback.
 
-Where the native libraries are absent (unit tests), `playerEngineProvider` stays
-null and the watch screen explains that this build cannot decode the link and
-offers to copy it instead.
+User-Agent and Referer can go directly to libVLC. Cookie, Authorization,
+Origin and arbitrary plugin headers use `MediaHeaderProxy`, which injects them
+into upstream ranges and rewrites HLS/DASH child references so headers are not
+lost after the first playlist. External subtitles that carry their own headers
+use short-lived proxies from `SubtitleProxyPool`, because neither native
+subtitle API accepts headers directly. DRM sources are retained and labelled
+unsupported, but neither engine is allowed to open them.
+
+Where native libraries are absent (unit tests), the selected engine reports
+that it cannot decode the link; the watch screen explains this and offers to
+copy it instead.
 
 ## History and resume
 
@@ -225,7 +248,7 @@ keeps exactly one rollback available.
 | plugin hangs | "The plugin took too long to answer", retry |
 | plugin throws | "The plugin stopped unexpectedly", retry |
 | plugin asks for something outside its box | "The plugin tried to leave its sandbox" |
-| ecosystem cannot run here | the sentence from `ecosystemStatuses()` — "Android only", or "this build has no CloudStream host" |
+| CloudStream engine cannot start | the native host/Java startup reason in diagnostics; other ecosystems keep running |
 | no plugins installed | an explanation and a link to Extensions |
 
 ## What is deliberately absent

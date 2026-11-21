@@ -59,10 +59,8 @@ final jsEngineFactoryProvider = Provider<JsEngineFactory>(
   (ref) => UnavailableJsRuntime.new,
 );
 
-/// The Android CloudStream host, when this build has one.
-final cloudStreamBridgeProvider = Provider<CloudStreamBridge?>(
-  (ref) => null,
-);
+/// The cross-platform CloudStream engine, when this build has one.
+final cloudStreamBridgeProvider = Provider<CloudStreamBridge?>((ref) => null);
 
 /// Whether a native CloudStream host actually answered its handshake.
 ///
@@ -75,8 +73,9 @@ final cloudStreamHostProvider = FutureProvider<bool>((ref) async {
 });
 
 /// The platform support matrix for this device, CloudStream host included.
-final ecosystemStatusesProvider =
-    FutureProvider<List<EcosystemStatus>>((ref) async {
+final ecosystemStatusesProvider = FutureProvider<List<EcosystemStatus>>((
+  ref,
+) async {
   final platform = ref.watch(platformProfileProvider);
   final host = await ref.watch(cloudStreamHostProvider.future);
   return ecosystemStatuses(platform: platform, cloudStreamHost: host);
@@ -93,6 +92,7 @@ final runtimeFactoryProvider = Provider<PluginRuntimeFactory>((ref) {
     vegaBootstrap: ref.watch(vegaBootstrapProvider),
     cheerioLite: ref.watch(cheerioLiteProvider),
     cloudStreamBridge: ref.watch(cloudStreamBridgeProvider),
+    cloudStreamRepositoryLoader: ref.watch(extensionStoreProvider).repositories,
     limits: const RuntimeLimits(),
   );
 });

@@ -120,7 +120,10 @@ void main() {
         sources: <StreamSource>[
           StreamSource(url: 'https://a/360.m3u8', quality: '360p', isHls: true),
           StreamSource(
-              url: 'https://a/1080.m3u8', quality: '1080p', isHls: true),
+            url: 'https://a/1080.m3u8',
+            quality: '1080p',
+            isHls: true,
+          ),
           StreamSource(url: 'https://a/720.mp4', quality: '720p'),
           StreamSource(
             url: 'https://a/proxy.mp4',
@@ -165,10 +168,7 @@ void main() {
       );
 
       expect(result.preferredSources().first.isHls, isTrue);
-      expect(
-        result.preferredSources(preferHls: false).first.quality,
-        '1080p',
-      );
+      expect(result.preferredSources(preferHls: false).first.quality, '1080p');
     });
 
     test('no preference keeps the natural ranking', () {
@@ -224,7 +224,7 @@ void main() {
       expect(decoded.isJavaScript, isTrue);
     });
 
-    test('platform gating for CloudStream', () {
+    test('all plugin runtimes are native-only', () {
       const info = PluginInfo(
         id: 'cs',
         name: 'CS',
@@ -247,12 +247,12 @@ void main() {
       status: 1,
     );
 
-    test('is installable everywhere a JS runtime exists', () {
-      expect(listing.isInstallable(isAndroid: true), isTrue);
-      expect(listing.isInstallable(isAndroid: false), isTrue);
+    test('is installable everywhere a native runtime exists', () {
+      expect(listing.isInstallable(isNative: true), isTrue);
+      expect(listing.isInstallable(isNative: false), isFalse);
     });
 
-    test('blocks CloudStream outside Android', () {
+    test('CloudStream installs on every native platform, not web', () {
       const cs = AvailablePlugin(
         id: 'cs',
         name: 'CS',
@@ -260,17 +260,17 @@ void main() {
         ecosystem: PluginEcosystem.cloudstream,
         repositoryId: 'repo',
       );
-      expect(cs.isInstallable(isAndroid: false), isFalse);
-      expect(cs.isInstallable(isAndroid: true), isTrue);
+      expect(cs.isInstallable(isNative: false), isFalse);
+      expect(cs.isInstallable(isNative: true), isTrue);
     });
 
     test('blocks broken or unfetchable listings', () {
       expect(
-        listing.copyWith(status: 0).isInstallable(isAndroid: true),
+        listing.copyWith(status: 0).isInstallable(isNative: true),
         isFalse,
       );
       expect(
-        listing.copyWith(downloadUrl: '').isInstallable(isAndroid: true),
+        listing.copyWith(downloadUrl: '').isInstallable(isNative: true),
         isFalse,
       );
     });

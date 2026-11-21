@@ -1,6 +1,7 @@
 import 'package:aerostream/core/errors/plugin_error.dart';
 import 'package:aerostream/core/result.dart';
 import 'package:aerostream/domain/entities/enums.dart';
+import 'package:aerostream/domain/entities/episode.dart';
 import 'package:aerostream/domain/entities/media_item.dart';
 import 'package:aerostream/domain/entities/plugin_info.dart';
 import 'package:aerostream/plugins/adapters/cloudstream/cloudstream_adapter.dart';
@@ -14,202 +15,307 @@ const PluginInfo _info = PluginInfo(
   capabilities: PluginCapabilities.all,
 );
 
-/// A host that answers from a script instead of a DEX file.
-final class _ScriptedBridge implements CloudStreamBridge {
-  _ScriptedBridge({Map<String, Map<String, Object?>>? replies})
-      : replies = replies ?? const <String, Map<String, Object?>>{};
+typedef _Handler = Result<Map<String, Object?>> Function(
+  String method,
+  Map<String, Object?> arguments,
+);
 
-  final Map<String, Map<String, Object?>> replies;
-  final List<String> commands = <String>[];
+/// An engine protocol endpoint backed by a test callback instead of a JVM.
+final class _ScriptedBridge implements CloudStreamBridge {
+  _ScriptedBridge(this.handler);
+
+  final _Handler handler;
+  final List<({String method, Map<String, Object?> arguments})> calls = [];
 
   @override
   Future<bool> isAvailable() async => true;
 
   @override
   Future<Result<Map<String, Object?>>> invoke(
-    String command,
-    Map<String, Object?> arguments, {
-    Duration timeout = const Duration(seconds: 30),
-  }) async {
-    commands.add(command);
-    final reply = replies[command];
-    if (reply == null) {
-      return const Err<Map<String, Object?>>(
-        PluginNetworkError('no such command'),
-      );
-    }
-    return Ok<Map<String, Object?>>(reply);
+    String method, [
+    Map<String, Object?> arguments = const <String, Object?>{},
+  ]) async {
+    calls.add((method: method, arguments: arguments));
+    return handler(method, arguments);
   }
+
+  @override
+  Future<void> dispose() async {}
 }
 
-CloudStreamAdapter _adapter(CloudStreamBridge bridge) => CloudStreamAdapter(
+CloudStreamAdapter _adapter(
+  CloudStreamBridge bridge, {
+  List<Map<String, Object?>>? providers,
+}) =>
+    CloudStreamAdapter(
       info: _info,
       bridge: bridge,
       artifactPath: '/plugins/cloudstream/com.example/1/plugin.cs3',
+      providers: providers ??
+          const <Map<String, Object?>>[
+            <String, Object?>{
+              'name': 'MoviesApi',
+              'mainUrl': 'https://example.com',
+              'hasMainPage': true,
+            },
+          ],
     );
 
-MediaItem _item() => MediaItem(
+MediaItem _item({String provider = 'MoviesApi'}) => MediaItem(
       id: 'com.example:item',
       pluginId: _info.id,
       title: 'Dune',
       type: MediaType.movie,
       url: 'https://example.com/dune',
+      extras: <String, Object?>{'cloudstreamProvider': provider},
     );
 
-void main() {
-  group('CloudStreamAdapter mapping', () {
-    test('home keeps named sections and drops empty ones', () {
-      final adapter = _adapter(_ScriptedBridge());
+Err<Map<String, Object?>> _missing(String method) =>
+    Err(PluginNetworkError('no scripted response for $method'));
 
-      final sections = adapter.mapHome(<String, Object?>{
-        'sections': <Object?>[
-          <String, Object?>{
-            'name': 'Trending',
-            'items': <Object?>[
-              <String, Object?>{
-                'title': 'Dune',
-                'url': 'https://example.com/dune',
-                'posterUrl': 'https://example.com/dune.jpg',
-                'year': 2021,
-              },
-            ],
-          },
-          <String, Object?>{'name': 'Empty', 'items': <Object?>[]},
-        ],
+void main() {
+  test(
+    'home uses mainPage and preserves the provider that owns every item',
+    () async {
+      final bridge = _ScriptedBridge((method, arguments) {
+        if (method != 'mainPage') return _missing(method);
+        return const Ok<Map<String, Object?>>(<String, Object?>{
+          'sections': <Object?>[
+            <String, Object?>{
+              'name': 'Trending',
+              'items': <Object?>[
+                <String, Object?>{
+                  'name': 'Dune',
+                  'url': 'https://example.com/dune',
+                  'posterUrl': '/dune.jpg',
+                  'year': 2021,
+                },
+              ],
+            },
+            <String, Object?>{'name': 'Empty', 'items': <Object?>[]},
+          ],
+        });
       });
+
+      final result = await _adapter(bridge).getHome();
+      final sections = result.valueOrNull!;
 
       expect(sections, hasLength(1));
       expect(sections.single.title, 'Trending');
-      expect(sections.single.items.single.title, 'Dune');
-      expect(sections.single.items.single.pluginId, 'com.example');
-    });
+      expect(
+        sections.single.items.single.posterUrl,
+        'https://example.com/dune.jpg',
+      );
+      expect(
+        sections.single.items.single.extras['cloudstreamProvider'],
+        'MoviesApi',
+      );
+      expect(bridge.calls.single.method, 'mainPage');
+      expect(
+        bridge.calls.single.arguments,
+        containsPair('plugin', contains('.cs3')),
+      );
+    },
+  );
 
-    test('a bare item list still becomes one row', () {
-      final adapter = _adapter(_ScriptedBridge());
-
-      final sections = adapter.mapHome(<String, Object?>{
+  test('one extension searches every registered provider', () async {
+    final bridge = _ScriptedBridge((method, arguments) {
+      if (method != 'search') return _missing(method);
+      final provider = arguments['provider']! as String;
+      return Ok<Map<String, Object?>>(<String, Object?>{
         'items': <Object?>[
-          <String, Object?>{'title': 'Arrival', 'url': 'https://example.com/a'},
-        ],
-      });
-
-      expect(sections.single.title, 'Latest');
-      expect(sections.single.items, hasLength(1));
-    });
-
-    test('details map episodes with their season and data', () {
-      final adapter = _adapter(_ScriptedBridge());
-
-      final details = adapter.mapDetails(
-        <String, Object?>{
-          'item': <String, Object?>{
-            'title': 'Dune',
-            'url': 'https://example.com/dune',
-            'description': 'Spice.',
-            'year': 2021,
+          <String, Object?>{
+            'name': '$provider result',
+            'url': 'https://$provider.test/title',
           },
+        ],
+        'hasNext': provider == 'SeriesApi',
+      });
+    });
+    final adapter = _adapter(
+      bridge,
+      providers: const <Map<String, Object?>>[
+        <String, Object?>{'name': 'MoviesApi'},
+        <String, Object?>{'name': 'SeriesApi'},
+      ],
+    );
+
+    final page = (await adapter.search('dune', page: 2)).valueOrNull!;
+
+    expect(page.items.map((item) => item.title), <String>[
+      'MoviesApi result',
+      'SeriesApi result',
+    ]);
+    expect(page.items[1].extras['cloudstreamProvider'], 'SeriesApi');
+    expect(page.hasMore, isTrue);
+    expect(page.nextPage, 3);
+    expect(bridge.calls.map((call) => call.arguments['provider']), <Object?>[
+      'MoviesApi',
+      'SeriesApi',
+    ]);
+  });
+
+  test(
+    'load maps direct engine response and keeps episode data opaque',
+    () async {
+      final bridge = _ScriptedBridge((method, arguments) {
+        if (method != 'load') return _missing(method);
+        expect(arguments['provider'], 'MoviesApi');
+        return const Ok<Map<String, Object?>>(<String, Object?>{
+          'name': 'Dune',
+          'url': 'https://example.com/dune',
+          'type': 'TvSeries',
+          'plot': 'Spice.',
+          'posterUrl': '/poster.jpg',
+          'duration': 48,
+          'contentRating': 'TV-14',
+          'syncIds': <String, Object?>{'imdb': 'tt123'},
+          'seasonNames': <Object?>[
+            <String, Object?>{'season': 1, 'name': 'Book One'},
+          ],
           'episodes': <Object?>[
             <String, Object?>{
               'name': 'Pilot',
-              'url': 'https://example.com/s1e1',
               'season': 1,
               'episode': 1,
-              'data': <String, Object?>{'token': 'opaque-token'},
+              'data': 'opaque://token?not=a-url-contract',
+              'runTime': 48,
+              'date': 1736002800000,
             },
-            <String, Object?>{'name': 'No URL'},
           ],
-        },
-        fallback: _item(),
-      );
+        });
+      });
 
+      final details = (await _adapter(bridge).getDetails(_item())).valueOrNull!;
+
+      expect(details.item.id, 'com.example:item');
+      expect(details.description, 'Spice.');
+      expect(details.seasons.single.title, 'Book One');
+      expect(details.syncData['imdb'], 'tt123');
       expect(details.episodes, hasLength(1));
       final episode = details.episodes.single;
-      expect(episode.title, 'Pilot');
-      expect(episode.seasonNumber, 1);
-      expect(episode.number, 1);
-      expect(episode.extras['token'], 'opaque-token');
-      expect(details.item.id, 'com.example:item');
+      expect(episode.url, 'opaque://token?not=a-url-contract');
+      expect(
+        episode.extras['cloudstreamData'],
+        'opaque://token?not=a-url-contract',
+      );
+      expect(episode.runtimeMinutes, 48);
+      expect(episode.airDate, isNotNull);
+    },
+  );
+
+  test('movie dataUrl is sent to loadLinks unchanged', () async {
+    final bridge = _ScriptedBridge((method, arguments) {
+      if (method == 'load') {
+        return const Ok<Map<String, Object?>>(<String, Object?>{
+          'name': 'Dune',
+          'url': 'https://example.com/dune',
+          'type': 'Movie',
+          'dataUrl': 'opaque movie payload',
+        });
+      }
+      if (method == 'loadLinks') {
+        expect(arguments['data'], 'opaque movie payload');
+        return const Ok<Map<String, Object?>>(<String, Object?>{
+          'links': <Object?>[],
+          'subtitles': <Object?>[],
+          'completed': true,
+        });
+      }
+      return _missing(method);
     });
+    final adapter = _adapter(bridge);
+    final details = (await adapter.getDetails(_item())).valueOrNull!;
 
-    test('links become typed sources, subtitles survive without a language',
-        () {
-      final adapter = _adapter(_ScriptedBridge());
+    await adapter.getStreams(details.item);
 
-      final raw = <String, Object?>{
-        'links': <Object?>[
-          <String, Object?>{
-            'url': 'https://cdn.example.com/a.m3u8',
-            'name': 'Server 1',
-            'quality': '1080p',
-            'isM3u8': true,
-            'headers': <String, Object?>{'User-Agent': 'AeroStream'},
-          },
-          <String, Object?>{
-            'url': 'https://cdn.example.com/b.mp4',
-            'name': 'Server 2',
-            'isM3u8': false,
-          },
-          <String, Object?>{'name': 'Broken'},
-        ],
-        'subtitles': <Object?>[
-          <String, Object?>{'url': 'https://example.com/en.vtt'},
-        ],
-      };
-
-      final sources = adapter.mapStreams(raw);
-      expect(sources, hasLength(2));
-      expect(sources.first.isHls, isTrue);
-      expect(sources.first.headers['User-Agent'], 'AeroStream');
-      expect(sources[1].isHls, isFalse);
-
-      final subtitles = adapter.mapSubtitles(raw);
-      expect(subtitles.single.language, 'und');
-    });
+    expect(bridge.calls.last.method, 'loadLinks');
   });
 
-  group('CloudStreamAdapter host calls', () {
-    test('getHome asks the host and maps the answer', () async {
-      final bridge = _ScriptedBridge(
-        replies: <String, Map<String, Object?>>{
-          'getMainPage': <String, Object?>{
-            'sections': <Object?>[
-              <String, Object?>{
-                'name': 'Trending',
-                'items': <Object?>[
-                  <String, Object?>{
-                    'title': 'Dune',
-                    'url': 'https://example.com/dune',
-                  },
-                ],
+  test(
+    'loadLinks maps headers, media type, subtitles and DRM information',
+    () async {
+      final bridge = _ScriptedBridge((method, arguments) {
+        if (method != 'loadLinks') return _missing(method);
+        expect(arguments['data'], 'episode-token');
+        return const Ok<Map<String, Object?>>(<String, Object?>{
+          'links': <Object?>[
+            <String, Object?>{
+              'source': 'VidCloud',
+              'name': 'Server 1',
+              'url': 'https://cdn.example.com/master.m3u8',
+              'type': 'M3U8',
+              'quality': 1080,
+              'referer': 'https://example.com/',
+              'headers': <String, Object?>{'Authorization': 'Bearer token'},
+            },
+            <String, Object?>{
+              'source': 'WidevineHost',
+              'name': 'Protected',
+              'url': 'https://cdn.example.com/manifest.mpd',
+              'type': 'DASH',
+              'quality': 2160,
+              'headers': <String, Object?>{},
+              'drm': <String, Object?>{
+                'kid': 'kid',
+                'licenseUrl': 'https://licence.example.com',
               },
-            ],
-          },
-        },
+            },
+          ],
+          'subtitles': <Object?>[
+            <String, Object?>{
+              'lang': 'English',
+              'url': 'https://cdn.example.com/en.srt',
+              'headers': <String, Object?>{'Cookie': 'session=1'},
+            },
+          ],
+          'completed': false,
+          'error': 'one extractor failed',
+        });
+      });
+      final result = await _adapter(bridge).getStreams(
+        _item(),
+        episode: const Episode(
+          id: 'episode-1',
+          url: 'episode-token',
+          number: 1,
+          extras: <String, Object?>{'cloudstreamData': 'episode-token'},
+        ),
       );
+      final streams = result.valueOrNull!;
 
-      final result = await _adapter(bridge).getHome();
+      expect(streams.sources, hasLength(2));
+      expect(streams.sources.first.isHls, isTrue);
+      expect(streams.sources.first.quality, '1080p');
+      expect(streams.sources.first.headers['Referer'], 'https://example.com/');
+      expect(streams.sources.first.headers['Authorization'], 'Bearer token');
+      expect(streams.sources[1].isDash, isTrue);
+      expect(streams.sources[1].isDrmProtected, isTrue);
+      expect(streams.subtitles.single.language, 'English');
+      expect(streams.subtitles.single.format, 'srt');
+      expect(streams.diagnostics, contains('one extractor failed'));
+    },
+  );
 
-      expect(result.valueOrNull, hasLength(1));
-      expect(bridge.commands, contains('getMainPage'));
-    });
-
-    test('a host failure becomes a typed error, not an exception', () async {
-      final result = await _adapter(_ScriptedBridge()).getStreams(_item());
-
-      expect(result.isErr, isTrue);
-      expect(result.errorOrNull, isA<PluginNetworkError>());
-    });
-
-    test('unload tells the host to release the extension', () async {
-      final bridge = _ScriptedBridge(
-        replies: <String, Map<String, Object?>>{
-          'unloadPlugin': <String, Object?>{},
-        },
+  test('engine failures stay typed and disposal unloads the DEX', () async {
+    final bridge = _ScriptedBridge((method, arguments) {
+      if (method == 'unloadPlugin') {
+        return const Ok<Map<String, Object?>>(<String, Object?>{
+          'unloaded': true,
+        });
+      }
+      return const Err<Map<String, Object?>>(
+        PluginNetworkError('engine unavailable'),
       );
-
-      await _adapter(bridge).unload();
-
-      expect(bridge.commands, contains('unloadPlugin'));
     });
+    final adapter = _adapter(bridge);
+
+    final result = await adapter.getStreams(_item());
+    await adapter.dispose();
+
+    expect(result.errorOrNull, isA<PluginNetworkError>());
+    expect(result.errorOrNull!.pluginId, _info.id);
+    expect(bridge.calls.last.method, 'unloadPlugin');
+    expect(bridge.calls.last.arguments['path'], endsWith('plugin.cs3'));
   });
 }

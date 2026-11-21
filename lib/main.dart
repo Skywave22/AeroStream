@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -37,15 +38,19 @@ Future<void> main() async {
   );
   final artifacts = FileArtifactStore('${support.path}/plugins');
   final bootstrap = await rootBundle.loadString('assets/js/host_bootstrap.js');
-  final vegaBootstrap =
-      await rootBundle.loadString('assets/js/vega_bootstrap.js');
+  final vegaBootstrap = await rootBundle.loadString(
+    'assets/js/vega_bootstrap.js',
+  );
   final cheerioLite = await rootBundle.loadString('assets/js/cheerio_lite.js');
 
-  // CloudStream extensions are Kotlin: they need the native host, which only
-  // this platform (so far) has. Everywhere else the ecosystem stays visible and
-  // uninstallable rather than pretending to work.
-  final cloudStream =
-      platform.isAndroid ? MethodChannelCloudStreamBridge() : null;
+  // One CloudStream engine protocol, three host strategies: Android executes
+  // DEX in-process, iOS uses the embedded OpenJDK Zero VM, and desktop starts
+  // the bundled Java sidecar. Startup stays lazy inside the bridge so an engine
+  // problem never prevents the rest of AeroStream from opening.
+  final cloudStream = Cs3EngineBridge(
+    dataDir: '${support.path}/cloudstream/engine',
+    language: WidgetsBinding.instance.platformDispatcher.locale.toLanguageTag(),
+  );
 
   final overrides = <Override>[
     settingsStoreProvider.overrideWithValue(settings),
@@ -59,8 +64,10 @@ Future<void> main() async {
     downloadDirectoryProvider.overrideWithValue(
       Directory('${support.path}/downloads'),
     ),
-    if (cloudStream != null)
-      cloudStreamBridgeProvider.overrideWithValue(cloudStream),
+    cloudStreamBridgeProvider.overrideWith((ref) {
+      ref.onDispose(() => unawaited(cloudStream.dispose()));
+      return cloudStream;
+    }),
   ];
 
   // A run nobody has to look at: same stores, same sandbox, same install path,

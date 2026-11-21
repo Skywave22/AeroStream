@@ -67,7 +67,7 @@ final class EcosystemInfo {
       title: 'CloudStream Extensions',
       shortTitle: 'CloudStream',
       tagline: 'Kotlin extensions packaged as .cs3, from CloudStream repos',
-      artifact: '.cs3 extensions, Android host',
+      artifact: '.cs3 extensions, cross-platform engine',
       addHelp: 'A repo.json URL, a plugins.json URL, or a shortcode',
       examples: '…/repo.json · …/plugins.json · abc123 · cs.repo/?…',
       icon: Icons.smart_display_outlined,

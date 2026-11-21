@@ -10,11 +10,11 @@ It runs three plugin ecosystems behind one unified interface:
 | --- | --- | --- | --- |
 | **SkyStream** | `.sky` (zip: `plugin.json` + `plugin.js`) | Sandboxed JavaScript | Android, iOS, desktop |
 | **Vega** | provider modules (`posts.js`, `stream.js`, …) | Sandboxed JavaScript | Android, iOS, desktop |
-| **CloudStream** | `.cs3` (Kotlin/DEX) | Native Kotlin host (`DexClassLoader`) | Android, when the host is in the build |
+| **CloudStream** | `.cs3` (Kotlin/DEX) | SkyStream `cs3_engine`: DEX in-process on Android, JVM sidecar on desktop, embedded OpenJDK Zero on iOS | Android, iOS, macOS, Windows, Linux |
 
-Each ecosystem's availability is reported per device in Settings › Platform,
-including the case where Android is present but the CloudStream host is not
-(see `docs/PLATFORMS.md`).
+Each ecosystem's availability is reported per device in Settings › Platform.
+CloudStream is marked runnable only after the packaged engine answers its
+`hello` handshake (see `docs/PLATFORMS.md`).
 
 ## Status
 
@@ -26,23 +26,26 @@ including the case where Android is present but the CloudStream host is not
 | 3 | JavaScript runtime + host API bridge | done |
 | 4 | SkyStream adapter | done |
 | 5 | Vega adapter | done |
-| 6 | CloudStream adapter (Android host) | done — Kotlin host pending |
+| 6 | CloudStream adapter + cross-platform engine | integrated — packaged-device verification ongoing |
 | 7 | Adaptive UI/UX | done |
-| 8 | Player | done — source selection, libmpv playback, subtitles |
+| 8 | Player | done — shared UI, libVLC default, libmpv secondary, subtitles and header proxy |
 | 9 | Library, history, downloads | done — saved titles, continue watching, resume, off-line downloads |
 | 10 | Settings, security, privacy | done — appearance, playback, platform matrix, data controls |
 | 11 | Platform polish | done — support matrix, cleartext, generated runners |
 | 12 | Testing, performance, release | done — five-platform builds published as release assets; store publishing not attempted (`docs/RELEASING.md`) |
 
-Remaining work is not a phase: it is the "Not implemented" table in
-`docs/PLUGIN_SPEC.md` (one endpoint per plugin, editable plugin settings, DRM,
-byte proxy) plus the CloudStream Kotlin host, which is a separate Android module
-and does not exist in this repository.
+The vendored `packages/cs3_engine` is SkyStream's GPLv3 CloudStream
+compatibility engine pinned to commit `f5523ae07d729b579be30976df8783a0b98c4559`.
+Its source, notices and license ship in-tree; see `packages/cs3_engine/ORIGIN.md`.
+The remaining compatibility gaps are listed honestly in
+`docs/PLUGIN_SPEC.md`, especially extension browser/UI events that still need
+an AeroStream surface.
 
-Plugins run on QuickJS, one isolate per plugin, behind a bridge that only
-exposes HTTP, HTML parsing, hashing, base64 and namespaced storage. Playback is
-libmpv through `media_kit`, behind a `PlaybackEngine` seam so a build without
-the native libraries reports that instead of showing a black rectangle.
+JavaScript plugins run on QuickJS, one isolate per plugin, behind a bridge that
+only exposes HTTP, HTML parsing, hashing, base64 and namespaced storage.
+Playback uses two internal native engines behind one UI: libVLC is the default
+and libmpv through `media_kit` is the secondary choice. No WebView is used as a
+video player.
 Progress is recorded as you watch, so "Continue watching" and the resume point
 in the player survive closing the app.
 
@@ -66,8 +69,8 @@ manifest and CLI),
 `Repository`/`SitePlugin` data classes and `RepositoryManager.parseRepoUrl`) and
 [vega-org/vega-app](https://github.com/vega-org/vega-app) (`ExtensionManager`,
 `helpers.ts`, `ProviderManager`). Where this app cannot do what they do — DRM,
-the byte proxy, captcha solving, DEX — it says so in `PLUGIN_SPEC.md` under
-"Not implemented", and in the UI at the point of use.
+the byte proxy or interactive browser challenges — it says so in
+`PLUGIN_SPEC.md` under "Not implemented", and in the UI at the point of use.
 
 ## Download
 
@@ -96,6 +99,7 @@ lib/domain/     entities, MediaProvider, CatalogService
 lib/plugins/    runtime (sandbox), adapters (3 ecosystems), managers, parsers
 lib/data/       SQLite store, filesystem artifacts, preferences
 lib/features/   screens: home, search, details, player, library, extensions…
+packages/       vendored libVLC player and cross-platform cs3_engine
 tool/           js_selftest.mjs — runs the real JS in a Node VM
 docs/           architecture, plugin spec, platforms, building, releasing, disclaimer
 ```
@@ -108,6 +112,6 @@ node tool/js_selftest.mjs
 
 ## Legal
 
-AeroStream is a client. It hosts nothing, indexes nothing and bundles nothing.
-Plugins and the sites they read are third-party, user-chosen and the user's
+AeroStream is a client. It hosts, indexes and bundles no media or content
+plugins. Plugins and the sites they read are third-party, user-chosen and the user's
 responsibility. See `docs/DISCLAIMER.md`.

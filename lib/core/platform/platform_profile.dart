@@ -50,22 +50,23 @@ final class PlatformProfile {
           target == TargetPlatform.windows ||
           target == TargetPlatform.linux);
 
-  /// Whether a plugin of [ecosystem] can execute here.
+  bool get isSupportedNativeTarget => isMobile || isDesktop;
+
+  /// Whether a plugin of [ecosystem] can execute on this class of platform.
   ///
-  /// CloudStream extensions are Kotlin compiled against the CloudStream
-  /// library; only the Android host can load them (see docs/PLUGIN_SPEC.md).
-  bool supports(PluginEcosystem ecosystem) => switch (ecosystem) {
-        PluginEcosystem.cloudstream => isAndroid,
-        PluginEcosystem.skystream => !isWeb,
-        PluginEcosystem.vega => !isWeb,
-      };
+  /// Native CloudStream hosts differ internally — Android DEX, desktop JVM
+  /// sidecar, iOS OpenJDK Zero — but expose one protocol on every native target.
+  /// Whether the packaged host actually starts is checked separately by its
+  /// handshake; this method only excludes the unsupported web target.
+  bool supports(PluginEcosystem ecosystem) => isSupportedNativeTarget;
 
   /// Explanation shown next to a plugin that cannot run here.
   String? unsupportedReason(PluginEcosystem ecosystem) {
     if (supports(ecosystem)) return null;
+    if (!isWeb) return 'This operating system is not a supported target.';
     return switch (ecosystem) {
       PluginEcosystem.cloudstream =>
-        'CloudStream extensions are Kotlin (.cs3) and need the Android runtime.',
+        'The cross-platform CloudStream engine is not available on web.',
       PluginEcosystem.skystream ||
       PluginEcosystem.vega =>
         'The JavaScript sandbox is not available on web.',

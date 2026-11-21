@@ -8,6 +8,7 @@ import '../../core/logging/app_log.dart';
 import '../../domain/entities/stream_source.dart';
 import 'playback_engine.dart';
 import 'player_chrome.dart';
+import 'subtitle_proxy_pool.dart';
 
 /// libmpv through `media_kit`: HLS, DASH, progressive files and the codecs in
 /// between, with the same code on every target.
@@ -99,6 +100,7 @@ class _MediaKitSurfaceState extends State<MediaKitSurface> {
 
   late final mk.Player _player = mk.Player();
   late final VideoController _controller = VideoController(_player);
+  final SubtitleProxyPool _subtitleProxies = SubtitleProxyPool();
   StreamSubscription<Duration>? _positionSubscription;
   StreamSubscription<Duration>? _durationSubscription;
   StreamSubscription<bool>? _playingSubscription;
@@ -197,9 +199,10 @@ class _MediaKitSurfaceState extends State<MediaKitSurface> {
     );
     _externalSubtitleUrl = preferred.url;
     try {
+      final subtitleUri = await _subtitleProxies.playbackUri(preferred);
       await _player.setSubtitleTrack(
         mk.SubtitleTrack.uri(
-          preferred.url,
+          subtitleUri.toString(),
           title: preferred.displayName,
           language: preferred.language,
         ),
@@ -275,10 +278,13 @@ class _MediaKitSurfaceState extends State<MediaKitSurface> {
           break;
         }
       }
+      final subtitleUri = pluginTrack == null
+          ? Uri.parse(url)
+          : await _subtitleProxies.playbackUri(pluginTrack);
       _externalSubtitleUrl = url;
       await _player.setSubtitleTrack(
         mk.SubtitleTrack.uri(
-          url,
+          subtitleUri.toString(),
           title: pluginTrack?.displayName,
           language: pluginTrack?.language,
         ),
@@ -386,6 +392,7 @@ class _MediaKitSurfaceState extends State<MediaKitSurface> {
     unawaited(_trackSubscription?.cancel());
     unawaited(_errorSubscription?.cancel());
     unawaited(_player.dispose());
+    unawaited(_subtitleProxies.close());
     super.dispose();
   }
 

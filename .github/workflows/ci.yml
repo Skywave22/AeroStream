@@ -96,6 +96,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -113,6 +118,9 @@ jobs:
 
       - name: Scaffold platform runners
         run: bash scripts/scaffold_platforms.sh
+
+      - name: Bundle CloudStream Java runtime
+        run: dart run packages/cs3_engine/tool/build_runtime.dart --java-home "$JAVA_HOME"
 
       - name: Build
         run: |
@@ -155,10 +163,14 @@ jobs:
       # `flutter create` only declares INTERNET in the debug and profile
       # manifests, so a release APK without this line has no network at all and
       # every screen looks broken. Cheaper to catch here than on a phone.
-      - name: The release manifest may reach the network
+      - name: The Android runner has its network and CloudStream hosts
         run: |
           grep -q 'android.permission.INTERNET' \
             android/app/src/main/AndroidManifest.xml
+          grep -q 'dev.akash.cs3engine.android.ExtensionHostApplication' \
+            android/app/src/main/AndroidManifest.xml
+          grep -q 'com.lagradost.cloudstream3.MainActivity' \
+            android/app/src/main/kotlin/dev/aerostream/aerostream/MainActivity.kt
 
       - name: Build APK
         id: apk
@@ -184,13 +196,19 @@ jobs:
   # The app, running. Not a unit test: the Linux bundle is started under a
   # virtual display with AEROSTREAM_SELFCHECK=1, which drives the real stores,
   # the real sandbox and the real install path — resolve `Universe`, install a
-  # `.sky`, ask it for its home screen, then the same for Vega.
+  # `.sky`, ask it for its home screen, then the same for Vega, and finally
+  # start the packaged CloudStream JVM sidecar and require its `hello` reply.
   run-linux:
     name: Run Linux app (self-check)
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
 
       - uses: subosito/flutter-action@v2
         with:
@@ -209,6 +227,9 @@ jobs:
 
       - name: Scaffold platform runners
         run: bash scripts/scaffold_platforms.sh
+
+      - name: Bundle CloudStream Java runtime
+        run: dart run packages/cs3_engine/tool/build_runtime.dart --java-home "$JAVA_HOME"
 
       - name: Build
         run: |
@@ -295,9 +316,17 @@ jobs:
         run: |
           set +e
           flutter test --reporter expanded --coverage > /tmp/test.log 2>&1
-          status=$?
+          app_status=$?
+          flutter test packages/cs3_engine/test --reporter expanded \
+            > /tmp/cs3-test.log 2>&1
+          engine_status=$?
           tail -60 /tmp/test.log
-          if [ $status -ne 0 ]; then
+          echo '--- cs3_engine package tests ---'
+          tail -60 /tmp/cs3-test.log
+          status=0
+          if [ $app_status -ne 0 ] || [ $engine_status -ne 0 ]; then
+            status=1
+            cat /tmp/cs3-test.log >> /tmp/test.log
             python3 scripts/annotate_log.py /tmp/test.log test
           fi
           # Informational: the number appears in the report comment either way.

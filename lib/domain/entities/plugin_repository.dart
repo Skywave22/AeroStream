@@ -245,10 +245,11 @@ final class AvailablePlugin {
 
   /// A plugin must be runnable where the app is running, working, and have a
   /// URL before the install button may be enabled.
-  bool isInstallable({required bool isAndroid}) {
+  bool isInstallable({required bool isNative}) {
     if (!isWorking) return false;
     if (downloadUrl.isEmpty) return false;
-    if (ecosystem == PluginEcosystem.cloudstream && !isAndroid) return false;
+    // CloudStream, SkyStream and Vega all have native runtimes. Web has none.
+    if (!isNative) return false;
     return true;
   }
 
@@ -260,9 +261,8 @@ final class AvailablePlugin {
         if (authors.isNotEmpty) 'authors': authors,
         if (language != null) 'language': language,
         if (iconUrl != null) 'iconUrl': iconUrl,
-        'supportedTypes': supportedTypes.map((type) => type.wire).toList(
-              growable: false,
-            ),
+        'supportedTypes':
+            supportedTypes.map((type) => type.wire).toList(growable: false),
         'downloadUrl': downloadUrl,
         'ecosystem': ecosystem.wire,
         'repositoryId': repositoryId,
@@ -282,9 +282,9 @@ final class AvailablePlugin {
         authors: readStringList(json['authors']),
         language: readString(json['language']),
         iconUrl: readString(json['iconUrl']),
-        supportedTypes: readStringList(json['supportedTypes'])
-            .map(MediaType.fromWire)
-            .toSet(),
+        supportedTypes: readStringList(
+          json['supportedTypes'],
+        ).map(MediaType.fromWire).toSet(),
         downloadUrl: readString(json['downloadUrl']) ?? '',
         ecosystem: PluginEcosystem.fromWire(json['ecosystem']),
         repositoryId: readString(json['repositoryId']) ?? '',

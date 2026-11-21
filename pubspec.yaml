@@ -60,6 +60,12 @@ dependencies:
   vlc_player:
     path: packages/vlc_player
 
+  # SkyStream's cross-platform CloudStream compatibility engine. Android runs
+  # DEX in-process, desktop uses a bundled JVM sidecar, and iOS embeds OpenJDK
+  # Zero; all hosts expose the same JSON protocol to the adapter.
+  cs3_engine:
+    path: packages/cs3_engine
+
   # Utilities.
   collection: ^1.18.0
   logger: ^2.2.0

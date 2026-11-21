@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:path/path.dart' as p;
+
 import '../../core/errors/plugin_error.dart';
 import '../../core/json/json_read.dart';
 import '../../core/logging/app_log.dart';
@@ -8,6 +10,7 @@ import '../../core/platform/platform_profile.dart';
 import '../../core/result.dart';
 import '../../domain/entities/enums.dart';
 import '../../domain/entities/installed_plugin.dart';
+import '../../domain/entities/plugin_repository.dart';
 import '../../domain/media_provider.dart';
 import '../../domain/repositories/extension_store.dart';
 import '../adapters/cloudstream/cloudstream_adapter.dart';
@@ -39,13 +42,16 @@ final class PluginRuntimeFactory {
     this.vegaBootstrap = '',
     this.cheerioLite = '',
     CloudStreamBridge? cloudStreamBridge,
+    this.cloudStreamRepositories = const <PluginRepository>[],
+    Future<List<PluginRepository>> Function()? cloudStreamRepositoryLoader,
     this.limits = const RuntimeLimits(),
   })  : _artifacts = artifacts,
         _http = http,
         _settings = settings,
         _platform = platform,
         _engineFactory = engineFactory,
-        _cloudStream = cloudStreamBridge;
+        _cloudStream = cloudStreamBridge,
+        _cloudStreamRepositoryLoader = cloudStreamRepositoryLoader;
 
   final ArtifactStore _artifacts;
   final HttpService _http;
@@ -53,6 +59,10 @@ final class PluginRuntimeFactory {
   final PlatformProfile _platform;
   final JsEngineFactory _engineFactory;
   final CloudStreamBridge? _cloudStream;
+  final Future<List<PluginRepository>> Function()? _cloudStreamRepositoryLoader;
+
+  /// CloudStream repositories visible to extensions through RepositoryManager.
+  final List<PluginRepository> cloudStreamRepositories;
 
   /// `assets/js/host_bootstrap.js`, loaded once at startup.
   final String hostBootstrap;
@@ -209,11 +219,7 @@ final class PluginRuntimeFactory {
       bootstrap: vegaBootstrap,
     );
     return Ok<MediaProvider>(
-      VegaAdapter(
-        info: plugin.info,
-        host: host,
-        providerValue: plugin.info.id,
-      ),
+      VegaAdapter(info: plugin.info, host: host, providerValue: plugin.info.id),
     );
   }
 
@@ -240,32 +246,91 @@ final class PluginRuntimeFactory {
       );
     }
 
-    final loaded = await bridge.invoke('loadPlugin', <String, Object?>{
-      'pluginPath': plugin.artifactPath,
-      'pluginId': plugin.info.id,
-    });
-    if (loaded is Err<Map<String, Object?>>) {
+    final pluginFile = await _cloudStreamPluginFile(plugin.artifactPath);
+    if (pluginFile == null) {
       return Err<MediaProvider>(
-        loaded.error.copyWithPlugin(plugin.info.id),
+        PluginParseError(
+          'The installed CloudStream artifact has no plugin.cs3 file',
+          pluginId: plugin.info.id,
+          field: 'artifactPath',
+        ),
       );
     }
-    final providers = readStringList(
-      (loaded as Ok<Map<String, Object?>>).value['providers'],
+
+    final repositories = _cloudStreamRepositoryLoader == null
+        ? cloudStreamRepositories
+        : await _cloudStreamRepositoryLoader!();
+    final repositoryState = await bridge.invoke(
+      'setRepositories',
+      <String, Object?>{
+        'repositories': repositories
+            .where(
+              (repository) =>
+                  repository.enabled &&
+                  repository.ecosystem == PluginEcosystem.cloudstream,
+            )
+            .map(
+              (repository) => <String, Object?>{
+                'url': repository.url,
+                'name': repository.name,
+                if (repository.iconUrl != null) 'iconUrl': repository.iconUrl,
+              },
+            )
+            .toList(growable: false),
+      },
     );
+    if (repositoryState is Err<Map<String, Object?>>) {
+      return Err<MediaProvider>(
+        repositoryState.error.copyWithPlugin(plugin.info.id),
+      );
+    }
+
+    final loaded = await bridge.invoke('loadPlugin', <String, Object?>{
+      'path': pluginFile,
+      if (plugin.info.sourceUrl != null) 'url': plugin.info.sourceUrl,
+    });
+    if (loaded is Err<Map<String, Object?>>) {
+      return Err<MediaProvider>(loaded.error.copyWithPlugin(plugin.info.id));
+    }
+    final providers =
+        readMapList((loaded as Ok<Map<String, Object?>>).value['providers'])
+            .where((provider) {
+      return provider['error'] == null && readString(provider['name']) != null;
+    }).toList(growable: false);
     AppLog.info(
       'CloudStream extension ${plugin.info.id} exposes '
-      '${providers.length} provider(s)',
+      '${providers.length} provider(s): '
+      '${providers.map((provider) => readString(provider['name'])).join(', ')}',
       pluginId: plugin.info.id,
     );
+    if (providers.isEmpty) {
+      return Err<MediaProvider>(
+        PluginParseError(
+          'The CloudStream extension loaded but registered no usable providers',
+          pluginId: plugin.info.id,
+          field: 'providers',
+        ),
+      );
+    }
 
     return Ok<MediaProvider>(
       CloudStreamAdapter(
         info: plugin.info,
         bridge: bridge,
-        artifactPath: plugin.artifactPath,
-        providerName: providers.isEmpty ? null : providers.first,
+        artifactPath: pluginFile,
+        providers: providers,
       ),
     );
+  }
+
+  Future<String?> _cloudStreamPluginFile(String artifactPath) async {
+    final entries = await _artifacts.listEntries(artifactPath);
+    for (final entry in entries) {
+      if (entry == 'plugin.cs3' || entry.endsWith('.cs3')) {
+        return p.join(artifactPath, entry);
+      }
+    }
+    return null;
   }
 
   JsPluginHost _newHost({
@@ -278,10 +343,7 @@ final class PluginRuntimeFactory {
       JsPluginHost(
         runtime: _engineFactory(),
         api: JsHostApi(
-          http: _http,
-          settings: _settings,
-          pluginId: plugin.info.id,
-        ),
+            http: _http, settings: _settings, pluginId: plugin.info.id),
         pluginId: plugin.info.id,
         bootstrap: bootstrap ?? hostBootstrap,
         pluginSource: pluginSource,

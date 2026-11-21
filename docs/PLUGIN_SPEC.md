@@ -214,31 +214,37 @@ only**. Only `0` stops an install; 2 and 3 are installable and are labelled in
 the list ("Reported slow", "Beta channel only"). `fileHash` is verified on
 install when present. `apiVersion` must be `1`.
 
-### The host contract
+### The `cs3_engine` contract
 
-On Android a native host loads the `.cs3` with a `DexClassLoader`, provides the
-CloudStream API surface the extension links against, and answers over the
-`dev.aerostream/cloudstream` method channel. Everything crossing that boundary
-is JSON, so the host can add fields without breaking the app.
+AeroStream uses SkyStream's actual cross-platform engine protocol. Android
+loads DEX in-process; desktop converts it and talks to a Java sidecar; iOS runs
+it in embedded OpenJDK Zero. Those transports are private to the package. The
+adapter sees the same JSON methods everywhere:
 
-| Command | Arguments | Reply |
+| Command | Important arguments | Reply |
 | --- | --- | --- |
-| `handshake` | — | `true` when the host is ready |
-| `loadPlugin` | `{pluginPath, pluginId}` | `{providers: ["…"]}` |
-| `getMainPage` | — | `{sections: [{name, items}]}` |
-| `search` | `{query}` | `{items: […]}` |
-| `load` | `{url}` | `{item, episodes: [{name, url, season, episode, data}]}` |
-| `loadLinks` | `{url, data}` | `{links: [{url, name, quality, headers, isM3u8, extractor}], subtitles: […]}` |
-| `unloadPlugin` | `{pluginId}` | — |
+| `hello` | — | `{engine, platform, vm, plugins, providers, uptimeMs}` |
+| `loadPlugin` | `{path, url?}` | `{plugin, version, providers: [{name, mainUrl, lang, types, hasMainPage, sections}], extractors, hasSettings}` |
+| `providers` | — | all loaded provider descriptors |
+| `mainPage` | `{provider, page, section?, plugin?}` | `{sections: [{name, items}]}` |
+| `search` | `{provider, query, page, plugin?}` | `{items, hasNext}` |
+| `load` | `{provider, url, plugin?}` | a direct mapped `LoadResponse`, including `dataUrl` or episodes with opaque string `data` |
+| `loadLinks` | `{provider, data, timeoutMs, plugin?}` | `{links, subtitles, completed, error?, fullScreen?}` |
+| `setRepositories` | `{repositories: [{url, name, iconUrl?}]}` | repository count |
+| `setLanguage`, `setClearances` | language/clearance state | applied state |
+| `unloadPlugin`, `reloadPlugin` | `{path, url?}` | lifecycle result |
+| browser / UI replies | request/session ids plus event-specific fields | engine-specific result |
 
-`MissingPluginException` means "this build has no CloudStream host": the
-extension stays visible, is marked as unavailable on this platform, and cannot
-be installed. Nothing crashes.
+Every link carries CloudStream's `source`, `name`, `url`, media `type`, numeric
+`quality`, `referer`, arbitrary `headers`, and optional `drm` map. Subtitles
+carry `lang`, `url` and `headers`. AeroStream sends episode `data` and movie
+`dataUrl` back byte-for-byte as Dart strings; they are opaque provider payloads,
+not URLs to normalize.
 
-Because the host is Kotlin, CloudStream extensions are gated on
-`PlatformProfile.supports(PluginEcosystem.cloudstream)` — on every platform
-where a host exists (`cs3_engine` on Android, and the same protocol elsewhere)
-the adapter is identical; where none exists the ecosystem is simply absent.
+One extension may register several providers. Home and search call all of them;
+each mapped item records the provider that produced it so `load` and
+`loadLinks` select the same one even when provider names collide (the plugin
+path disambiguates them).
 
 ---
 
@@ -260,8 +266,8 @@ the adapter is identical; where none exists the ecosystem is simply absent.
 | Plugin `settings` values (declared in `plugin.json`) | parsed and stored, no editing UI yet |
 | Byte proxy (`MAGIC_PROXY_v1`, `magic_m3u8:`) | reported as unavailable, never silently dropped |
 | DRM (Widevine/PlayReady: `drmKid`, `licenseUrl`, Vega `StreamDrm`) | flagged on the source; the bundled player has no CDM |
-| `solveCaptcha` (needs a browser widget) | throws with that reason, so a plugin fails loudly instead of hanging |
-| CloudStream DEX execution | protocol + bridge only; no Kotlin host in this build |
+| Interactive browser challenges / CloudStream `webRequest` pages | engine events exist; AeroStream UI/answer handling is not complete, so browser-dependent extensions can still fail |
+| CloudStream extension settings/pop-up UI | engine serializes the UI tree; AeroStream does not render that tree yet |
 
 ## Sandbox rules
 

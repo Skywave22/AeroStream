@@ -10,8 +10,8 @@ final class InstalledPlugin {
 
   final PluginInfo info;
 
-  /// Absolute path to the installed artifact (a `.sky` zip, a Vega bundle
-  /// directory, or a `.cs3` file).
+  /// Absolute path to the installed artifact directory. CloudStream keeps its
+  /// DEX at `plugin.cs3` inside it; JS ecosystems keep their unpacked modules.
   final String artifactPath;
 
   /// The artifact this version replaced, kept for one-step rollback.

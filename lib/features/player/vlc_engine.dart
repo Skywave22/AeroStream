@@ -8,6 +8,7 @@ import '../../domain/entities/stream_source.dart';
 import 'media_header_proxy.dart';
 import 'playback_engine.dart';
 import 'player_chrome.dart';
+import 'subtitle_proxy_pool.dart';
 
 /// libVLC: the default engine.
 ///
@@ -92,6 +93,7 @@ class _VlcSurfaceState extends State<VlcSurface> {
 
   VlcPlayerController? _controller;
   MediaHeaderProxy? _proxy;
+  final SubtitleProxyPool _subtitleProxies = SubtitleProxyPool();
   Object? _setupError;
   Timer? _reportTimer;
   Duration _lastPosition = Duration.zero;
@@ -253,8 +255,18 @@ class _VlcSurfaceState extends State<VlcSurface> {
       }
       if (id.startsWith('file:')) {
         final url = id.substring('file:'.length);
+        SubtitleTrack? pluginTrack;
+        for (final track in widget.subtitles) {
+          if (track.url == url) {
+            pluginTrack = track;
+            break;
+          }
+        }
+        final subtitleUri = pluginTrack == null
+            ? Uri.parse(url)
+            : await _subtitleProxies.playbackUri(pluginTrack);
         _externalSubtitleUrl = url;
-        await controller.addSubtitle(Uri.parse(url));
+        await controller.addSubtitle(subtitleUri);
         if (mounted) setState(() {});
         return;
       }
@@ -345,6 +357,7 @@ class _VlcSurfaceState extends State<VlcSurface> {
     controller?.removeListener(_onValue);
     controller?.dispose();
     unawaited(_proxy?.close());
+    unawaited(_subtitleProxies.close());
     super.dispose();
   }
 

@@ -264,7 +264,7 @@ void main() {
       expect(status(3).statusNote, 'Beta channel only');
 
       expect(status(0).isWorking, isFalse);
-      expect(status(0).isInstallable(isAndroid: true), isFalse);
+      expect(status(0).isInstallable(isNative: true), isFalse);
     });
 
     test('detects the ecosystem from entry shape', () {

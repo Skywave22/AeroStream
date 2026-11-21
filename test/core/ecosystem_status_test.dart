@@ -16,78 +16,54 @@ EcosystemStatus _for(
   PlatformProfile platform, {
   required bool host,
 }) =>
-    ecosystemStatus(
-      ecosystem,
-      platform: platform,
-      cloudStreamHost: host,
-    );
+    ecosystemStatus(ecosystem, platform: platform, cloudStreamHost: host);
 
 void main() {
-  group('Android', () {
-    test('runs all three ecosystems when the native host answers', () {
-      final statuses = ecosystemStatuses(
-        platform: _profile(TargetPlatform.android),
-        cloudStreamHost: true,
-      );
-
-      expect(statuses, hasLength(PluginEcosystem.values.length));
-      expect(statuses.every((status) => status.runs), isTrue);
-      expect(statuses.every((status) => status.reason == null), isTrue);
-    });
-
-    test('admits when the CloudStream host is missing from the build', () {
-      final cloudstream = _for(
-        PluginEcosystem.cloudstream,
-        _profile(TargetPlatform.android),
-        host: false,
-      );
-
-      expect(cloudstream.runs, isFalse);
-      expect(cloudstream.reason, contains('not part of this build'));
-      // Installed-but-unstartable is the honest state, so the reason says so.
-      expect(cloudstream.reason, contains('installed'));
-    });
-  });
-
-  group('desktop', () {
-    for (final target in <TargetPlatform>[
-      TargetPlatform.linux,
-      TargetPlatform.macOS,
-      TargetPlatform.windows,
-    ]) {
-      test('${target.name} runs the JavaScript ecosystems only', () {
-        final platform = _profile(target);
-
-        expect(
-          _for(PluginEcosystem.skystream, platform, host: false).runs,
-          isTrue,
+  for (final target in <TargetPlatform>[
+    TargetPlatform.android,
+    TargetPlatform.iOS,
+    TargetPlatform.linux,
+    TargetPlatform.macOS,
+    TargetPlatform.windows,
+  ]) {
+    group(target.name, () {
+      test('runs all ecosystems when the cs3 engine answers', () {
+        final statuses = ecosystemStatuses(
+          platform: _profile(target),
+          cloudStreamHost: true,
         );
-        expect(_for(PluginEcosystem.vega, platform, host: false).runs, isTrue);
 
-        final cloudstream =
-            _for(PluginEcosystem.cloudstream, platform, host: false);
-        expect(cloudstream.runs, isFalse);
-        expect(cloudstream.reason, contains('Android only'));
+        expect(statuses, hasLength(PluginEcosystem.values.length));
+        expect(statuses.every((status) => status.runs), isTrue);
+        expect(statuses.every((status) => status.reason == null), isTrue);
       });
-    }
 
-    test('iOS is the same story', () {
-      final cloudstream = _for(
-        PluginEcosystem.cloudstream,
-        _profile(TargetPlatform.iOS),
-        host: false,
+      test(
+        'reports an engine startup failure without an Android-only claim',
+        () {
+          final cloudstream = _for(
+            PluginEcosystem.cloudstream,
+            _profile(target),
+            host: false,
+          );
+
+          expect(cloudstream.runs, isFalse);
+          expect(cloudstream.reason, contains('did not start'));
+          expect(cloudstream.reason, isNot(contains('Android only')));
+          expect(
+            _for(PluginEcosystem.skystream, _profile(target), host: false).runs,
+            isTrue,
+          );
+        },
       );
-
-      expect(cloudstream.runs, isFalse);
-      expect(cloudstream.reason, contains('Android only'));
     });
-  });
+  }
 
   group('web', () {
     test('no ecosystem runs, and each says why', () {
       final statuses = ecosystemStatuses(
         platform: _profile(TargetPlatform.android, web: true),
-        cloudStreamHost: false,
+        cloudStreamHost: true,
       );
 
       for (final status in statuses) {
@@ -96,17 +72,16 @@ void main() {
       }
       expect(
         _for(
-          PluginEcosystem.skystream,
+          PluginEcosystem.cloudstream,
           _profile(TargetPlatform.android, web: true),
-          host: false,
+          host: true,
         ).reason,
-        contains('JavaScript sandbox'),
+        contains('not on the web'),
       );
     });
   });
 
   test('a runnable status never carries a reason', () {
-    // Built at runtime: as a constant, the assertion would fire at compile time.
     expect(
       () => EcosystemStatus(
         ecosystem: PluginEcosystem.vega,

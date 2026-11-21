@@ -18,10 +18,10 @@ see a complete project rather than a bare `lib/`.
 | --- | --- | --- | --- | --- | --- |
 | Shell / navigation | ✅ | ✅ | ✅ | ✅ | ✅ |
 | SkyStream, Vega plugins | ✅ | ✅ | ✅ | ✅ | ✅ |
-| CloudStream plugins | host dependent | — | — | — | — |
+| CloudStream plugins | DEX in-process | OpenJDK Zero | JVM sidecar | JVM sidecar | JVM sidecar |
 | SQLite store | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Filesystem artifacts | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Video playback (libmpv) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Video playback (libVLC default / libmpv secondary) | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 There is no web target. The app reads with `dart:io`, runs plugins through
 `dart:ffi`, and plays video through libmpv; a browser build would be a shell
@@ -29,31 +29,35 @@ that cannot do any of the three. `scripts/scaffold_platforms.sh` therefore does
 not generate one, and `PlatformProfile` reports web as "no ecosystem runs" if it
 is ever built that way.
 
-### CloudStream is a host question, not a platform question
+### CloudStream is one protocol over platform-specific hosts
 
-`.cs3` extensions are Kotlin compiled against CloudStream's library. They need a
-native host that loads the DEX and answers over the
-`dev.aerostream/cloudstream` channel. Android is the only platform where that is
-possible, and even there the host has to *be in the build*:
+`.cs3` extensions are Kotlin/DEX compiled against CloudStream's library.
+`packages/cs3_engine`, vendored from SkyStream, makes that same extension format
+runnable on every native target:
 
-* the bridge is `null` when the platform is not Android, and
-* when it is present, `isAvailable()` performs a handshake. A missing plugin, a
-  platform error or a five-second timeout all mean "not available".
-
-`ecosystemStatuses()` (`lib/core/platform/ecosystem_status.dart`) turns that into
-the sentence the UI shows, and it distinguishes the two ways CloudStream can be
-unavailable:
-
-| Situation | What the app says |
+| Target | Execution model |
 | --- | --- |
-| Not Android | *Android only: .cs3 extensions are Kotlin, loaded by the Android host* |
-| Android, host absent | *The CloudStream host is not part of this build, so .cs3 extensions can be installed but not started* |
-| Android, host answered | runs |
+| Android | DEX loaded directly in the app process |
+| Linux / Windows / macOS | DEX converted to JVM classes and run in a Java sidecar |
+| iOS | converted classes run in an embedded OpenJDK Zero VM without JIT |
 
-That matrix is shown in Settings › Platform, one row per ecosystem, and drives
-the badge next to each plugin in Extensions. Installing a `.cs3` on a host-less
-build stays allowed — the file is harmless and the reason is displayed — but the
-plugin is never offered as playable.
+All three transports speak the engine's JSON protocol. `Cs3EngineBridge` starts
+it lazily and `isAvailable()` calls `hello`; `ecosystemStatuses()` reports
+CloudStream as runnable only after that answer. A failed embedded host, broken
+Java runtime or packaging error is shown as an engine-start failure rather than
+an incorrect "Android only" badge. Web is the sole platform-class exclusion.
+
+Desktop release jobs run `packages/cs3_engine/tool/build_runtime.dart` with a
+platform JDK 21. The resulting trimmed runtime is bundled as a package asset and
+unpacked on first use, so end users do not need Java. Without that build asset,
+the engine deliberately falls back to Java 17+ from `JAVA_HOME`, Android Studio
+or `PATH` for developer builds.
+
+Android's generated runner is adapted by `scripts/scaffold_platforms.sh`: its
+`Application` is `ExtensionHostApplication`, and its activity extends
+CloudStream's `MainActivity` while hosting Flutter in a `FlutterFragment`. This
+is required because real extensions cast their context to those CloudStream
+classes.
 
 The JavaScript ecosystems are gated the same way: `jsEngineFactoryProvider`
 supplies QuickJS, and a build without it gets `UnavailableJsRuntime`, which
@@ -108,16 +112,15 @@ this repository.
 
 ## Known gaps
 
-* **No CI build per platform.** CI runs `flutter analyze` and `flutter test`,
-  which is what catches type and logic errors; the platform runners are
-  generated so the code is analyzed against a full project, but a release build
-  for each target is a local step. A green run is not a guarantee that every
-  native dependency links on every platform.
-* **The CloudStream Kotlin host is not in this repository.** The Dart half, the
-  channel contract and the support matrix are; Android builds without it report
-  CloudStream as installable-but-unstartable.
-* **Playback is libmpv through `media_kit`.** A build without the native video
-  libraries (tests) leaves `playerEngineProvider` null and the watch screen says
-  so.
+* **CI builds all five platform artifacts, but only Android and Linux run on
+  every branch.** A green compiler run is still not proof that a particular
+  user-supplied extension completes discovery, extraction and playback on a
+  physical device.
+* **CloudStream browser and extension-UI events need an AeroStream surface.**
+  The engine and content calls are integrated; extensions that require an
+  interactive challenge or their own settings window can still fail loudly
+  rather than hang silently.
+* **DRM is informational only.** DRM links remain in the source list and are
+  labelled unsupported; neither internal player attempts them.
 * **The JavaScript engine is QuickJS** on its own isolate per plugin
   (`lib/plugins/runtime/quickjs_engine.dart`, selected by `engine_factory.dart`).
