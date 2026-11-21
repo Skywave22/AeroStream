@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'app/app.dart';
 import 'app/providers.dart';
+import 'app/self_check.dart';
 import 'core/logging/app_log.dart';
 import 'core/platform/platform_profile.dart';
 import 'data/storage/file_artifact_store.dart';
@@ -45,25 +46,27 @@ Future<void> main() async {
   final cloudStream =
       platform.isAndroid ? MethodChannelCloudStreamBridge() : null;
 
-  runApp(
-    ProviderScope(
-      overrides: [
-        settingsStoreProvider.overrideWithValue(settings),
-        extensionStoreProvider.overrideWithValue(extensionStore),
-        artifactStoreProvider.overrideWithValue(artifacts),
-        hostBootstrapProvider.overrideWithValue(bootstrap),
-        platformProfileProvider.overrideWithValue(platform),
-        jsEngineFactoryProvider.overrideWithValue(
-          createPlatformEngineFactory(),
-        ),
-        playerEngineProvider.overrideWithValue(createPlaybackEngine()),
-        downloadDirectoryProvider.overrideWithValue(
-          Directory('${support.path}/downloads'),
-        ),
-        if (cloudStream != null)
-          cloudStreamBridgeProvider.overrideWithValue(cloudStream),
-      ],
-      child: const AeroStreamApp(),
+  final overrides = <Override>[
+    settingsStoreProvider.overrideWithValue(settings),
+    extensionStoreProvider.overrideWithValue(extensionStore),
+    artifactStoreProvider.overrideWithValue(artifacts),
+    hostBootstrapProvider.overrideWithValue(bootstrap),
+    platformProfileProvider.overrideWithValue(platform),
+    jsEngineFactoryProvider.overrideWithValue(createPlatformEngineFactory()),
+    playerEngineProvider.overrideWithValue(createPlaybackEngine()),
+    downloadDirectoryProvider.overrideWithValue(
+      Directory('${support.path}/downloads'),
     ),
-  );
+    if (cloudStream != null)
+      cloudStreamBridgeProvider.overrideWithValue(cloudStream),
+  ];
+
+  // A run nobody has to look at: same stores, same sandbox, same install path,
+  // verdict on stdout. This is how the app is exercised on a machine with no
+  // display (CI under Xvfb) and how a phone can be asked what is wrong with it.
+  if (Platform.environment['AEROSTREAM_SELFCHECK'] == '1') {
+    exit(await runSelfCheck(overrides));
+  }
+
+  runApp(ProviderScope(overrides: overrides, child: const AeroStreamApp()));
 }

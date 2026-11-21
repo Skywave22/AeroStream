@@ -70,10 +70,51 @@ def android(text):
     )
 
 
+# `flutter create` puts android.permission.INTERNET in the *debug* and *profile*
+# manifests only. A release APK — the one anybody installs — therefore has no
+# network permission at all: every request fails with a SocketException, no
+# repository loads, no plugin downloads, nothing plays. It reads as "the app is
+# broken" on a phone while the same code works on desktop, which has no such
+# permission model. Declared here, in `main`, so every build type has it.
+ANDROID_PERMISSIONS = (
+    "android.permission.INTERNET",
+    "android.permission.ACCESS_NETWORK_STATE",
+    "android.permission.WAKE_LOCK",
+)
+
+
+def android_permissions(text):
+    missing = [
+        permission
+        for permission in ANDROID_PERMISSIONS
+        if f'android:name="{permission}"' not in text
+    ]
+    if not missing:
+        return text
+    block = "".join(
+        f'    <uses-permission android:name="{permission}" />\n'
+        for permission in missing
+    )
+    # Directly above <application>: <uses-permission> is only valid as a direct
+    # child of <manifest>, which is where this lands.
+    return re.sub(
+        r"^(\s*)<application\b",
+        block + r"\1<application",
+        text,
+        count=1,
+        flags=re.MULTILINE,
+    )
+
+
 patch(
     "android/app/src/main/AndroidManifest.xml",
     "usesCleartextTraffic",
     android,
+)
+patch(
+    "android/app/src/main/AndroidManifest.xml",
+    ANDROID_PERMISSIONS[0],
+    android_permissions,
 )
 
 

@@ -125,6 +125,111 @@ jobs:
           fi
           exit $status
 
+  # The artifact people actually install. Android is where the manifest
+  # (permissions, cleartext) and the per-ABI native libraries (QuickJS, libmpv)
+  # have to be right, and it is the one build nobody here can look at, so it is
+  # built on every push and attached to the run for download.
+  android:
+    name: Release build (Android APK)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Scaffold platform runners
+        run: bash scripts/scaffold_platforms.sh
+
+      # `flutter create` only declares INTERNET in the debug and profile
+      # manifests, so a release APK without this line has no network at all and
+      # every screen looks broken. Cheaper to catch here than on a phone.
+      - name: The release manifest may reach the network
+        run: |
+          grep -q 'android.permission.INTERNET' \
+            android/app/src/main/AndroidManifest.xml
+
+      - name: Build APK
+        id: apk
+        run: |
+          set +e
+          flutter build apk --release > /tmp/apk.log 2>&1
+          status=$?
+          tail -40 /tmp/apk.log
+          if [ $status -ne 0 ]; then
+            python3 scripts/annotate_log.py /tmp/apk.log android
+          fi
+          exit $status
+
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aerostream-android-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
+
+  # The app, running. Not a unit test: the Linux bundle is started under a
+  # virtual display with AEROSTREAM_SELFCHECK=1, which drives the real stores,
+  # the real sandbox and the real install path — resolve `Universe`, install a
+  # `.sky`, ask it for its home screen, then the same for Vega.
+  run-linux:
+    name: Run Linux app (self-check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev \
+            libmpv-dev mpv xvfb libgl1-mesa-dri
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Scaffold platform runners
+        run: bash scripts/scaffold_platforms.sh
+
+      - name: Build
+        run: |
+          set +e
+          flutter build linux --debug > /tmp/build.log 2>&1
+          status=$?
+          tail -20 /tmp/build.log
+          exit $status
+
+      - name: Install a plugin and ask it for its home screen
+        run: |
+          set +e
+          AEROSTREAM_SELFCHECK=1 timeout 900 xvfb-run -a \
+            ./build/linux/x64/debug/bundle/aerostream > /tmp/selfcheck.log 2>&1
+          status=$?
+          cat /tmp/selfcheck.log
+          if [ $status -ne 0 ]; then
+            python3 scripts/annotate_log.py /tmp/selfcheck.log self-check
+          fi
+          exit $status
+
   verify:
     name: Verify
     runs-on: ubuntu-latest
