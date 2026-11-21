@@ -11,6 +11,7 @@ import 'app/app.dart';
 import 'app/providers.dart';
 import 'app/self_check.dart';
 import 'core/logging/app_log.dart';
+import 'core/network/http_service.dart';
 import 'core/platform/platform_profile.dart';
 import 'data/storage/file_artifact_store.dart';
 import 'data/storage/prefs_settings_store.dart';
@@ -52,7 +53,18 @@ Future<void> main() async {
     language: WidgetsBinding.instance.platformDispatcher.locale.toLanguageTag(),
   );
 
+  final isSelfCheck = Platform.environment['AEROSTREAM_SELFCHECK'] == '1';
+  final selfCheckFixture = Platform.environment['AEROSTREAM_CS3_FIXTURE'];
   final overrides = <Override>[
+    if (isSelfCheck &&
+        selfCheckFixture != null &&
+        selfCheckFixture.trim().isNotEmpty)
+      httpServiceProvider.overrideWithValue(
+        SelfCheckHttpService(
+          delegate: DioHttpService(),
+          fixture: selfCheckFixture,
+        ),
+      ),
     settingsStoreProvider.overrideWithValue(settings),
     extensionStoreProvider.overrideWithValue(extensionStore),
     artifactStoreProvider.overrideWithValue(artifacts),
@@ -73,7 +85,7 @@ Future<void> main() async {
   // A run nobody has to look at: same stores, same sandbox, same install path,
   // verdict on stdout. This is how the app is exercised on a machine with no
   // display (CI under Xvfb) and how a phone can be asked what is wrong with it.
-  if (Platform.environment['AEROSTREAM_SELFCHECK'] == '1') {
+  if (isSelfCheck) {
     exit(await runSelfCheck(overrides));
   }
 

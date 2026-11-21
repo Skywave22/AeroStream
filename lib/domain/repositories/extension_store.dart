@@ -65,8 +65,8 @@ abstract interface class SettingsStore {
 ///
 /// Every ecosystem ends up as a directory of files so the runtime has one shape
 /// to load: a `.sky` archive is extracted, a Vega provider keeps its modules,
-/// a `.cs3` keeps its single DEX. The original archive is retained alongside
-/// for hash re-verification and for exports.
+/// and a `.cs3` keeps its raw DEX or resource-bearing package intact. The
+/// original artifact is retained for hash re-verification and exports.
 abstract interface class ArtifactStore {
   /// Directory that holds every installed artifact.
   Future<String> pluginsRoot();
@@ -109,6 +109,6 @@ enum ArtifactFormat {
   /// Vega: a directory of `.js` modules described by `manifest.json`.
   vegaBundle,
 
-  /// `.cs3`: a single DEX file.
+  /// `.cs3`: a raw DEX or a ZIP package containing `classes.dex`.
   cs3File,
 }

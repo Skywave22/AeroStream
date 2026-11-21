@@ -1,13 +1,127 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/network/http_service.dart';
+import '../core/result.dart';
 import '../domain/entities/enums.dart';
 import '../domain/entities/home_section.dart';
 import '../domain/entities/plugin_repository.dart';
 import '../domain/media_provider.dart';
+import '../plugins/adapters/cloudstream/cloudstream_bridge.dart';
 import 'providers.dart';
+
+/// Publishes CI's compiled extension at a reserved host through the same HTTP
+/// abstraction as a user repository. Loopback remains blocked for plugins, and
+/// every non-fixture request still goes to the production client.
+final class SelfCheckHttpService implements HttpService {
+  SelfCheckHttpService({required HttpService delegate, required String fixture})
+      : _delegate = delegate,
+        _fixture = File(fixture);
+
+  static const String host = 'aerostream-self-check.invalid';
+  static final Uri repository = Uri.https(host, '/plugins.json');
+  static final Uri extension = Uri.https(host, '/SkyStreamTest.cs3');
+
+  final HttpService _delegate;
+  final File _fixture;
+
+  @override
+  Future<Result<HttpPayload>> get(
+    Uri url, {
+    Map<String, String>? headers,
+    bool followRedirects = true,
+  }) async {
+    if (url.host != host) {
+      return _delegate.get(
+        url,
+        headers: headers,
+        followRedirects: followRedirects,
+      );
+    }
+    if (url.path == repository.path) {
+      final listing = jsonEncode(<Object?>[
+        <String, Object?>{
+          'name': 'SkyStream Test',
+          'internalName': 'SkyStreamTest',
+          'url': extension.toString(),
+          'version': 1,
+          'status': 1,
+          'apiVersion': 1,
+          'authors': <String>['SkyStream'],
+          'tvTypes': <String>['Movie'],
+        },
+      ]);
+      return Ok<HttpPayload>(
+        HttpPayload(
+          bytes: Uint8List.fromList(utf8.encode(listing)),
+          statusCode: HttpStatus.ok,
+          url: url.toString(),
+          headers: const <String, String>{
+            'content-type': 'application/json',
+          },
+        ),
+      );
+    }
+    if (url.path == extension.path) {
+      return Ok<HttpPayload>(
+        HttpPayload(
+          bytes: await _fixture.readAsBytes(),
+          statusCode: HttpStatus.ok,
+          url: url.toString(),
+          headers: const <String, String>{
+            'content-type': 'application/octet-stream',
+          },
+        ),
+      );
+    }
+    return Ok<HttpPayload>(
+      HttpPayload(
+        bytes: Uint8List(0),
+        statusCode: HttpStatus.notFound,
+        url: url.toString(),
+      ),
+    );
+  }
+
+  @override
+  Future<Result<HttpPayload>> head(
+    Uri url, {
+    Map<String, String>? headers,
+    bool followRedirects = true,
+  }) {
+    if (url.host == host) {
+      return get(url, headers: headers, followRedirects: followRedirects);
+    }
+    return _delegate.head(
+      url,
+      headers: headers,
+      followRedirects: followRedirects,
+    );
+  }
+
+  @override
+  Future<Result<HttpPayload>> post(
+    Uri url, {
+    Object? body,
+    Map<String, String>? headers,
+    bool followRedirects = true,
+  }) =>
+      _delegate.post(
+        url,
+        body: body,
+        headers: headers,
+        followRedirects: followRedirects,
+      );
+
+  @override
+  Future<Result<Uri>> resolveRedirect(Uri url) =>
+      _delegate.resolveRedirect(url);
+}
 
 /// A headless pass over the whole pipeline, in the order a user hits it.
 ///
@@ -380,6 +494,174 @@ Future<void> _checkCloudStream(
     'the cross-platform CloudStream engine answers hello',
     '${platform.operatingSystem}: $host',
   );
+  if (!host) return;
+
+  // The fixture is a real, compiled, resource-bearing CloudStream extension,
+  // but it is supplied by CI rather than bundled in AeroStream. That keeps the
+  // distributed app content-free while letting the packaged executable prove
+  // repository -> download -> install -> DEX conversion -> provider calls.
+  final fixturePath = Platform.environment['AEROSTREAM_CS3_FIXTURE'];
+  if (fixturePath == null || fixturePath.trim().isEmpty) {
+    report.skip(
+      'a real .cs3 completes the packaged extension pipeline',
+      'AEROSTREAM_CS3_FIXTURE is not set',
+    );
+    return;
+  }
+  final fixture = File(fixturePath);
+  if (!await fixture.exists()) {
+    report.fail('the .cs3 fixture exists', fixture.path);
+    return;
+  }
+
+  try {
+    final repositories = container.read(repositoryServiceProvider);
+    final added = await repositories.addRepository(
+      SelfCheckHttpService.repository.toString(),
+      expect: PluginEcosystem.cloudstream,
+    );
+    final repository = added.valueOrNull;
+    if (repository == null) {
+      report.fail('the .cs3 repository is discovered', added.errorOrNull);
+      return;
+    }
+    report.expect(
+      repository.ecosystem == PluginEcosystem.cloudstream,
+      'the .cs3 repository is discovered',
+      repository.ecosystem.name,
+    );
+
+    final browsed = await repositories.browse(repository);
+    final listing = browsed.valueOrNull?.firstWhereOrNull(
+      (candidate) => candidate.id == 'SkyStreamTest',
+    );
+    if (listing == null) {
+      report.fail('the repository lists its extension', browsed.errorOrNull);
+      return;
+    }
+    report.expect(true, 'the repository lists its extension', listing.id);
+
+    final manager = container.read(extensionManagerProvider);
+    final installed = await manager.install(listing);
+    if (installed.valueOrNull == null) {
+      report.fail('the packaged .cs3 installs', installed.errorOrNull);
+      return;
+    }
+    report.expect(
+      true,
+      'the packaged .cs3 installs',
+      installed.valueOrNull!.artifactPath,
+    );
+
+    final providers = await manager.activeProviders();
+    final provider = providers.firstWhereOrNull(
+      (candidate) => candidate.info.id == listing.id,
+    );
+    for (final candidate in providers) {
+      if (!identical(candidate, provider)) await candidate.dispose();
+    }
+    if (provider == null) {
+      report.fail(
+        'the .cs3 registers providers',
+        'active providers: ${providers.map((p) => p.info.id).join(', ')}',
+      );
+      return;
+    }
+
+    try {
+      final home = await provider.getHome();
+      final sections = home.valueOrNull;
+      final homeItems =
+          sections?.expand((section) => section.items).toList(growable: false);
+      if (homeItems == null || homeItems.isEmpty) {
+        report.fail('the .cs3 answers Home', home.errorOrNull ?? 'no items');
+        return;
+      }
+      report.expect(
+        true,
+        'the .cs3 answers Home',
+        '${sections!.length} sections, ${homeItems.length} items',
+      );
+
+      final searched = await provider.search('game');
+      final searchItems = searched.valueOrNull?.items;
+      report.expect(
+        searchItems != null && searchItems.isNotEmpty,
+        'the .cs3 answers search',
+        searched.errorOrNull ?? '${searchItems?.length ?? 0} items',
+      );
+
+      final details = await provider.getDetails(homeItems.first);
+      final loaded = details.valueOrNull;
+      if (loaded == null) {
+        report.fail('the .cs3 answers details', details.errorOrNull);
+        return;
+      }
+      report.expect(true, 'the .cs3 answers details', loaded.item.title);
+
+      final bridge = container.read(cloudStreamBridgeProvider);
+      if (bridge == null) {
+        report.fail('the .cs3 resolves links', 'the bridge disappeared');
+        return;
+      }
+      final chooser = _chooseCloudStreamTestServer(bridge);
+      try {
+        final streams = await provider.getStreams(loaded.item);
+        final sources = streams.valueOrNull?.orderedSources;
+        report.expect(
+          sources != null && sources.isNotEmpty,
+          'the .cs3 loadLinks returns a playable source',
+          streams.errorOrNull ?? sources?.first.url,
+        );
+      } finally {
+        await chooser.cancel();
+      }
+    } finally {
+      await provider.dispose();
+    }
+  } on Object catch (error, stack) {
+    report.fail('the real .cs3 packaged pipeline completes', error);
+    stderr.writeln(stack);
+  }
+}
+
+/// The SkyStream test extension asks the person to choose a server during
+/// loadLinks. The self-check has no hands, so it performs the same `uiAction`
+/// the extension sheet would send after finding the first server button.
+StreamSubscription<Map<String, Object?>> _chooseCloudStreamTestServer(
+  CloudStreamBridge bridge,
+) {
+  var choosing = false;
+  return bridge.events.listen((event) {
+    if (choosing || event['event'] != 'ui') return;
+    final session = event['session'];
+    final node = _cloudStreamUiNode(event['windows'], 'button', 'Server 1');
+    if (session is! num || node == null) return;
+    choosing = true;
+    bridge.invoke('uiAction', <String, Object?>{
+      'session': session.toInt(),
+      'node': node,
+      'action': 'click',
+    }).ignore();
+  });
+}
+
+int? _cloudStreamUiNode(Object? value, String kind, String text) {
+  if (value is List) {
+    for (final child in value) {
+      final found = _cloudStreamUiNode(child, kind, text);
+      if (found != null) return found;
+    }
+    return null;
+  }
+  if (value is! Map) return null;
+  if (value['kind'] == kind && value['text'] == text) {
+    final id = value['id'];
+    if (id is num) return id.toInt();
+  }
+  final root = _cloudStreamUiNode(value['root'], kind, text);
+  if (root != null) return root;
+  return _cloudStreamUiNode(value['children'], kind, text);
 }
 
 /// Counts and prints the findings.

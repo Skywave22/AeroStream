@@ -31,6 +31,10 @@ final class _ScriptedBridge implements CloudStreamBridge {
   Future<bool> isAvailable() async => true;
 
   @override
+  Stream<Map<String, Object?>> get events =>
+      const Stream<Map<String, Object?>>.empty();
+
+  @override
   Future<Result<Map<String, Object?>>> invoke(
     String method, [
     Map<String, Object?> arguments = const <String, Object?>{},

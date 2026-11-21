@@ -185,8 +185,11 @@ bootstrap supplies both (`axios` over `http:get`/`http:post`, `crypto` over
 
 ## CloudStream
 
-**Artifact:** `.cs3` — a DEX container with Kotlin code compiled against the
-CloudStream library. It cannot run in a JavaScript engine.
+**Artifact:** `.cs3` — either a raw DEX, or a ZIP containing `classes.dex` plus
+optional `resources.arsc`, compiled `res/*` and `manifest.json`. Its Kotlin code
+is compiled against the CloudStream library; it cannot run in a JavaScript
+engine. Installation validates the raw DEX or packaged `classes.dex` before the
+artifact reaches `cs3_engine`.
 
 Repository entries look like:
 

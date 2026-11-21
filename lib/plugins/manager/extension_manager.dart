@@ -276,13 +276,25 @@ final class ExtensionManager {
       return Err<_Artifact>(response.error.copyWithPlugin(listed.id));
     }
     final bytes = (response as Ok<HttpPayload>).value.bytes;
-    if (bytes.length < 4 || bytes[0] != 0x64 || bytes[1] != 0x65) {
-      // "de" — the DEX magic. Android loads it directly; desktop and iOS
-      // convert it for their JVM hosts. Failing here is clearer than a later
-      // ClassFormatError on any platform.
+    var valid = _looksLikeDex(bytes);
+    if (!valid && ZipUtils.looksLikeZip(bytes)) {
+      // Extensions that ship Android resources are packaged CloudStream files:
+      // a zip containing classes.dex, resources.arsc and compiled res/*. A
+      // plain provider can still arrive as a raw DEX. cs3_engine accepts both,
+      // so rejecting the packaged form here made real resource-bearing .cs3
+      // extensions impossible to install even though the runtime supports them.
+      final extracted = ZipUtils.extract(bytes);
+      if (extracted is Err<Map<String, List<int>>>) {
+        return Err<_Artifact>(extracted.error.copyWithPlugin(listed.id));
+      }
+      valid = _looksLikeDex(
+        (extracted as Ok<Map<String, List<int>>>).value['classes.dex'],
+      );
+    }
+    if (!valid) {
       return _artifactError(
         listed,
-        'The downloaded file is not a DEX (.cs3) artifact',
+        'The downloaded .cs3 is neither a DEX nor a package with classes.dex',
       );
     }
     return Ok<_Artifact>(
@@ -400,6 +412,14 @@ final class ExtensionManager {
       _Artifact(files: files, info: _infoFromListing(listed, vega: true)),
     );
   }
+
+  static bool _looksLikeDex(List<int>? bytes) =>
+      bytes != null &&
+      bytes.length >= 4 &&
+      bytes[0] == 0x64 &&
+      bytes[1] == 0x65 &&
+      bytes[2] == 0x78 &&
+      bytes[3] == 0x0A;
 
   Result<_Artifact> _artifactError(AvailablePlugin listed, String message) =>
       Err<_Artifact>(

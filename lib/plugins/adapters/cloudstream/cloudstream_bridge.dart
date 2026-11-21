@@ -15,6 +15,9 @@ import '../../../core/result.dart';
 abstract interface class CloudStreamBridge {
   Future<bool> isAvailable();
 
+  /// Engine events needed by browser and extension-UI surfaces.
+  Stream<Map<String, Object?>> get events;
+
   Future<Result<Map<String, Object?>>> invoke(
     String method, [
     Map<String, Object?> arguments = const <String, Object?>{},
@@ -41,9 +44,14 @@ final class Cs3EngineBridge implements CloudStreamBridge {
 
   Cs3Engine? _engine;
   Future<Cs3Engine>? _starting;
-  StreamSubscription<Map<String, dynamic>>? _events;
+  StreamSubscription<Map<String, dynamic>>? _engineEvents;
+  final StreamController<Map<String, Object?>> _reportedEvents =
+      StreamController<Map<String, Object?>>.broadcast();
   bool _handshaken = false;
   bool _disposed = false;
+
+  @override
+  Stream<Map<String, Object?>> get events => _reportedEvents.stream;
 
   Future<Cs3Engine> _runningEngine() async {
     if (_disposed) throw StateError('the CloudStream engine was disposed');
@@ -52,8 +60,8 @@ final class Cs3EngineBridge implements CloudStreamBridge {
     if (current != null && current.isRunning) return current;
     _engine = null;
     _handshaken = false;
-    await _events?.cancel();
-    _events = null;
+    await _engineEvents?.cancel();
+    _engineEvents = null;
 
     final pending = _starting;
     if (pending != null) return pending;
@@ -67,7 +75,7 @@ final class Cs3EngineBridge implements CloudStreamBridge {
         throw StateError('the CloudStream engine was disposed');
       }
       _engine = started;
-      _events = started.events.listen(
+      _engineEvents = started.events.listen(
         (event) => _onEvent(started, event),
         onError: (Object error, StackTrace stackTrace) {
           AppLog.error(
@@ -111,6 +119,9 @@ final class Cs3EngineBridge implements CloudStreamBridge {
   }
 
   void _onEvent(Cs3Engine engine, Map<String, dynamic> event) {
+    if (!_reportedEvents.isClosed) {
+      _reportedEvents.add(Map<String, Object?>.from(event));
+    }
     final type = readString(event['event']) ?? 'unknown';
     if (type == 'repositoryAdded') {
       AppLog.warn(
@@ -222,8 +233,9 @@ final class Cs3EngineBridge implements CloudStreamBridge {
     final pending = _starting;
     final current = _engine;
     _engine = null;
-    await _events?.cancel();
-    _events = null;
+    await _engineEvents?.cancel();
+    _engineEvents = null;
+    await _reportedEvents.close();
     if (current != null) {
       await current.dispose();
     } else if (pending != null) {

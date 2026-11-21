@@ -31,9 +31,10 @@ is ever built that way.
 
 ### CloudStream is one protocol over platform-specific hosts
 
-`.cs3` extensions are Kotlin/DEX compiled against CloudStream's library.
-`packages/cs3_engine`, vendored from SkyStream, makes that same extension format
-runnable on every native target:
+`.cs3` extensions are Kotlin/DEX compiled against CloudStream's library. They
+arrive either as a raw DEX or, when they carry Android resources, as a ZIP with
+`classes.dex`, `resources.arsc` and compiled `res/*`. `packages/cs3_engine`,
+vendored from SkyStream, makes both forms runnable on every native target:
 
 | Target | Execution model |
 | --- | --- |

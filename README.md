@@ -10,7 +10,7 @@ It runs three plugin ecosystems behind one unified interface:
 | --- | --- | --- | --- |
 | **SkyStream** | `.sky` (zip: `plugin.json` + `plugin.js`) | Sandboxed JavaScript | Android, iOS, desktop |
 | **Vega** | provider modules (`posts.js`, `stream.js`, …) | Sandboxed JavaScript | Android, iOS, desktop |
-| **CloudStream** | `.cs3` (Kotlin/DEX) | SkyStream `cs3_engine`: DEX in-process on Android, JVM sidecar on desktop, embedded OpenJDK Zero on iOS | Android, iOS, macOS, Windows, Linux |
+| **CloudStream** | `.cs3` (raw DEX, or a ZIP with `classes.dex` and resources) | SkyStream `cs3_engine`: DEX in-process on Android, JVM sidecar on desktop, embedded OpenJDK Zero on iOS | Android, iOS, macOS, Windows, Linux |
 
 Each ecosystem's availability is reported per device in Settings › Platform.
 CloudStream is marked runnable only after the packaged engine answers its
@@ -39,7 +39,10 @@ compatibility engine pinned to commit `f5523ae07d729b579be30976df8783a0b98c4559`
 Its source, notices and license ship in-tree; see `packages/cs3_engine/ORIGIN.md`.
 The remaining compatibility gaps are listed honestly in
 `docs/PLUGIN_SPEC.md`, especially extension browser/UI events that still need
-an AeroStream surface.
+an AeroStream surface. CI also runs a packaged Linux executable through a real,
+compiled, resource-bearing `.cs3`: repository discovery, installation, provider
+registration, Home, search, details and `loadLinks`. That is not a substitute
+for playback validation on physical devices.
 
 JavaScript plugins run on QuickJS, one isolate per plugin, behind a bridge that
 only exposes HTTP, HTML parsing, hashing, base64 and namespaced storage.

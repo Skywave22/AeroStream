@@ -197,7 +197,8 @@ jobs:
   # virtual display with AEROSTREAM_SELFCHECK=1, which drives the real stores,
   # the real sandbox and the real install path — resolve `Universe`, install a
   # `.sky`, ask it for its home screen, then the same for Vega, and finally
-  # start the packaged CloudStream JVM sidecar and require its `hello` reply.
+  # publish a compiled resource-bearing `.cs3` to the packaged app: discover
+  # its repository, install/load it, and require Home, search, details and links.
   run-linux:
     name: Run Linux app (self-check)
     runs-on: ubuntu-latest
@@ -243,7 +244,8 @@ jobs:
         id: selfcheck
         run: |
           set +e
-          AEROSTREAM_SELFCHECK=1 timeout 900 xvfb-run -a \
+          AEROSTREAM_CS3_FIXTURE="$GITHUB_WORKSPACE/packages/cs3_engine/engine/test-fixtures/SkyStreamTest.cs3" \
+            AEROSTREAM_SELFCHECK=1 timeout 900 xvfb-run -a \
             ./build/linux/x64/debug/bundle/aerostream > /tmp/selfcheck.log 2>&1
           status=$?
           cat /tmp/selfcheck.log

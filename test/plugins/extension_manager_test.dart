@@ -139,6 +139,18 @@ void main() {
   group('CloudStream install', () {
     List<int> dexBytes() => <int>[0x64, 0x65, 0x78, 0x0A, 0x30, 0x33, 0x35];
 
+    List<int> packagedCs3({bool includeDex = true}) {
+      final archive = Archive();
+      if (includeDex) {
+        final dex = dexBytes();
+        archive.addFile(ArchiveFile('classes.dex', dex.length, dex));
+      }
+      archive.addFile(
+        ArchiveFile('resources.arsc', 4, <int>[0x02, 0x00, 0x0C, 0x00]),
+      );
+      return ZipEncoder().encode(archive)!;
+    }
+
     test('installs a .cs3 DEX', () async {
       http.routes['https://example.com/Provider.bin'] = dexBytes();
       final result = await manager().install(
@@ -150,13 +162,36 @@ void main() {
       expect(artifacts.installed.values.single.keys, contains('plugin.cs3'));
     });
 
-    test('rejects a file that is not DEX', () async {
+    test('installs a resource-bearing packaged .cs3', () async {
+      http.routes['https://example.com/Provider.bin'] = packagedCs3();
+
+      final result = await manager().install(
+        listing(id: 'Provider', ecosystem: PluginEcosystem.cloudstream),
+      );
+
+      expect(result.isOk, isTrue, reason: result.errorOrNull?.toString());
+      expect(artifacts.installed.values.single, contains('plugin.cs3'));
+    });
+
+    test('rejects a file that is neither DEX nor a packaged extension',
+        () async {
       http.routes['https://example.com/Provider.bin'] = utf8.encode('<html>');
       final result = await manager().install(
         listing(id: 'Provider', ecosystem: PluginEcosystem.cloudstream),
       );
       expect(result.isErr, isTrue);
-      expect(result.errorOrNull!.message, contains('DEX'));
+      expect(result.errorOrNull!.message, contains('neither a DEX'));
+    });
+
+    test('rejects a packaged extension without classes.dex', () async {
+      http.routes['https://example.com/Provider.bin'] = packagedCs3(
+        includeDex: false,
+      );
+      final result = await manager().install(
+        listing(id: 'Provider', ecosystem: PluginEcosystem.cloudstream),
+      );
+      expect(result.isErr, isTrue);
+      expect(result.errorOrNull!.message, contains('classes.dex'));
     });
 
     test(
