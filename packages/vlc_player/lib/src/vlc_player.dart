@@ -215,7 +215,12 @@ class _VlcPlayerState extends State<VlcPlayer> {
                 ),
               );
             }
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: Text(
+                'Loading…',
+                style: TextStyle(color: Color(0x99FFFFFF)),
+              ),
+            );
           },
         ),
       );
