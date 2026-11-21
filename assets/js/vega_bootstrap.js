@@ -128,16 +128,23 @@
 
   function createInstance(defaults) {
     var base = defaults || {};
-    function instance(config) {
+    function instance(config, extraConfig) {
+      // Axios is callable in two forms: `axios(config)` and
+      // `axios(url, config)`. HubCloud uses the second form. Treating its URL
+      // string as the config object iterated the string's character indexes and
+      // sent `{url: ''}` to the host at the final extraction step.
+      var supplied = typeof config === 'string'
+        ? Object.assign({}, extraConfig || {}, { url: config })
+        : (config || {});
       var merged = {};
       var key;
       for (key in base) {
         if (Object.prototype.hasOwnProperty.call(base, key)) merged[key] = base[key];
       }
-      for (key in config || {}) {
-        if (Object.prototype.hasOwnProperty.call(config, key)) merged[key] = config[key];
+      for (key in supplied) {
+        if (Object.prototype.hasOwnProperty.call(supplied, key)) merged[key] = supplied[key];
       }
-      merged.headers = Object.assign({}, base.headers || {}, (config && config.headers) || {});
+      merged.headers = Object.assign({}, base.headers || {}, supplied.headers || {});
       return request(merged);
     }
     instance.request = request;

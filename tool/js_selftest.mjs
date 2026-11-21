@@ -399,6 +399,12 @@ await run('Vega CommonJS providers', async () => {
       var $ = cheerio.load(response.data);
       return $('.card').map(function (i, el) { return { title: $(el).text().trim(), link: $(el).attr('href') }; }).get().filter(Boolean);
     };
+    exports.getCallable = async function () {
+      var response = await axios('https://example.com/hubcloud', {
+        headers: { Referer: 'https://example.com/' }
+      });
+      return response.data;
+    };
     exports.getStream = async function (args) {
       return [{ server: 'Vega', link: 'https://cdn.example/x.m3u8', type: 'm3u8', quality: '1080' }];
     };`;
@@ -424,6 +430,28 @@ await run('Vega CommonJS providers', async () => {
   check('provider runs end to end',
     Array.isArray(result.value) && result.value.length === 2, JSON.stringify(result));
   check('provider sees parsed titles', result.value[0].title === 'One', JSON.stringify(result.value));
+
+  let callableRequest;
+  const callable = await invoke(
+    context,
+    '__vegaCall',
+    ['posts', 'getCallable', '{}'],
+    (message) => {
+      callableRequest = JSON.parse(message.payload);
+      return { status: 200, body: 'hubcloud page', headers: {} };
+    },
+  );
+  check(
+    'axios(url, config) sends the URL instead of an empty request',
+    callableRequest.url === 'https://example.com/hubcloud',
+    JSON.stringify(callableRequest),
+  );
+  check(
+    'axios(url, config) keeps request headers',
+    callableRequest.headers.Referer === 'https://example.com/',
+    JSON.stringify(callableRequest),
+  );
+  check('axios(url, config) returns response data', callable.value === 'hubcloud page');
 
   const streams = await invoke(context, '__vegaCall', ['posts', 'getStream', '{}']);
   check('getStream maps through', streams.value[0].quality === '1080', JSON.stringify(streams));
