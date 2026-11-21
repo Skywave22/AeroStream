@@ -117,6 +117,8 @@ final class JsHostApi {
         return _httpRequest(payload, method: 'GET');
       case 'http:post':
         return _httpRequest(payload, method: 'POST');
+      case 'http:head':
+        return _httpRequest(payload, method: 'HEAD');
       case 'http:batch':
         return _batch(payload);
       case 'html:parse':
@@ -218,10 +220,34 @@ final class JsHostApi {
       }
     }
 
+    // Providers that walk redirect chains themselves (resolution
+    // shortening services, CDN signing) ask for the raw 3xx and its
+    // Location header; everything else keeps the historical follow.
+    final followRedirects = payload['followRedirects'] != false;
+
     final started = DateTime.now();
-    final response = method == 'POST'
-        ? await _http.post(uri, body: payload['body'], headers: headers)
-        : await _http.get(uri, headers: headers);
+    final Future<Result<HttpPayload>> responseFuture;
+    if (method == 'POST') {
+      responseFuture = _http.post(
+        uri,
+        body: payload['body'],
+        headers: headers,
+        followRedirects: followRedirects,
+      );
+    } else if (method == 'HEAD') {
+      responseFuture = _http.head(
+        uri,
+        headers: headers,
+        followRedirects: followRedirects,
+      );
+    } else {
+      responseFuture = _http.get(
+        uri,
+        headers: headers,
+        followRedirects: followRedirects,
+      );
+    }
+    final response = await responseFuture;
     final elapsed = DateTime.now().difference(started);
 
     switch (response) {
@@ -257,7 +283,7 @@ final class JsHostApi {
     final results = <Object?>[];
     for (final request in requests) {
       if (request is! Map) continue;
-      final uri = Uri.tryParse(request['url']?.toString() ?? '');
+      final uri = _resolve(request['url']?.toString());
       if (uri == null) {
         results.add(<String, Object?>{'error': 'invalid url'});
         continue;
@@ -298,10 +324,11 @@ final class JsHostApi {
     final id = 'doc${++_documentSeq}';
     _documents[id] = document;
     if (_documents.length > 20) {
-      // Keep the oldest 10 only: a plugin parsing thousands of pages would
-      // otherwise hold the whole heap.
-      final keys = _documents.keys.toList()..sort();
-      for (final key in keys.take(_documents.length - 10)) {
+      // Keep the newest 10 only: a plugin parsing thousands of pages would
+      // otherwise hold the whole heap. Map iteration order is insertion
+      // order, so the first keys are the oldest documents.
+      final excess = _documents.keys.length - 10;
+      for (final key in _documents.keys.toList().take(excess)) {
         _documents.remove(key);
       }
     }

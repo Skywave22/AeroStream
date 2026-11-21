@@ -60,6 +60,29 @@
     if (match) lastOrigin = match[1];
   }
 
+  // Query parameters, the axios way: scalars only, null/undefined dropped,
+  // arrays repeated. Appended before the request leaves, so the host never
+  // sees a half-built query string.
+  function appendParams(url, params) {
+    if (!params || typeof params !== 'object') return url;
+    var parts = [];
+    for (var key in params) {
+      if (!Object.prototype.hasOwnProperty.call(params, key)) continue;
+      var value = params[key];
+      if (value === undefined || value === null) continue;
+      if (Array.isArray(value)) {
+        for (var i = 0; i < value.length; i++) {
+          parts.push(encodeURIComponent(key) + '=' + encodeURIComponent(String(value[i])));
+        }
+      } else {
+        parts.push(encodeURIComponent(key) + '=' + encodeURIComponent(String(value)));
+      }
+    }
+    if (!parts.length) return url;
+    var query = parts.join('&');
+    return url + (url.indexOf('?') === -1 ? '?' : (url.endsWith('&') || url.endsWith('?') ? '' : '&')) + query;
+  }
+
   function request(config) {
     var options = config || {};
     var headers = options.headers || {};
@@ -69,12 +92,17 @@
       url = String(options.baseURL).replace(/\/+$/, '') + '/' + String(options.url).replace(/^\/+/, '');
     }
 
+    url = appendParams(url, options.params);
     url = absoluteUrl(url);
-    var channel = method === 'POST' ? 'http:post' : 'http:get';
+    var channel = method === 'POST' ? 'http:post' : (method === 'HEAD' ? 'http:head' : 'http:get');
     var payload = JSON.stringify({
       url: url,
       headers: headers,
-      body: options.data
+      body: options.data,
+      // Providers read redirects themselves (`maxRedirects: 0` + the Location
+      // header, or validateStatus over 3xx). The host honours the flag per
+      // request; everything else keeps the default safe following.
+      followRedirects: options.maxRedirects === 0 ? false : undefined
     });
 
     return sendMessage(channel, payload).then(function (response) {
@@ -117,7 +145,9 @@
       return instance(Object.assign({}, config || {}, { url: url, method: 'GET' }));
     };
     instance.delete = instance.get;
-    instance.head = instance.get;
+    instance.head = function (url, config) {
+      return instance(Object.assign({}, config || {}, { url: url, method: 'HEAD' }));
+    };
     instance.post = function (url, data, config) {
       return instance(Object.assign({}, config || {}, { url: url, method: 'POST', data: data }));
     };
@@ -187,7 +217,11 @@
       // Vega's own context names the crypto module `Crypto` and the shared
       // platform headers `commonHeaders`; providers destructure those names.
       Crypto: cryptoShim,
-      commonHeaders: {},
+      commonHeaders: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9'
+      },
       utils: utils,
       providerValue: providerValue === undefined ? null : providerValue,
       getBaseUrl: function () { return Promise.resolve(lastOrigin); },

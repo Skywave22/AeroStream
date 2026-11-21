@@ -26,6 +26,7 @@ final class FakeHttpService implements HttpService {
   Future<Result<HttpPayload>> get(
     Uri url, {
     Map<String, String>? headers,
+    bool followRedirects = true,
   }) async {
     requested.add(url.toString());
     // Exact URL first, then the same URL without its query: providers that
@@ -59,8 +60,17 @@ final class FakeHttpService implements HttpService {
     Uri url, {
     Object? body,
     Map<String, String>? headers,
+    bool followRedirects = true,
   }) =>
       get(url, headers: headers);
+
+  @override
+  Future<Result<HttpPayload>> head(
+    Uri url, {
+    Map<String, String>? headers,
+    bool followRedirects = true,
+  }) async =>
+      get(url, headers: headers, followRedirects: followRedirects);
 
   /// URL -> redirect target, for shortcode resolution in tests.
   final Map<String, String> redirects = <String, String>{};

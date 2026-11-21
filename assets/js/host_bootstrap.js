@@ -558,12 +558,44 @@
     }
   };
 
+  // Base64 the way the web platform defines it — synchronously. The bridge is
+  // promise-shaped, so these cannot cross it: SkyStream ships pure-JS
+  // implementations for exactly this reason.
+  var B64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
   globalThis.atob = function (input) {
-    return sendMessage('text:b64decode', JSON.stringify({ input: String(input) }));
+    var text = String(input === undefined || input === null ? '' : input).replace(/\s+/g, '');
+    var output = [];
+    var buffer = 0, bits = 0;
+    for (var i = 0; i < text.length; i++) {
+      var ch = text.charAt(i);
+      if (ch === '=') break;
+      var value = B64_ALPHABET.indexOf(ch);
+      if (value < 0) throw new Error("Failed to execute 'atob' on 'Window': The string to be decoded contains characters outside of the Latin1 range.");
+      buffer = (buffer << 6) | value;
+      bits += 6;
+      if (bits >= 8) {
+        bits -= 8;
+        output.push(String.fromCharCode((buffer >>> bits) & 0xff));
+      }
+    }
+    return output.join('');
   };
-
   globalThis.btoa = function (input) {
-    return sendMessage('text:b64encode', JSON.stringify({ input: String(input) }));
+    var text = String(input === undefined || input === null ? '' : input);
+    var output = '';
+    for (var i = 0; i < text.length; i += 3) {
+      var a = text.charCodeAt(i);
+      var b = i + 1 < text.length ? text.charCodeAt(i + 1) : NaN;
+      var c = i + 2 < text.length ? text.charCodeAt(i + 2) : NaN;
+      if (a > 0xff || (b === b && b > 0xff) || (c === c && c > 0xff)) {
+        throw new Error("Failed to execute 'btoa' on 'Window': The string to be encoded contains characters outside of the Latin1 range.");
+      }
+      var n = (a << 16) | ((isNaN(b) ? 0 : b) << 8) | (isNaN(c) ? 0 : c);
+      output += B64_ALPHABET.charAt((n >>> 18) & 63) + B64_ALPHABET.charAt((n >>> 12) & 63);
+      output += isNaN(b) ? '=' : B64_ALPHABET.charAt((n >>> 6) & 63);
+      output += isNaN(c) ? '=' : B64_ALPHABET.charAt(n & 63);
+    }
+    return output;
   };
 
   // ---- storage ----------------------------------------------------------
@@ -607,24 +639,93 @@
     return bytes;
   };
 
-  if (typeof globalThis.URL === 'undefined') {
-    globalThis.URL = function (url, base) {
-      var full = String(url);
-      if (base && full.indexOf('://') < 0) {
-        full = String(base).replace(/\/+$/, '') + '/' + full.replace(/^\/+/, '');
-      }
-      var match = /^([a-z]+):\/\/([^/?#]+)([^?#]*)(\?[^#]*)?(#.*)?$/i.exec(full);
-      this.href = full;
-      this.protocol = match ? match[1] + ':' : '';
-      this.host = match ? match[2] : '';
-      this.hostname = match ? match[2].split(':')[0] : '';
-      this.pathname = match ? (match[3] || '/') : '';
-      this.search = match && match[4] ? match[4] : '';
-      this.hash = match && match[5] ? match[5] : '';
-      this.searchParams = new globalThis.URLSearchParams(this.search);
-    };
-    globalThis.URL.prototype.toString = function () { return this.href; };
+  function removeDotSegments(path) {
+    var segments = String(path).split('/');
+    var out = [];
+    for (var i = 0; i < segments.length; i++) {
+      var segment = segments[i];
+      if (segment === '.') continue;
+      if (segment === '..') { out.pop(); continue; }
+      out.push(segment);
+    }
+    var joined = out.join('/');
+    if (path.charAt(0) === '/' && joined.charAt(0) !== '/') joined = '/' + joined;
+    // A trailing slash on input is significant for directories.
+    if (path.length > 1 && path.charAt(path.length - 1) === '/' && joined.charAt(joined.length - 1) !== '/') joined += '/';
+    return joined;
   }
+
+  function parseUrl(href) {
+    var match = /^([a-zA-Z][a-zA-Z0-9+.-]*):\/\/([^/?#]*)([^?#]*)(\?[^#]*)?(#.*)?$/.exec(href);
+    if (!match) throw new Error('Invalid URL');
+    var authority = match[2];
+    var path = match[3] || '/';
+    path = removeDotSegments(path);
+    if (path.charAt(0) !== '/') path = '/' + path;
+    var hostParts = authority.split('@'); // strip userinfo
+    var host = hostParts[hostParts.length - 1];
+    var port = '';
+    var portIndex = host.lastIndexOf(':');
+    if (portIndex >= 0 && /^[0-9]+$/.test(host.slice(portIndex + 1))) {
+      port = host.slice(portIndex + 1);
+      host = host.slice(0, portIndex);
+    }
+    return {
+      protocol: match[1].toLowerCase() + ':',
+      host: authority.split('@').pop(),
+      hostname: host.toLowerCase(),
+      port: port,
+      pathname: path,
+      search: match[4] || '',
+      hash: match[5] || ''
+    };
+  }
+
+  globalThis.URL = function (url, base) {
+    var input = String(url === undefined || url === null ? '' : url).trim();
+    if (!input) throw new Error('Invalid URL');
+
+    var baseParts = null;
+    if (base !== undefined) {
+      var baseHref = String(base === undefined || base === null ? '' : base).trim();
+      if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(baseHref)) throw new Error('Invalid URL');
+      baseParts = parseUrl(baseHref);
+    }
+
+    var href;
+    var hasScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(input);
+    if (hasScheme) {
+      if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(input)) throw new Error('Invalid URL');
+      href = input;
+    } else if (!baseParts) {
+      throw new Error('Invalid URL');
+    } else if (input.indexOf('//') === 0) {
+      href = baseParts.protocol + input;
+    } else if (input.charAt(0) === '/') {
+      href = baseParts.protocol + '//' + baseParts.host + removeDotSegments(input);
+    } else if (input.charAt(0) === '?') {
+      href = baseParts.protocol + '//' + baseParts.host + baseParts.pathname + input;
+    } else if (input.charAt(0) === '#') {
+      href = baseParts.protocol + '//' + baseParts.host + baseParts.pathname + baseParts.search + input;
+    } else {
+      var dir = baseParts.pathname.replace(/\/[^/]*$/, '/');
+      href = baseParts.protocol + '//' + baseParts.host + dir + input;
+    }
+
+    var parts = parseUrl(href);
+    this.protocol = parts.protocol;
+    this.host = parts.host;
+    this.hostname = parts.hostname;
+    this.port = parts.port;
+    this.pathname = parts.pathname;
+    this.search = parts.search;
+    this.hash = parts.hash;
+    this.origin = this.protocol + '//' + this.host;
+    this.href = this.origin + this.pathname + this.search + this.hash;
+    this.searchParams = new globalThis.URLSearchParams(this.search);
+  };
+  globalThis.URL.prototype.toString = function () { return this.href; };
+  globalThis.URL.prototype.toJSON = function () { return this.href; };
 
   if (typeof globalThis.URLSearchParams === 'undefined') {
     globalThis.URLSearchParams = function (init) {
@@ -661,6 +762,57 @@
         return out.join('&');
       };
       this.has = function (key) { return self.get(key) !== null; };
+      this.delete = function (key) {
+        self._pairs = self._pairs.filter(function (pair) { return pair[0] !== key; });
+      };
+      this.getAll = function (key) {
+        var out = [];
+        for (var i = 0; i < self._pairs.length; i++) {
+          if (self._pairs[i][0] === key) out.push(self._pairs[i][1]);
+        }
+        return out;
+      };
+      this.forEach = function (fn) {
+        for (var i = 0; i < self._pairs.length; i++) {
+          fn(self._pairs[i][1], self._pairs[i][0], self);
+        }
+      };
+      this.toString = function () {
+        var out = [];
+        for (var i = 0; i < self._pairs.length; i++) {
+          out.push(encodeURIComponent(self._pairs[i][0]) + '=' + encodeURIComponent(self._pairs[i][1]));
+        }
+        return out.join('&');
+      };
+    };
+  }
+
+  // Providers are written against the DOM. They rarely race requests, but
+  // enough of them construct an AbortController at call time that its absence
+  // is a crash, not a feature.
+  if (typeof globalThis.AbortController === 'undefined') {
+    globalThis.AbortController = function () {
+      var listeners = [];
+      var signal = {
+        aborted: false,
+        addEventListener: function (type, fn) { listeners.push(fn); },
+        removeEventListener: function (type, fn) {
+          listeners = listeners.filter(function (entry) { return entry !== fn; });
+        },
+        onabort: null
+      };
+      this.signal = signal;
+      this.abort = function () {
+        if (signal.aborted) return;
+        signal.aborted = true;
+        var copy = listeners.slice();
+        for (var i = 0; i < copy.length; i++) {
+          try { copy[i].call(signal); } catch (e) { /* a listener's failure is not ours */ }
+        }
+        if (typeof signal.onabort === 'function') {
+          try { signal.onabort.call(signal, { type: 'abort' }); } catch (e) { /* ditto */ }
+        }
+      };
     };
   }
 

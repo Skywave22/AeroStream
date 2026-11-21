@@ -208,9 +208,32 @@
     return simple;
   }
 
+  function splitGroups(selector) {
+    var parts = [];
+    var buffer = '';
+    var depth = 0;
+    var quote = '';
+    var text = String(selector);
+    for (var i = 0; i < text.length; i++) {
+      var ch = text.charAt(i);
+      if (quote) {
+        buffer += ch;
+        if (ch === quote) quote = '';
+        continue;
+      }
+      if (ch === '"' || ch === "'") { quote = ch; buffer += ch; continue; }
+      if (ch === '[' || ch === '(') depth++;
+      if (ch === ']' || ch === ')') depth = Math.max(0, depth - 1);
+      if (ch === ',' && depth === 0) { parts.push(buffer); buffer = ''; continue; }
+      buffer += ch;
+    }
+    if (buffer.trim()) parts.push(buffer);
+    return parts;
+  }
+
   function parseSelector(selector) {
     var groups = [];
-    var parts = String(selector).split(',');
+    var parts = splitGroups(selector);
     for (var i = 0; i < parts.length; i++) {
       var group = parts[i].trim();
       if (!group) continue;
@@ -558,6 +581,23 @@
   };
 
   Collection.prototype.toString = function () { return this.text(); };
+
+  // Real cheerio collections are iterable (`for (const el of $(sel))`), and
+  // providers rely on it; indexable alone is not enough.
+  if (typeof Symbol !== 'undefined' && Symbol.iterator) {
+    Collection.prototype[Symbol.iterator] = function () {
+      var nodes = this.nodes;
+      var index = 0;
+      return {
+        next: function () {
+          if (index < nodes.length) {
+            return { value: nodes[index++], done: false };
+          }
+          return { value: undefined, done: true };
+        }
+      };
+    };
+  }
 
   function load(html) {
     var root = parse(html);
