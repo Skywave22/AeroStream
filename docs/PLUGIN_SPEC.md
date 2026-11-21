@@ -51,6 +51,10 @@ resolution is a cascade: the redirect service is asked first, then the Vega
 convention. Exactly one hop is followed and only http(s) targets are accepted —
 a shortcode is not allowed to become a redirect-following primitive.
 
+The token is tried twice: as typed, then lower-cased. Both redirect services
+are case-sensitive and codes are minted in lower case, so `Universe` only
+resolves because of the second attempt. `!code` skips the `cutt.ly` candidates.
+
 ---
 
 ## SkyStream
@@ -114,6 +118,8 @@ Helpers the bootstrap provides to plugin code:
 
 * `sendMessage(channel, payload)` — the only way out of the sandbox (see
   `ARCHITECTURE.md` for the channel table);
+* `fetch(input, init)` — returns a `Response` the way a browser does:
+  `ok`, `status`, `headers.get`, `text()`, `json()`, `clone()`;
 * `manifest` — the parsed `plugin.json`;
 * `console`, `setTimeout`/`setInterval`/`clearTimeout`, `URL`,
   `URLSearchParams`, `TextEncoder`/`TextDecoder`, `btoa`/`atob`;
