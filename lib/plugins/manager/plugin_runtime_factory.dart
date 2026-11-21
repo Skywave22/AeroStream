@@ -257,9 +257,10 @@ final class PluginRuntimeFactory {
       );
     }
 
-    final repositories = _cloudStreamRepositoryLoader == null
+    final repositoryLoader = _cloudStreamRepositoryLoader;
+    final repositories = repositoryLoader == null
         ? cloudStreamRepositories
-        : await _cloudStreamRepositoryLoader!();
+        : await repositoryLoader();
     final repositoryState = await bridge.invoke(
       'setRepositories',
       <String, Object?>{

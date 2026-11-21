@@ -23,7 +23,7 @@ void main() {
     addTearDown(() => upstream.close(force: true));
 
     final pool = SubtitleProxyPool();
-    addTearDown(() => pool.close());
+    addTearDown(pool.close);
     final track = SubtitleTrack(
       url:
           'http://${upstream.address.address}:${upstream.port}/captions/en.srt',

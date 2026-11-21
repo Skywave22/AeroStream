@@ -30,7 +30,7 @@ final class SubtitleProxyPool {
     try {
       return (await pending).playbackUri;
     } catch (_) {
-      _proxies.remove(key);
+      _proxies.remove(key)?.ignore();
       rethrow;
     }
   }

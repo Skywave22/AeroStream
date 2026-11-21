@@ -142,6 +142,7 @@ import glob
 import os
 import plistlib
 import re
+import xml.etree.ElementTree as ET
 
 def patch(path, marker, transform):
     if not os.path.exists(path):
@@ -174,13 +175,19 @@ def android(text):
 
 def cloudstream_application(text):
     # Stops extension-requested process restarts without killing the app, and
-    # installs the CloudStream compatibility context used by cs3_engine.
-    return re.sub(
-        r"<application\b",
-        '<application android:name="dev.akash.cs3engine.android.ExtensionHostApplication"',
-        text,
-        count=1,
-    )
+    # installs the CloudStream compatibility context used by cs3_engine. Modern
+    # Flutter templates already carry android:name="${applicationName}"; replace
+    # that attribute instead of producing invalid XML with the name twice.
+    application = re.search(r"<application\b[^>]*>", text, re.DOTALL)
+    if application is None:
+        return text
+    tag = application.group(0)
+    name = 'android:name="dev.akash.cs3engine.android.ExtensionHostApplication"'
+    if re.search(r'android:name="[^"]*"', tag):
+        patched_tag = re.sub(r'android:name="[^"]*"', name, tag, count=1)
+    else:
+        patched_tag = tag.replace("<application", f"<application {name}", 1)
+    return text[:application.start()] + patched_tag + text[application.end():]
 
 
 def android_appcompat_themes(path):
@@ -288,6 +295,19 @@ patch(
 )
 for styles in glob.glob("android/app/src/main/res/values*/styles.xml"):
     android_appcompat_themes(styles)
+
+# Parse the finished file now, before Gradle's expensive manifest-merger step.
+# This also rejects duplicate attributes, which caused the first Android build
+# after adding ExtensionHostApplication to fail with an opaque merger error.
+android_manifest = "android/app/src/main/AndroidManifest.xml"
+manifest_root = ET.parse(android_manifest).getroot()
+android_namespace = "{http://schemas.android.com/apk/res/android}"
+application = manifest_root.find("application")
+assert application is not None, "Android manifest has no <application>"
+assert application.get(f"{android_namespace}name") == (
+    "dev.akash.cs3engine.android.ExtensionHostApplication"
+), "Android manifest does not select ExtensionHostApplication"
+print(f"    parsed {android_manifest}")
 
 
 def apple_plist(path):
