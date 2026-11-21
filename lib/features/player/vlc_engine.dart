@@ -5,15 +5,16 @@ import 'package:vlc_player/vlc_player.dart';
 
 import '../../core/logging/app_log.dart';
 import '../../domain/entities/stream_source.dart';
+import 'media_header_proxy.dart';
 import 'playback_engine.dart';
 import 'player_chrome.dart';
 
 /// libVLC: the default engine.
 ///
 /// It forgives the most about broken manifests, handles RTSP/RTP and odd
-/// containers mpv trips on, and is what SkyStream drives — but it can only
-/// send `User-Agent` and `Referer` per source. Sources requiring other headers
-/// must be routed through AeroStream's header-injecting proxy before playback.
+/// containers mpv trips on, and is what SkyStream drives. libVLC 3 only sends
+/// User-Agent and Referer itself; the surface transparently proxies HTTP media
+/// when a plugin requires Cookie, Authorization, Origin, or a custom header.
 final class VlcPlaybackEngine implements PlaybackEngine {
   VlcPlaybackEngine();
 
@@ -89,7 +90,9 @@ class VlcSurface extends StatefulWidget {
 class _VlcSurfaceState extends State<VlcSurface> {
   static const Duration _reportEvery = Duration(seconds: 5);
 
-  late final VlcPlayerController _controller = _createController();
+  VlcPlayerController? _controller;
+  MediaHeaderProxy? _proxy;
+  Object? _setupError;
   Timer? _reportTimer;
   Duration _lastPosition = Duration.zero;
   Duration _lastDuration = Duration.zero;
@@ -104,41 +107,73 @@ class _VlcSurfaceState extends State<VlcSurface> {
   bool _tracksLoading = false;
   VlcVideoFit _fit = VlcVideoFit.contain;
 
-  VlcPlayerController _createController() {
-    final source = widget.source;
-    // libVLC only transmits User-Agent and Referer; everything else the
-    // plugin asked for is silently dropped by the engine, so say so once
-    // instead of letting a CDN answer 403 with no clue why.
-    final dropped = unsupportedVlcHeaders(source.headers);
-    if (dropped.isNotEmpty) {
-      AppLog.info(
-        'libVLC cannot send these headers; opening without them: '
-        '${dropped.join(', ')}',
-      );
-    }
-    return VlcPlayerController(
-      mediaSource: VlcMediaSource(
-        uri: Uri.parse(source.url),
-        httpHeaders: source.headers,
-        startPosition: widget.startAt ?? Duration.zero,
-        isLive: source.isLive,
-      ),
-      autoPlay: true,
-    );
-  }
-
   @override
   void initState() {
     super.initState();
-    _reportTimer = Timer.periodic(_reportEvery, (_) => _report());
-    _controller.addListener(_onValue);
-    // Track lists arrive after the media is known; the revision counter is
-    // the signal that they exist.
-    unawaited(_refreshTracks());
+    unawaited(_prepare());
+  }
+
+  Future<void> _prepare() async {
+    final source = widget.source;
+    final sourceUri = Uri.parse(source.url);
+    final dropped = unsupportedVlcHeaders(source.headers);
+    var mediaUri = sourceUri;
+    var mediaHeaders = source.headers;
+    MediaHeaderProxy? proxy;
+    try {
+      final canProxy =
+          sourceUri.scheme == 'http' || sourceUri.scheme == 'https';
+      if (canProxy && (dropped.isNotEmpty || source.requiresProxy)) {
+        proxy = await MediaHeaderProxy.start(
+          upstream: sourceUri,
+          headers: source.headers,
+        );
+        mediaUri = proxy.playbackUri;
+        // The loopback proxy, rather than libVLC, sends the source identity.
+        mediaHeaders = const <String, String>{};
+        AppLog.info(
+          'Routing libVLC through the local media proxy for: '
+          '${dropped.isEmpty ? 'playlist rewriting' : dropped.join(', ')}',
+        );
+      } else if (dropped.isNotEmpty) {
+        AppLog.warn(
+          'libVLC cannot send these headers for ${sourceUri.scheme}: '
+          '${dropped.join(', ')}',
+        );
+      }
+
+      if (!mounted) {
+        await proxy?.close();
+        return;
+      }
+      final controller = VlcPlayerController(
+        mediaSource: VlcMediaSource(
+          uri: mediaUri,
+          httpHeaders: mediaHeaders,
+          startPosition: widget.startAt ?? Duration.zero,
+          isLive: source.isLive,
+        ),
+        autoPlay: true,
+      );
+      _proxy = proxy;
+      _controller = controller;
+      controller.addListener(_onValue);
+      _reportTimer = Timer.periodic(_reportEvery, (_) => _report());
+      setState(() {});
+      // Track lists arrive after the media is known; the revision counter is
+      // the signal that they exist.
+      unawaited(_refreshTracks());
+    } on Object catch (error) {
+      await proxy?.close();
+      if (!mounted) return;
+      setState(() => _setupError = error);
+    }
   }
 
   void _onValue() {
-    final value = _controller.value;
+    final controller = _controller;
+    if (controller == null) return;
+    final value = controller.value;
     if (value.trackRevision != _trackRevision && !_tracksLoading) {
       unawaited(_refreshTracks());
     }
@@ -148,16 +183,17 @@ class _VlcSurfaceState extends State<VlcSurface> {
   }
 
   Future<void> _refreshTracks() async {
-    if (_tracksLoading) return;
+    final controller = _controller;
+    if (controller == null || _tracksLoading) return;
     _tracksLoading = true;
     try {
-      final audio = await _controller.getAudioTracks();
-      final subtitles = await _controller.getSubtitleTracks();
-      if (!mounted) return;
+      final audio = await controller.getAudioTracks();
+      final subtitles = await controller.getSubtitleTracks();
+      if (!mounted || controller != _controller) return;
       setState(() {
         _audioTracks = audio;
         _subtitleTracks = subtitles;
-        _trackRevision = _controller.value.trackRevision;
+        _trackRevision = controller.value.trackRevision;
       });
     } on Object catch (error) {
       // Track enumeration failing is not a reason to stop the film; the
@@ -169,7 +205,9 @@ class _VlcSurfaceState extends State<VlcSurface> {
   }
 
   void _report() {
-    final value = _controller.value;
+    final controller = _controller;
+    if (controller == null) return;
+    final value = controller.value;
     _lastPosition = value.position;
     _lastDuration = value.duration;
     final callback = widget.onProgress;
@@ -197,30 +235,33 @@ class _VlcSurfaceState extends State<VlcSurface> {
   }
 
   String? get _currentSubtitleId {
+    final controller = _controller;
     if (_externalSubtitleUrl != null) return 'file:$_externalSubtitleUrl';
-    final active = _controller.value.activeSubtitleTrackId;
+    final active = controller?.value.activeSubtitleTrackId;
     return active == null ? null : 'vlc:$active';
   }
 
   Future<void> _onSubtitleChanged(String? id) async {
+    final controller = _controller;
+    if (controller == null) return;
     try {
       if (id == null) {
         _externalSubtitleUrl = null;
-        await _controller.disableSubtitle();
+        await controller.disableSubtitle();
         if (mounted) setState(() {});
         return;
       }
       if (id.startsWith('file:')) {
         final url = id.substring('file:'.length);
         _externalSubtitleUrl = url;
-        await _controller.addSubtitle(Uri.parse(url));
+        await controller.addSubtitle(Uri.parse(url));
         if (mounted) setState(() {});
         return;
       }
       final nativeId = int.tryParse(id.substring('vlc:'.length));
       if (nativeId == null) return;
       _externalSubtitleUrl = null;
-      await _controller.setSubtitleTrack(nativeId);
+      await controller.setSubtitleTrack(nativeId);
       if (mounted) setState(() {});
     } on Object catch (error) {
       AppLog.warn('Could not set subtitles: $error');
@@ -228,10 +269,12 @@ class _VlcSurfaceState extends State<VlcSurface> {
   }
 
   Future<void> _onAudioChanged(String id) async {
+    final controller = _controller;
+    if (controller == null) return;
     final nativeId = int.tryParse(id.substring('vlc:'.length));
     if (nativeId == null) return;
     try {
-      await _controller.setAudioTrack(nativeId);
+      await controller.setAudioTrack(nativeId);
     } on Object catch (error) {
       AppLog.warn('Could not set audio track: $error');
     }
@@ -249,12 +292,14 @@ class _VlcSurfaceState extends State<VlcSurface> {
   }
 
   Future<void> _togglePlay() async {
-    final value = _controller.value;
+    final controller = _controller;
+    if (controller == null) return;
+    final value = controller.value;
     try {
       if (value.isPlaying) {
-        await _controller.pause();
+        await controller.pause();
       } else {
-        await _controller.play();
+        await controller.play();
       }
     } on Object catch (error) {
       AppLog.warn('libVLC command failed: $error');
@@ -262,25 +307,31 @@ class _VlcSurfaceState extends State<VlcSurface> {
   }
 
   Future<void> _seek(Duration position) async {
+    final controller = _controller;
+    if (controller == null) return;
     try {
-      await _controller.seekTo(position);
+      await controller.seekTo(position);
     } on Object catch (error) {
       AppLog.debug('Seek failed: $error');
     }
   }
 
   Future<void> _setVolume(double volume) async {
+    final controller = _controller;
+    if (controller == null) return;
     try {
       // libVLC goes to 200 (amplification); the slider stays on 0..100.
-      await _controller.setVolume(volume.round().clamp(0, 100));
+      await controller.setVolume(volume.round().clamp(0, 100));
     } on Object catch (error) {
       AppLog.debug('Volume failed: $error');
     }
   }
 
   Future<void> _setSpeed(double speed) async {
+    final controller = _controller;
+    if (controller == null) return;
     try {
-      await _controller.setPlaybackSpeed(speed);
+      await controller.setPlaybackSpeed(speed);
     } on Object catch (error) {
       AppLog.debug('Speed failed: $error');
     }
@@ -290,15 +341,23 @@ class _VlcSurfaceState extends State<VlcSurface> {
   void dispose() {
     _reportTimer?.cancel();
     _report();
-    _controller.removeListener(_onValue);
-    _controller.dispose();
+    final controller = _controller;
+    controller?.removeListener(_onValue);
+    controller?.dispose();
+    unawaited(_proxy?.close());
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final setupError = _setupError;
+    if (setupError != null) {
+      return _VlcPlaybackFailure(message: '$setupError');
+    }
+    final controller = _controller;
+    if (controller == null) return const _VlcPreparing();
     return ValueListenableBuilder<VlcPlayerValue>(
-      valueListenable: _controller,
+      valueListenable: controller,
       builder: (context, value, child) {
         if (value.hasError) {
           return _VlcPlaybackFailure(
@@ -351,9 +410,33 @@ class _VlcSurfaceState extends State<VlcSurface> {
           onFullscreenChanged: widget.onFullscreenChanged,
           fullscreen: widget.fullscreen,
           isLive: value.isLive,
-          child: VlcPlayer(controller: _controller, fit: _fit),
+          child: VlcPlayer(controller: controller, fit: _fit),
         );
       },
+    );
+  }
+}
+
+class _VlcPreparing extends StatelessWidget {
+  const _VlcPreparing();
+
+  @override
+  Widget build(BuildContext context) {
+    return const ColoredBox(
+      color: Colors.black,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(color: Colors.white70),
+            SizedBox(height: 12),
+            Text(
+              'Preparing libVLC…',
+              style: TextStyle(color: Colors.white70),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
