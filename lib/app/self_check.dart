@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/entities/enums.dart';
 import '../domain/entities/home_section.dart';
+import '../domain/entities/media_item.dart';
 import '../domain/entities/plugin_repository.dart';
 import '../domain/media_provider.dart';
 import 'providers.dart';
@@ -201,17 +202,20 @@ Future<void> _checkVega(
   await _reportHome(report, provider);
 }
 
-Future<void> _reportHome(_Report report, MediaProvider provider) async {
+Future<List<HomeSection>> _reportHome(
+  _Report report,
+  MediaProvider provider,
+) async {
   final home = await provider.getHome();
   final sections = home.valueOrNull;
   if (sections == null) {
     report.fail('getHome answers', home.errorOrNull);
-    return;
+    return const <HomeSection>[];
   }
   final items = sections.fold<int>(0, (sum, s) => sum + s.items.length);
   if (sections.isEmpty || items == 0) {
     report.fail('getHome answers', 'no sections or no items');
-    return;
+    return const <HomeSection>[];
   }
   report.expect(
     true,
@@ -223,7 +227,46 @@ Future<void> _reportHome(_Report report, MediaProvider provider) async {
     final first = section.items.isEmpty ? '—' : section.items.first.title;
     stdout.writeln('  row  ${section.title}: $count · $first');
   }
+  await _reportStreams(report, provider, sections);
   await provider.dispose();
+  return sections;
+}
+
+/// The last mile before playback: a playable URL for one of the items the home
+/// screen just offered.
+///
+/// Decoding the video needs a player and a screen, neither of which a headless
+/// run has; everything up to the link the player would open does not.
+Future<void> _reportStreams(
+  _Report report,
+  MediaProvider provider,
+  List<HomeSection> sections,
+) async {
+  final item = sections
+      .expand((section) => section.items)
+      .firstWhereOrNull((candidate) => candidate.type == MediaType.movie);
+  if (item == null) {
+    report.skip('a stream resolves', 'no movie in the home rows');
+    return;
+  }
+  final streams = await provider.getStreams(item);
+  final result = streams.valueOrNull;
+  if (result == null) {
+    report.fail('a stream resolves', streams.errorOrNull);
+    return;
+  }
+  final sources = result.orderedSources;
+  if (sources.isEmpty) {
+    report.skip('a stream resolves', '${item.title} has no playable source');
+    return;
+  }
+  final best = sources.first;
+  final host = Uri.tryParse(best.url)?.host ?? best.url;
+  report.expect(
+    true,
+    'a stream resolves',
+    '${sources.length} for "${item.title}", best $host',
+  );
 }
 
 Future<void> _checkCloudStream(
