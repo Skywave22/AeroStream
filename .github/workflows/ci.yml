@@ -48,6 +48,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           JS_RESULT: ${{ steps.js.outcome }}
+          REPORT_JOB: js-selftest
         run: bash scripts/ci_report.sh
 
   # The three ecosystems are somebody else's servers. The unit tests prove the
@@ -81,6 +82,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           LIVE_RESULT: ${{ steps.live.outcome }}
+          REPORT_JOB: live-ecosystems
         run: bash scripts/ci_report.sh
 
   # A release-mode build is a different compiler: AOT catches things the JIT

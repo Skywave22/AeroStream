@@ -100,15 +100,19 @@ fi
 # ---- summary --------------------------------------------------------------
 
 {
-  echo "### CI report — \`${GITHUB_SHA:-local}\`"
+  echo "### CI report — \`${GITHUB_SHA:-local}\`${REPORT_JOB:+ (\`$REPORT_JOB\`) }"
   echo
   echo "| Step | Result |"
   echo "| --- | --- |"
-  echo "| format | ${FORMAT_RESULT:-unknown} |"
-  echo "| js-selftest | ${JS_RESULT:-unknown} |"
-  echo "| live-ecosystems | ${LIVE_RESULT:-unknown} |"
-  echo "| analyze | ${ANALYZE_RESULT:-unknown} |"
-  echo "| test | ${TEST_RESULT:-unknown} |"
+  # Only the rows this job actually ran: two reports are posted per run, and an
+  # "unknown" row for a step that lives in the other job reads like a failure.
+  for pair in "format:${FORMAT_RESULT:-}" "js-selftest:${JS_RESULT:-}" \
+    "live-ecosystems:${LIVE_RESULT:-}" "analyze:${ANALYZE_RESULT:-}" \
+    "test:${TEST_RESULT:-}"; do
+    name=${pair%%:*}
+    result=${pair#*:}
+    if [ -n "$result" ]; then echo "| $name | $result |"; fi
+  done
   echo
 
   if [ "${FORMAT_RESULT:-}" = "failure" ]; then
