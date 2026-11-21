@@ -275,7 +275,10 @@ void main() {
           FakeHostCall(
             id: 'timer:t1',
             channel: 'timer',
-            payload: '{"ms":5,"timerId":"t1"}',
+            // Due immediately: the host now serves other calls while a timer
+            // waits, so a delay longer than the fake's remaining steps would
+            // (correctly) never fire before the call finishes.
+            payload: '{"ms":0,"timerId":"t1"}',
           ),
         ],
       );
