@@ -31,7 +31,7 @@ void main() {
     final repository =
         (await service.get(SelfCheckHttpService.repository)).valueOrNull!;
     final listing = jsonDecode(repository.text) as List<Object?>;
-    final entry = listing.single as Map<String, Object?>;
+    final entry = listing.single! as Map<String, Object?>;
     expect(entry['internalName'], 'SkyStreamTest');
     expect(entry['url'], SelfCheckHttpService.extension.toString());
 
