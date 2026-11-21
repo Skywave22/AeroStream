@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/entities/enums.dart';
 import '../domain/entities/home_section.dart';
-import '../domain/entities/media_item.dart';
 import '../domain/entities/plugin_repository.dart';
 import '../domain/media_provider.dart';
 import 'providers.dart';
@@ -242,11 +241,18 @@ Future<void> _reportStreams(
   MediaProvider provider,
   List<HomeSection> sections,
 ) async {
-  final item = sections
+  final items = sections
       .expand((section) => section.items)
-      .firstWhereOrNull((candidate) => candidate.type == MediaType.movie);
+      .toList(growable: false);
+  // A movie is the cheapest thing to extract; a row of series would want an
+  // episode first. Falling back to whatever the row starts with keeps Vega
+  // covered, whose entries are not typed.
+  final item = items.firstWhereOrNull(
+        (candidate) => candidate.type == MediaType.movie,
+      ) ??
+      (items.isEmpty ? null : items.first);
   if (item == null) {
-    report.skip('a stream resolves', 'no movie in the home rows');
+    report.skip('a stream resolves', 'the home rows are empty');
     return;
   }
   final streams = await provider.getStreams(item);
