@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -23,6 +25,14 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final plugins = ref.watch(installedPluginsProvider).valueOrNull ?? const [];
+    final selection = ref.watch(homeProviderSelectionProvider);
+    final homePlugins = plugins
+        .where((plugin) => plugin.info.enabled && plugin.info.capabilities.home)
+        .toList(growable: false);
+    final hasSelectedHomeProvider = selection.isAll ||
+        homePlugins.any(
+          (plugin) => selection.includes(homeProviderKey(plugin.info)),
+        );
     final feed = ref.watch(homeFeedProvider);
 
     return Scaffold(
@@ -33,6 +43,13 @@ class HomeScreen extends ConsumerWidget {
             tooltip: 'Search',
             onPressed: () => context.go('/search'),
             icon: const Icon(Icons.search),
+          ),
+          IconButton(
+            tooltip: 'Home providers',
+            onPressed: () => _showProviderPicker(context),
+            icon: Icon(
+              selection.isAll ? Icons.tune : Icons.filter_alt_outlined,
+            ),
           ),
           IconButton(
             tooltip: 'Refresh',
@@ -52,11 +69,25 @@ class HomeScreen extends ConsumerWidget {
             : feed.when(
                 loading: () => const _FeedSkeleton(),
                 error: (error, stack) => _FeedError(error: error, ref: ref),
-                data: (sections) => sections.isEmpty
-                    ? const _EmptyFeed()
-                    : _Feed(sections: sections),
+                data: (sections) =>
+                    !hasSelectedHomeProvider && homePlugins.isNotEmpty
+                        ? _NoHomeProviders(
+                            onConfigure: () => _showProviderPicker(context),
+                          )
+                        : sections.isEmpty
+                            ? const _EmptyFeed()
+                            : _Feed(sections: sections),
               ),
       ),
+    );
+  }
+
+  static Future<void> _showProviderPicker(BuildContext context) {
+    return showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => const _HomeProviderPicker(),
     );
   }
 }
@@ -263,6 +294,189 @@ class _FirstRunEcosystem extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _HomeProviderPicker extends ConsumerWidget {
+  const _HomeProviderPicker();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final installed = ref.watch(installedPluginsProvider);
+    final selection = ref.watch(homeProviderSelectionProvider);
+    final theme = Theme.of(context);
+
+    return SafeArea(
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * 0.72,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 12, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Home providers',
+                          style: theme.textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          'Choose which enabled extensions contribute rows.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: selection.isAll
+                        ? null
+                        : () => unawaited(
+                              ref
+                                  .read(homeProviderSelectionProvider.notifier)
+                                  .useAllProviders(),
+                            ),
+                    child: const Text('All'),
+                  ),
+                  TextButton(
+                    onPressed: () => unawaited(
+                      ref
+                          .read(homeProviderSelectionProvider.notifier)
+                          .selectNone(),
+                    ),
+                    child: const Text('None'),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: installed.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, stack) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text('Could not load providers: $error'),
+                  ),
+                ),
+                data: (plugins) {
+                  final available = plugins
+                      .where(
+                        (plugin) =>
+                            plugin.info.enabled &&
+                            plugin.info.capabilities.home,
+                      )
+                      .toList()
+                    ..sort(
+                      (a, b) => a.info.priority.compareTo(b.info.priority),
+                    );
+                  if (available.isEmpty) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Text(
+                          'No enabled provider offers a Home feed.',
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    );
+                  }
+                  final availableKeys = available
+                      .map((plugin) => homeProviderKey(plugin.info))
+                      .toList(growable: false);
+                  return ListView.builder(
+                    itemCount: available.length,
+                    itemBuilder: (context, index) {
+                      final plugin = available[index];
+                      final info = EcosystemInfo.of(plugin.info.ecosystem);
+                      final key = homeProviderKey(plugin.info);
+                      return CheckboxListTile(
+                        value: selection.includes(key),
+                        onChanged: (selected) {
+                          if (selected == null) return;
+                          unawaited(
+                            ref
+                                .read(homeProviderSelectionProvider.notifier)
+                                .setProvider(
+                                  key: key,
+                                  selected: selected,
+                                  availableKeys: availableKeys,
+                                ),
+                          );
+                        },
+                        secondary: Icon(info.icon, color: info.accent),
+                        title: Text(plugin.info.name),
+                        subtitle: Text(info.shortTitle),
+                        controlAffinity: ListTileControlAffinity.trailing,
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+              child: Text(
+                'This only filters Home. Search still checks every enabled '
+                'provider.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NoHomeProviders extends StatelessWidget {
+  const _NoHomeProviders({required this.onConfigure});
+
+  final VoidCallback onConfigure;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        const SizedBox(height: 64),
+        Icon(
+          Icons.filter_alt_off_outlined,
+          size: 48,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'No Home providers selected',
+          style: theme.textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Choose at least one installed provider, or switch back to All.',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 18),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FilledButton.icon(
+            onPressed: onConfigure,
+            icon: const Icon(Icons.tune),
+            label: const Text('Choose providers'),
+          ),
+        ),
+      ],
     );
   }
 }
