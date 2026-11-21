@@ -36,6 +36,7 @@ final class PluginRuntimeFactory {
     required PlatformProfile platform,
     required JsEngineFactory engineFactory,
     required this.hostBootstrap,
+    this.vegaBootstrap = '',
     CloudStreamBridge? cloudStreamBridge,
     this.limits = const RuntimeLimits(),
   })  : _artifacts = artifacts,
@@ -54,6 +55,13 @@ final class PluginRuntimeFactory {
 
   /// `assets/js/host_bootstrap.js`, loaded once at startup.
   final String hostBootstrap;
+
+  /// `assets/js/vega_bootstrap.js`.
+  ///
+  /// A Vega bundle is CommonJS and is loaded through `__vegaLoad`, which only
+  /// this bootstrap defines; running the prelude under the SkyStream bootstrap
+  /// threw `ReferenceError: '__vegaLoad' is not defined` on every provider.
+  final String vegaBootstrap;
 
   final RuntimeLimits limits;
 
@@ -150,6 +158,15 @@ final class PluginRuntimeFactory {
   }
 
   Future<Result<MediaProvider>> _vega(InstalledPlugin plugin) async {
+    if (vegaBootstrap.isEmpty) {
+      return Err<MediaProvider>(
+        PluginUnsupportedError(
+          'The Vega runtime is missing from this build',
+          pluginId: plugin.info.id,
+          operation: 'start',
+        ),
+      );
+    }
     final prelude = <String>[];
     var loaded = 0;
     for (final module in vegaModules) {
@@ -169,7 +186,11 @@ final class PluginRuntimeFactory {
       );
     }
 
-    final host = _newHost(plugin: plugin, prelude: prelude);
+    final host = _newHost(
+      plugin: plugin,
+      prelude: prelude,
+      bootstrap: vegaBootstrap,
+    );
     return Ok<MediaProvider>(
       VegaAdapter(
         info: plugin.info,
@@ -235,6 +256,7 @@ final class PluginRuntimeFactory {
     String? pluginSource,
     String? manifestJson,
     List<String> prelude = const <String>[],
+    String? bootstrap,
   }) =>
       JsPluginHost(
         runtime: _engineFactory(),
@@ -244,7 +266,7 @@ final class PluginRuntimeFactory {
           pluginId: plugin.info.id,
         ),
         pluginId: plugin.info.id,
-        bootstrap: hostBootstrap,
+        bootstrap: bootstrap ?? hostBootstrap,
         pluginSource: pluginSource,
         manifestJson: manifestJson,
         prelude: prelude,

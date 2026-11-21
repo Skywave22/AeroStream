@@ -219,6 +219,7 @@ jobs:
           exit $status
 
       - name: Install a plugin and ask it for its home screen
+        id: selfcheck
         run: |
           set +e
           AEROSTREAM_SELFCHECK=1 timeout 900 xvfb-run -a \
@@ -229,6 +230,14 @@ jobs:
             python3 scripts/annotate_log.py /tmp/selfcheck.log self-check
           fi
           exit $status
+
+      - name: Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SELFTEST_RESULT: ${{ steps.selfcheck.outcome }}
+          REPORT_JOB: run-linux
+        run: bash scripts/ci_report.sh
 
   verify:
     name: Verify

@@ -107,8 +107,8 @@ fi
   # Only the rows this job actually ran: two reports are posted per run, and an
   # "unknown" row for a step that lives in the other job reads like a failure.
   for pair in "format:${FORMAT_RESULT:-}" "js-selftest:${JS_RESULT:-}" \
-    "live-ecosystems:${LIVE_RESULT:-}" "analyze:${ANALYZE_RESULT:-}" \
-    "test:${TEST_RESULT:-}"; do
+    "live-ecosystems:${LIVE_RESULT:-}" "app-selftest:${SELFTEST_RESULT:-}" \
+    "analyze:${ANALYZE_RESULT:-}" "test:${TEST_RESULT:-}"; do
     name=${pair%%:*}
     result=${pair#*:}
     if [ -n "$result" ]; then echo "| $name | $result |"; fi
@@ -134,6 +134,19 @@ fi
     echo
     echo '```'
     tail -c 12000 /tmp/js.log
+    echo '```'
+    echo "</details>"
+    echo
+  fi
+
+  # The app's own run: what it did, in its words, including the plugin host's
+  # per-request warnings. Without this the only trace of a failed self-check is
+  # "exit code 1".
+  if [ -s /tmp/selfcheck.log ]; then
+    echo "<details><summary>app self-check (AEROSTREAM_SELFCHECK=1)</summary>"
+    echo
+    echo '```'
+    tail -c 16000 /tmp/selfcheck.log
     echo '```'
     echo "</details>"
     echo

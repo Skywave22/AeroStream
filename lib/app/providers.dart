@@ -44,6 +44,12 @@ final hostBootstrapProvider = Provider<String>(
   (ref) => throw StateError('hostBootstrapProvider must be overridden'),
 );
 
+/// Overridden at boot with `assets/js/vega_bootstrap.js`.
+///
+/// Empty means "this build has no Vega runtime", which the factory reports as a
+/// typed error instead of starting a provider that cannot work.
+final vegaBootstrapProvider = Provider<String>((ref) => '');
+
 /// The JavaScript engine for this platform. Overridden at boot by the native
 /// engine; the default fails safe with a typed error.
 final jsEngineFactoryProvider = Provider<JsEngineFactory>(
@@ -81,6 +87,7 @@ final runtimeFactoryProvider = Provider<PluginRuntimeFactory>((ref) {
     platform: ref.watch(platformProfileProvider),
     engineFactory: ref.watch(jsEngineFactoryProvider),
     hostBootstrap: ref.watch(hostBootstrapProvider),
+    vegaBootstrap: ref.watch(vegaBootstrapProvider),
     cloudStreamBridge: ref.watch(cloudStreamBridgeProvider),
     limits: const RuntimeLimits(),
   );
