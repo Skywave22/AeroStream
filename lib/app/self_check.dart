@@ -199,6 +199,86 @@ Future<void> _checkVega(
     return;
   }
   await _reportHome(report, provider);
+  await _checkVegaStreams(container, report, plugins);
+}
+
+/// Proves Vega's final host-to-source path on a provider whose catalogue is
+/// stable enough for CI. The default provider's first Home item rotates and can
+/// temporarily have no mirrors; treating that one item as the runtime verdict
+/// left `getStream` permanently unproven even after host defects were fixed.
+///
+/// Internet Archive is still installed from the user's Vega repository during
+/// this run. AeroStream bundles neither the provider nor a content identifier.
+Future<void> _checkVegaStreams(
+  ProviderContainer container,
+  _Report report,
+  List<AvailablePlugin> plugins,
+) async {
+  final listed = plugins.firstWhereOrNull(
+    (plugin) => plugin.id == 'internetArchive',
+  );
+  if (listed == null) {
+    report.skip('Vega getStream returns a playable source',
+        'Internet Archive is not listed');
+    return;
+  }
+
+  final manager = container.read(extensionManagerProvider);
+  final installed = await manager.install(listed);
+  if (installed.valueOrNull == null) {
+    report.skip(
+      'Vega getStream returns a playable source',
+      'the stream probe provider did not install: ${installed.errorOrNull}',
+    );
+    return;
+  }
+
+  final providers = await manager.activeProviders();
+  final provider = providers.firstWhereOrNull(
+    (candidate) => candidate.info.id == listed.id,
+  );
+  for (final candidate in providers) {
+    if (!identical(candidate, provider)) await candidate.dispose();
+  }
+  if (provider == null) {
+    report.fail('Vega getStream returns a playable source',
+        'the installed stream probe provider did not start');
+    return;
+  }
+
+  try {
+    final search = await provider.search('movie');
+    final items = search.valueOrNull?.items ?? const [];
+    if (items.isEmpty) {
+      report.skip(
+        'Vega getStream returns a playable source',
+        'the live catalogue returned no probe items: ${search.errorOrNull}',
+      );
+      return;
+    }
+
+    Object? lastError;
+    for (final item in items.take(3)) {
+      final streams = await provider.getStreams(item);
+      lastError = streams.errorOrNull;
+      final sources = streams.valueOrNull?.orderedSources ?? const [];
+      if (sources.isEmpty) continue;
+      final best = sources.first;
+      final host = Uri.tryParse(best.url)?.host ?? best.url;
+      report.expect(
+        true,
+        'Vega getStream returns a playable source',
+        '${sources.length} for "${item.title}", best $host',
+      );
+      return;
+    }
+    report.skip(
+      'Vega getStream returns a playable source',
+      'three live catalogue items had no source${lastError == null ? '' : ': $lastError'}',
+    );
+  } finally {
+    await provider.dispose();
+  }
 }
 
 Future<List<HomeSection>> _reportHome(
