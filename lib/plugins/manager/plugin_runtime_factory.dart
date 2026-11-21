@@ -167,7 +167,12 @@ final class PluginRuntimeFactory {
         ),
       );
     }
-    final prelude = <String>[];
+    // The Vega bootstrap defines `__vegaLoad`/`__vegaCall`; the host bootstrap
+    // defines the callback plumbing every call goes through (`__aeroInvoke`,
+    // `__aeroPoll`, `__aeroResolve`) plus `fetch`. A provider needs both, and
+    // the host half goes in the prelude so it is evaluated last: its `fetch`
+    // is the one that speaks the sandbox protocol.
+    final prelude = <String>[hostBootstrap];
     var loaded = 0;
     for (final module in vegaModules) {
       final source = await _artifacts.readEntry(plugin.artifactPath, module);

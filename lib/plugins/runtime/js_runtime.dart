@@ -1,7 +1,7 @@
 /// The execution limits applied to one plugin context.
 final class RuntimeLimits {
   const RuntimeLimits({
-    this.callTimeout = const Duration(seconds: 25),
+    this.callTimeout = const Duration(seconds: 60),
     this.evaluationTimeout = const Duration(seconds: 3),
     this.memoryBytes = 64 * 1024 * 1024,
     this.maxHostCallsPerInvocation = 250,
@@ -11,6 +11,11 @@ final class RuntimeLimits {
   });
 
   /// Wall-clock budget for one plugin call (`getHome`, `loadLinks`, …).
+  ///
+  /// Generous on purpose: a home screen is often four API pages fetched one
+  /// after another, and SkyStream plugins delay between pages to stay polite.
+  /// 25s cut that off mid-way and reported a timeout that looked like a bug in
+  /// the plugin.
   final Duration callTimeout;
 
   /// Budget for one single script evaluation, so a hung expression cannot

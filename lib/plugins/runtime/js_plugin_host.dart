@@ -68,7 +68,8 @@ final class JsPluginHost {
     String function, {
     List<Object?> args = const <Object?>[],
   }) async {
-    final deadline = DateTime.now().add(limits.callTimeout);
+    final started = DateTime.now();
+    final deadline = started.add(limits.callTimeout);
 
     try {
       await _ensureStarted();
@@ -112,6 +113,11 @@ final class JsPluginHost {
 
       if (readBool(message['done'])) {
         final error = message['error'];
+        AppLog.debug(
+          '$function answered in '
+          '${DateTime.now().difference(started).inMilliseconds}ms',
+          pluginId: pluginId,
+        );
         if (error != null) return Err<Object?>(_pluginError(error));
         return Ok<Object?>(message['value']);
       }
@@ -244,7 +250,16 @@ final class JsPluginHost {
     final cap = limits.maxTimerDelay.inMilliseconds;
     final bounded = requested < 0 ? 0 : (requested > cap ? cap : requested);
     final delay = Duration(milliseconds: bounded);
-    if (delay > Duration.zero) await Future<void>.delayed(delay);
+    if (delay > Duration.zero) {
+      // A plugin that asks for a long sleep is either rate-limiting or hiding a
+      // retry loop; either way the wall-clock budget is being spent here, so it
+      // is worth seeing in the log.
+      AppLog.debug(
+        'timer ${requested}ms waited ${bounded}ms',
+        pluginId: pluginId,
+      );
+      await Future<void>.delayed(delay);
+    }
 
     try {
       await _evaluate('__aeroFireTimer(${jsonEncode(timerId)})');
