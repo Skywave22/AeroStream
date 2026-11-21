@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 
 import 'vlc_player_config.dart';
@@ -26,7 +26,7 @@ class VlcPlayer extends StatefulWidget {
   const VlcPlayer({
     super.key,
     required this.controller,
-    this.backgroundColor = Colors.black,
+    this.backgroundColor = const Color(0xFF000000),
     this.fit = VlcVideoFit.contain,
     this.darwinRenderer = VlcPlayerConfig.defaultDarwinRenderer,
     this.androidRenderer = VlcPlayerConfig.defaultAndroidRenderer,

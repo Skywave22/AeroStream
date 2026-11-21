@@ -906,3 +906,9 @@ Covered by `test/native/vlc_snapshot_order_test_suite.h` (in both plugins' gtest
 `test/native_snapshot_order_test.dart` (both plugins' order and number, as source), and
 `test/vlc_player_snapshot_order_test.dart` (the controller's order).
 
+### 38. Flutter 3.47's Material library split does not affect the video widget
+
+`VlcPlayer` only needs core widgets and a black `Color`; importing the whole
+legacy `package:flutter/material.dart` began producing a fatal deprecation info
+under Flutter 3.47. It now imports `widgets.dart` and uses the equivalent color
+literal. The public API and rendered color are unchanged.
