@@ -212,7 +212,7 @@ final class DioHttpService implements HttpService {
           );
         }
         if (NetworkPolicy.isPrivateHost(target.host)) {
-          return Err<Uri>(
+          return const Err<Uri>(
             PluginSandboxError(
               'The short link points at a private address',
               violation: 'network-private-host',

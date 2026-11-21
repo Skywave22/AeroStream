@@ -12,6 +12,7 @@ import '../downloads/download_providers.dart';
 import '../library/history_providers.dart';
 import '../settings/settings_providers.dart';
 import 'playback_engine.dart';
+import 'player_providers.dart';
 
 /// Source selection and playback.
 ///
@@ -34,6 +35,7 @@ class WatchScreen extends ConsumerStatefulWidget {
 class _WatchScreenState extends ConsumerState<WatchScreen> {
   StreamSource? _selected;
   bool _showSources = true;
+  bool _fullscreen = false;
 
   @override
   Widget build(BuildContext context) {
@@ -41,38 +43,60 @@ class _WatchScreenState extends ConsumerState<WatchScreen> {
     final streams = resolved == null
         ? ref.watch(streamsProvider(widget.request))
         : AsyncValue<StreamResult>.data(resolved);
-    final engine = ref.watch(playerEngineProvider);
+    final engine = ref.watch(activePlayerEngineProvider);
+    final engineChoice = ref.watch(playerEngineChoiceProvider);
     // The user's quality choice is applied here, once, so the surface and the
     // picker below it agree on which link is first.
     final preferences = ref.watch(preferencesProvider);
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        title: Text(
-          widget.request.episode == null
-              ? widget.request.item.title
-              : '${widget.request.item.title} · '
-                  'S${widget.request.episode!.seasonNumber}'
-                  'E${widget.request.episode!.number}',
-          style: const TextStyle(fontSize: 16),
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Sources',
-            onPressed: () => setState(() => _showSources = !_showSources),
-            icon: Icon(_showSources ? Icons.dns : Icons.dns_outlined),
-          ),
-          if (resolved == null)
-            IconButton(
-              tooltip: 'Reload links',
-              onPressed: () => ref.invalidate(streamsProvider(widget.request)),
-              icon: const Icon(Icons.refresh),
+      appBar: _fullscreen
+          ? null
+          : AppBar(
+              backgroundColor: Colors.black,
+              foregroundColor: Colors.white,
+              title: Text(
+                widget.request.episode == null
+                    ? widget.request.item.title
+                    : '${widget.request.item.title} · '
+                        'S${widget.request.episode!.seasonNumber}'
+                        'E${widget.request.episode!.number}',
+                style: const TextStyle(fontSize: 16),
+              ),
+              actions: [
+                PopupMenuButton<String>(
+                  tooltip: 'Internal player',
+                  icon: const Icon(Icons.settings_input_component_outlined),
+                  onSelected: (choice) =>
+                      ref.read(playerEngineChoiceProvider.notifier).set(choice),
+                  itemBuilder: (context) => [
+                    CheckedPopupMenuItem<String>(
+                      value: PlayerEngineChoiceController.vlc,
+                      checked: engineChoice == PlayerEngineChoiceController.vlc,
+                      child: const Text('libVLC (default)'),
+                    ),
+                    CheckedPopupMenuItem<String>(
+                      value: PlayerEngineChoiceController.mpv,
+                      checked: engineChoice == PlayerEngineChoiceController.mpv,
+                      child: const Text('mpv (media_kit)'),
+                    ),
+                  ],
+                ),
+                IconButton(
+                  tooltip: 'Sources',
+                  onPressed: () => setState(() => _showSources = !_showSources),
+                  icon: Icon(_showSources ? Icons.dns : Icons.dns_outlined),
+                ),
+                if (resolved == null)
+                  IconButton(
+                    tooltip: 'Reload links',
+                    onPressed: () =>
+                        ref.invalidate(streamsProvider(widget.request)),
+                    icon: const Icon(Icons.refresh),
+                  ),
+              ],
             ),
-        ],
-      ),
       body: streams.when(
         loading: () => const Center(
           child: Column(
@@ -101,9 +125,13 @@ class _WatchScreenState extends ConsumerState<WatchScreen> {
               preferHls: preferences.preferHls,
             ),
             selected: _selected,
-            showSources: _showSources,
+            showSources: !_fullscreen && _showSources,
             onSelect: (source) => setState(() => _selected = source),
             engine: engine,
+            fullscreen: _fullscreen,
+            onFullscreenChanged: (fullscreen) {
+              if (mounted) setState(() => _fullscreen = fullscreen);
+            },
             request: widget.request,
             canDownload: resolved == null,
             // Resume where the user left off, and keep the record current
@@ -135,6 +163,8 @@ class _Body extends StatelessWidget {
     required this.showSources,
     required this.onSelect,
     required this.engine,
+    required this.fullscreen,
+    required this.onFullscreenChanged,
     required this.startAt,
     required this.onProgress,
     required this.request,
@@ -146,7 +176,9 @@ class _Body extends StatelessWidget {
   final StreamSource? selected;
   final bool showSources;
   final ValueChanged<StreamSource> onSelect;
-  final PlaybackEngine? engine;
+  final PlaybackEngine engine;
+  final bool fullscreen;
+  final ValueChanged<bool> onFullscreenChanged;
   final Duration? startAt;
   final ProgressCallback onProgress;
   final StreamRequest request;
@@ -155,14 +187,16 @@ class _Body extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final source = selected ?? (sources.isEmpty ? null : sources.first);
-    final engineSurface = source == null || !(engine?.supports(source) ?? false)
+    final engineSurface = source == null || !engine.supports(source)
         ? null
-        : engine!.buildSurface(
+        : engine.buildSurface(
             context,
             source,
             subtitles: result.subtitles,
             startAt: startAt,
             onProgress: onProgress,
+            fullscreen: fullscreen,
+            onFullscreenChanged: onFullscreenChanged,
           );
 
     return Column(

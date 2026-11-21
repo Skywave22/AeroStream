@@ -50,11 +50,15 @@ dependencies:
       url: https://github.com/NanCunChild/flutter_qjs_next.git
       ref: v1.5.2
 
-  # Video playback. media_kit wraps libmpv and ships per-platform native
-  # libraries, which is what makes one player work on every target.
+  # Two native engines with one player UI. libVLC is the default; media_kit's
+  # libmpv backend is the second choice. The SkyStream vlc_player fork is
+  # vendored from akashdh11/skystream@f5523ae07d72 so native builds are
+  # reproducible and do not depend on a nested git checkout.
   media_kit: ^1.2.6
   media_kit_video: ^2.0.1
   media_kit_libs_video: ^1.0.7
+  vlc_player:
+    path: packages/vlc_player
 
   # Utilities.
   collection: ^1.18.0

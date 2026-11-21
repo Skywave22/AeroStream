@@ -15,8 +15,6 @@ import 'data/storage/file_artifact_store.dart';
 import 'data/storage/prefs_settings_store.dart';
 import 'data/storage/sqlite_extension_store.dart';
 import 'features/downloads/download_providers.dart';
-import 'features/player/media_kit_engine.dart';
-import 'features/player/playback_engine.dart';
 import 'plugins/adapters/cloudstream/cloudstream_bridge.dart';
 import 'plugins/runtime/engine_factory.dart';
 
@@ -58,7 +56,6 @@ Future<void> main() async {
     cheerioLiteProvider.overrideWithValue(cheerioLite),
     platformProfileProvider.overrideWithValue(platform),
     jsEngineFactoryProvider.overrideWithValue(createPlatformEngineFactory()),
-    playerEngineProvider.overrideWithValue(createPlaybackEngine()),
     downloadDirectoryProvider.overrideWithValue(
       Directory('${support.path}/downloads'),
     ),

@@ -151,7 +151,7 @@ jobs:
           # and the default toolchain are enough to link a Flutter Linux app.
           sudo apt-get install -y --no-install-recommends \
             clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev \
-            libmpv-dev mpv
+            libmpv-dev mpv libvlc-dev vlc
 
       - name: Resolve dependencies
         run: flutter pub get
