@@ -244,13 +244,13 @@ Future<void> _reportStreams(
   final items = sections
       .expand((section) => section.items)
       .toList(growable: false);
-  // A movie is the cheapest thing to extract; a row of series would want an
-  // episode first. Falling back to whatever the row starts with keeps Vega
-  // covered, whose entries are not typed.
-  final item = items.firstWhereOrNull(
-        (candidate) => candidate.type == MediaType.movie,
-      ) ??
-      (items.isEmpty ? null : items.first);
+  // A movie is the cheapest thing to extract; a row of series wants an
+  // episode first. Falling back to the row's first entry keeps Vega covered,
+  // whose entries are not typed.
+  var item = items.firstWhereOrNull(
+    (candidate) => candidate.type == MediaType.movie,
+  );
+  if (item == null && items.isNotEmpty) item = items.first;
   if (item == null) {
     report.skip('a stream resolves', 'the home rows are empty');
     return;

@@ -35,6 +35,27 @@
     return body;
   }
 
+  // The origin a provider last reached. Providers publish links relative to
+  // their own site (`/download-the-good-doctor-.../`), and the extraction step
+  // that follows is handed that path rather than an absolute URL. Without an
+  // origin the request shim refuses it ("Scheme "" is not allowed"), which is
+  // how a working provider failed at the last step. Vega's own context exposes
+  // this as `getBaseUrl`.
+  var lastOrigin = null;
+
+  function absoluteUrl(url) {
+    var text = String(url || '');
+    if (!text) return text;
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(text)) return text;
+    if (text.charAt(0) === '/' && lastOrigin) return lastOrigin + text;
+    return text;
+  }
+
+  function rememberOrigin(url) {
+    var match = /^(https?:\/\/[^/]+)/i.exec(String(url || ''));
+    if (match) lastOrigin = match[1];
+  }
+
   function request(config) {
     var options = config || {};
     var headers = options.headers || {};
@@ -44,6 +65,7 @@
       url = String(options.baseURL).replace(/\/+$/, '') + '/' + String(options.url).replace(/^\/+/, '');
     }
 
+    url = absoluteUrl(url);
     var channel = method === 'POST' ? 'http:post' : 'http:get';
     var payload = JSON.stringify({
       url: url,
@@ -52,6 +74,7 @@
     });
 
     return sendMessage(channel, payload).then(function (response) {
+      rememberOrigin(url);
       var status = response && response.status;
       var result = {
         data: readBody(response, options),
@@ -163,6 +186,7 @@
       commonHeaders: {},
       utils: utils,
       providerValue: providerValue === undefined ? null : providerValue,
+      getBaseUrl: function () { return Promise.resolve(lastOrigin); },
       headers: {},
       // Nothing persists between launches on this build, but a provider that
       // calls the key-value surface must not crash on its absence.
