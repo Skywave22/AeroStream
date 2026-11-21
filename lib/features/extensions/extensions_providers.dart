@@ -1,0 +1,204 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../app/providers.dart';
+import '../../core/errors/plugin_error.dart';
+import '../../core/platform/ecosystem_status.dart';
+import '../../core/platform/platform_profile.dart';
+import '../../core/result.dart';
+import '../../domain/entities/enums.dart';
+import '../../domain/entities/installed_plugin.dart';
+import '../../domain/entities/plugin_info.dart';
+import '../../domain/entities/plugin_repository.dart';
+import '../../plugins/manager/plugin_endpoint_store.dart';
+import '../home/home_providers.dart';
+import 'ecosystem_providers.dart';
+
+/// Plugins a repository offers.
+final repositoryPluginsProvider = FutureProvider.autoDispose
+    .family<List<AvailablePlugin>, String>((ref, repositoryId) async {
+  final repositories = await ref.watch(repositoriesProvider.future);
+  final repository = repositories
+      .where((candidate) => candidate.id == repositoryId)
+      .firstOrNull;
+  if (repository == null) return const <AvailablePlugin>[];
+  final result = await ref.watch(repositoryServiceProvider).browse(repository);
+  return switch (result) {
+    Ok<List<AvailablePlugin>>(:final value) => value,
+    Err<List<AvailablePlugin>>(:final error) => throw error,
+  };
+});
+
+/// Ids of plugins currently being installed or updated, for progress UI.
+final busyPluginsProvider = StateProvider<Set<String>>((ref) => <String>{});
+
+/// Actions the Extensions screen performs.
+///
+/// Kept out of the widgets so the same flows are usable from a deep link or a
+/// background update check.
+final class ExtensionActions {
+  const ExtensionActions(this._ref);
+
+  final WidgetRef _ref;
+
+  PlatformProfile get platform => _ref.read(platformProfileProvider);
+
+  /// Adds a repository, read as [expect]'s ecosystem.
+  ///
+  /// The section the user added it from is passed through so an ambiguous list
+  /// cannot be classified by a heuristic: the entries still decide, but a tie
+  /// goes to the section the user chose.
+  Future<Result<PluginRepository>> addRepository(
+    String url, {
+    PluginEcosystem? expect,
+  }) async {
+    final result = await _ref
+        .read(repositoryServiceProvider)
+        .addRepository(url, expect: expect);
+    _ref.invalidate(repositoriesProvider);
+    _ref.invalidate(repositoryPluginsProvider);
+    for (final ecosystem in PluginEcosystem.values) {
+      _ref.invalidate(ecosystemCatalogProvider(ecosystem));
+    }
+    return result;
+  }
+
+  /// Picks a mirror / sub-provider for [plugin], then reloads the plugin so the
+  /// new `baseUrl` is what the next call sees.
+  Future<void> selectEndpoint(
+    InstalledPlugin plugin,
+    PluginEndpoint? endpoint,
+  ) async {
+    await PluginEndpointStore(
+      _ref.read(settingsStoreProvider),
+    ).select(plugin.info.id, endpoint);
+    _refreshInstalled();
+  }
+
+  /// The endpoint [plugin] currently runs on, if the user picked one.
+  PluginEndpoint? selectedEndpoint(InstalledPlugin plugin) =>
+      PluginEndpointStore(
+        _ref.read(settingsStoreProvider),
+      ).selected(plugin.info);
+
+  Future<void> removeRepository(PluginRepository repository) async {
+    await _ref.read(repositoryServiceProvider).remove(repository);
+    _ref.invalidate(repositoriesProvider);
+    _ref.invalidate(repositoryPluginsProvider);
+    _ref.invalidate(ecosystemCatalogProvider(repository.ecosystem));
+  }
+
+  Future<void> refreshRepository(PluginRepository repository) async {
+    await _ref.read(repositoryServiceProvider).refresh(repository);
+    _ref.invalidate(repositoriesProvider);
+    _ref.invalidate(repositoryPluginsProvider);
+    _ref.invalidate(ecosystemCatalogProvider(repository.ecosystem));
+  }
+
+  Future<Result<InstalledPlugin>> install(AvailablePlugin plugin) async {
+    _markBusy(plugin.id, true);
+    try {
+      final result = await _ref.read(extensionManagerProvider).install(plugin);
+      _refreshInstalled();
+      return result;
+    } finally {
+      _markBusy(plugin.id, false);
+    }
+  }
+
+  Future<Result<InstalledPlugin>> update(
+    InstalledPlugin installed,
+    AvailablePlugin upgrade,
+  ) async {
+    _markBusy(installed.info.id, true);
+    try {
+      final result =
+          await _ref.read(extensionManagerProvider).update(installed, upgrade);
+      _refreshInstalled();
+      return result;
+    } finally {
+      _markBusy(installed.info.id, false);
+    }
+  }
+
+  Future<void> uninstall(InstalledPlugin plugin) async {
+    _markBusy(plugin.info.id, true);
+    try {
+      await _ref.read(extensionManagerProvider).uninstall(plugin);
+      _refreshInstalled();
+    } finally {
+      _markBusy(plugin.info.id, false);
+    }
+  }
+
+  Future<void> setEnabled(InstalledPlugin plugin,
+      {required bool enabled}) async {
+    await _ref
+        .read(extensionManagerProvider)
+        .setEnabled(plugin, enabled: enabled);
+    _refreshInstalled();
+  }
+
+  /// Newer listings for what is installed, across every repository.
+  Future<List<({InstalledPlugin installed, AvailablePlugin upgrade})>>
+      findUpdates() async {
+    final repositories = await _ref.read(repositoriesProvider.future);
+    final service = _ref.read(repositoryServiceProvider);
+    final listings = <AvailablePlugin>[];
+    for (final repository in repositories) {
+      final result = await service.browse(repository);
+      if (result is Ok<List<AvailablePlugin>>) {
+        listings.addAll(result.value);
+      }
+    }
+    return _ref.read(extensionManagerProvider).findUpdates(listings);
+  }
+
+  void _markBusy(String id, bool busy) {
+    final current = _ref.read(busyPluginsProvider);
+    _ref.read(busyPluginsProvider.notifier).state =
+        busy ? <String>{...current, id} : (current.toSet()..remove(id));
+  }
+
+  void _refreshInstalled() {
+    _ref.invalidate(installedPluginsProvider);
+    // Providers carry their manifest; dropping them is what makes a changed
+    // mirror take effect instead of silently reusing the old base URL.
+    _ref.invalidate(mediaProvidersProvider);
+    _ref.invalidate(homeFeedProvider);
+  }
+
+  /// Human-readable reason an ecosystem cannot run here, if any.
+  String? unsupportedReason(AvailablePlugin plugin) =>
+      platform.unsupportedReason(plugin.ecosystem);
+
+  /// Whether an installed plugin can run on this platform.
+  bool runsHere(InstalledPlugin plugin) =>
+      platform.supports(plugin.info.ecosystem);
+
+  /// The support matrix row for [ecosystem], when it has loaded.
+  EcosystemStatus? statusFor(
+    List<EcosystemStatus>? statuses,
+    PluginEcosystem ecosystem,
+  ) {
+    if (statuses == null) return null;
+    for (final status in statuses) {
+      if (status.ecosystem == ecosystem) return status;
+    }
+    return null;
+  }
+
+  /// Distinguishes "installed at this version" from "update available".
+  AvailablePlugin? upgradeFor(
+    InstalledPlugin installed,
+    List<AvailablePlugin> listings,
+  ) {
+    for (final listing in listings) {
+      if (listing.ecosystem != installed.info.ecosystem) continue;
+      if (listing.id != installed.info.id) continue;
+      if (listing.version > installed.info.version) return listing;
+    }
+    return null;
+  }
+
+  PluginError? describeFailure(Result<Object?> result) => result.errorOrNull;
+}

@@ -1,1 +1,113 @@
 # AeroStream
+
+A cross-platform media client **runtime**. AeroStream ships with no content of
+its own — every catalogue, search result, episode list and video link comes
+from a plugin that the user installs from a repository they choose.
+
+It runs three plugin ecosystems behind one unified interface:
+
+| Ecosystem | Artifact | Runtime | Platforms |
+| --- | --- | --- | --- |
+| **SkyStream** | `.sky` (zip: `plugin.json` + `plugin.js`) | Sandboxed JavaScript | Android, iOS, desktop |
+| **Vega** | provider modules (`posts.js`, `stream.js`, …) | Sandboxed JavaScript | Android, iOS, desktop |
+| **CloudStream** | `.cs3` (Kotlin/DEX) | Native Kotlin host (`DexClassLoader`) | Android, when the host is in the build |
+
+Each ecosystem's availability is reported per device in Settings › Platform,
+including the case where Android is present but the CloudStream host is not
+(see `docs/PLATFORMS.md`).
+
+## Status
+
+| Phase | Scope | State |
+| --- | --- | --- |
+| 0 | Project foundation, CI | done |
+| 1 | Unified domain model + plugin abstraction | done |
+| 2 | Extension / repository manager | done |
+| 3 | JavaScript runtime + host API bridge | done |
+| 4 | SkyStream adapter | done |
+| 5 | Vega adapter | done |
+| 6 | CloudStream adapter (Android host) | done — Kotlin host pending |
+| 7 | Adaptive UI/UX | done |
+| 8 | Player | done — source selection, libmpv playback, subtitles |
+| 9 | Library, history, downloads | done — saved titles, continue watching, resume, off-line downloads |
+| 10 | Settings, security, privacy | done — appearance, playback, platform matrix, data controls |
+| 11 | Platform polish | done — support matrix, cleartext, generated runners |
+| 12 | Testing, performance, release | done — five-platform builds published as release assets; store publishing not attempted (`docs/RELEASING.md`) |
+
+Remaining work is not a phase: it is the "Not implemented" table in
+`docs/PLUGIN_SPEC.md` (one endpoint per plugin, editable plugin settings, DRM,
+byte proxy) plus the CloudStream Kotlin host, which is a separate Android module
+and does not exist in this repository.
+
+Plugins run on QuickJS, one isolate per plugin, behind a bridge that only
+exposes HTTP, HTML parsing, hashing, base64 and namespaced storage. Playback is
+libmpv through `media_kit`, behind a `PlaybackEngine` seam so a build without
+the native libraries reports that instead of showing a black rectangle.
+Progress is recorded as you watch, so "Continue watching" and the resume point
+in the player survive closing the app.
+
+Extensions are three sections, one per ecosystem, the way the ecosystems
+themselves present them: **SkyStream Providers**, **CloudStream Extensions** and
+**Vega Providers**, reachable from the Extensions tab and from
+*Settings › Extensions*. Each has its own sources, its own add-repository box
+(a SkyStream code is not a Vega author), and its own Installed / Browse pages;
+a repository added in one section is filed by what it publishes, so sharing a
+`plugins.json` link with a CloudStream user still works.
+
+See `docs/ARCHITECTURE.md` for the layer map, `docs/PLUGIN_SPEC.md` for the
+verified on-the-wire formats of all three ecosystems, and `docs/PLATFORMS.md`
+for per-target build notes.
+
+The formats are checked against the upstream projects rather than guessed:
+[akashdh11/skystream](https://github.com/akashdh11/skystream) (plus
+[skystream-tools](https://github.com/akashdh11/skystream-tools) for the plugin
+manifest and CLI),
+[recloudstream/cloudstream](https://github.com/recloudstream/cloudstream) (the
+`Repository`/`SitePlugin` data classes and `RepositoryManager.parseRepoUrl`) and
+[vega-org/vega-app](https://github.com/vega-org/vega-app) (`ExtensionManager`,
+`helpers.ts`, `ProviderManager`). Where this app cannot do what they do — DRM,
+the byte proxy, captcha solving, DEX — it says so in `PLUGIN_SPEC.md` under
+"Not implemented", and in the UI at the point of use.
+
+## Download
+
+Tagged releases carry builds for every supported platform — Android (arm64-v8a,
+armeabi-v7a, x86_64 and universal APKs), Linux x64, Windows (portable zip and
+installer), macOS and an unsigned iOS `.ipa`. They are unsigned and marked as
+pre-releases: see `docs/BUILDING.md` for what that means and how to build your
+own.
+
+## Quick start
+
+```bash
+flutter pub get
+./scripts/scaffold_platforms.sh   # one-off: adds the android/ios/macos/windows/linux runners
+flutter run -d <device>
+flutter analyze --fatal-infos
+flutter test
+```
+
+## Repo layout
+
+```
+assets/js/      host bootstrap, cheerio-lite, Vega compatibility layer
+lib/core/       Result, typed plugin errors, network policy, JSON readers
+lib/domain/     entities, MediaProvider, CatalogService
+lib/plugins/    runtime (sandbox), adapters (3 ecosystems), managers, parsers
+lib/data/       SQLite store, filesystem artifacts, preferences
+lib/features/   screens: home, search, details, player, library, extensions…
+tool/           js_selftest.mjs — runs the real JS in a Node VM
+docs/           architecture, plugin spec, platforms, building, releasing, disclaimer
+```
+
+The JavaScript tests run without Flutter:
+
+```bash
+node tool/js_selftest.mjs
+```
+
+## Legal
+
+AeroStream is a client. It hosts nothing, indexes nothing and bundles nothing.
+Plugins and the sites they read are third-party, user-chosen and the user's
+responsibility. See `docs/DISCLAIMER.md`.

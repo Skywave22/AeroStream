@@ -1,0 +1,333 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - 'arena/**'
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  # Comments here are how CI results reach the development sandbox: the run
+  # logs themselves are not reachable from it.
+  CI_REPORT_ISSUE: '1'
+
+jobs:
+  js-selftest:
+    name: JS runtime self-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The plugin runtime is JavaScript; these tests execute the same files the
+      # app loads, in a VM that speaks the host bridge protocol.
+      - name: Run self-test
+        id: js
+        run: |
+          set +e
+          node tool/js_selftest.mjs > /tmp/js.log 2>&1
+          status=$?
+          tail -40 /tmp/js.log
+          exit $status
+
+      - name: Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JS_RESULT: ${{ steps.js.outcome }}
+          REPORT_JOB: js-selftest
+        run: bash scripts/ci_report.sh
+
+  # The three ecosystems are somebody else's servers. The unit tests prove the
+  # parsing; this proves the files are still where the app looks for them: the
+  # `universe` shortcode, the TJ-Plugins repository (whose .sky is downloaded,
+  # unpacked and asked for its home screen), and the two Vega source names.
+  # tool/live_check.mjs treats "no network from this runner" as a skip, so an
+  # outage upstream does not turn into a red build for an unrelated change.
+  live-ecosystems:
+    name: Live ecosystem check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run live check
+        id: live
+        run: |
+          set +e
+          node tool/live_check.mjs > /tmp/live.log 2>&1
+          status=$?
+          tail -80 /tmp/live.log
+          exit $status
+
+      - name: Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LIVE_RESULT: ${{ steps.live.outcome }}
+          REPORT_JOB: live-ecosystems
+        run: bash scripts/ci_report.sh
+
+  # A release-mode build is a different compiler: AOT catches things the JIT
+  # never instantiates — package FFI bindings that only fail when compiled, for
+  # example. Linux is the cheapest target to prove it on, and it is the one the
+  # release workflow builds without a paid runner.
+  aot:
+    name: Release build (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev \
+            libmpv-dev mpv
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Scaffold platform runners
+        run: bash scripts/scaffold_platforms.sh
+
+      - name: Build
+        run: |
+          set +e
+          flutter build linux --release > /tmp/aot.log 2>&1
+          status=$?
+          tail -40 /tmp/aot.log
+          if [ $status -ne 0 ]; then
+            python3 scripts/annotate_log.py /tmp/aot.log aot
+          fi
+          exit $status
+
+  # The artifact people actually install. Android is where the manifest
+  # (permissions, cleartext) and the per-ABI native libraries (QuickJS, libmpv)
+  # have to be right, and it is the one build nobody here can look at, so it is
+  # built on every push and attached to the run for download.
+  android:
+    name: Release build (Android APK)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Scaffold platform runners
+        run: bash scripts/scaffold_platforms.sh
+
+      # `flutter create` only declares INTERNET in the debug and profile
+      # manifests, so a release APK without this line has no network at all and
+      # every screen looks broken. Cheaper to catch here than on a phone.
+      - name: The release manifest may reach the network
+        run: |
+          grep -q 'android.permission.INTERNET' \
+            android/app/src/main/AndroidManifest.xml
+
+      - name: Build APK
+        id: apk
+        run: |
+          set +e
+          flutter build apk --release > /tmp/apk.log 2>&1
+          status=$?
+          tail -40 /tmp/apk.log
+          if [ $status -ne 0 ]; then
+            python3 scripts/annotate_log.py /tmp/apk.log android
+          fi
+          exit $status
+
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aerostream-android-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
+
+  # The app, running. Not a unit test: the Linux bundle is started under a
+  # virtual display with AEROSTREAM_SELFCHECK=1, which drives the real stores,
+  # the real sandbox and the real install path — resolve `Universe`, install a
+  # `.sky`, ask it for its home screen, then the same for Vega.
+  run-linux:
+    name: Run Linux app (self-check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev \
+            libmpv-dev mpv xvfb libgl1-mesa-dri
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Scaffold platform runners
+        run: bash scripts/scaffold_platforms.sh
+
+      - name: Build
+        run: |
+          set +e
+          flutter build linux --debug > /tmp/build.log 2>&1
+          status=$?
+          tail -20 /tmp/build.log
+          exit $status
+
+      - name: Install a plugin and ask it for its home screen
+        id: selfcheck
+        run: |
+          set +e
+          AEROSTREAM_SELFCHECK=1 timeout 900 xvfb-run -a \
+            ./build/linux/x64/debug/bundle/aerostream > /tmp/selfcheck.log 2>&1
+          status=$?
+          cat /tmp/selfcheck.log
+          if [ $status -ne 0 ]; then
+            python3 scripts/annotate_log.py /tmp/selfcheck.log self-check
+          fi
+          exit $status
+
+      - name: Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SELFTEST_RESULT: ${{ steps.selfcheck.outcome }}
+          REPORT_JOB: run-linux
+        run: bash scripts/ci_report.sh
+
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Toolchain versions
+        run: flutter --version
+
+      - name: Scaffold platform runners
+        run: bash scripts/scaffold_platforms.sh
+
+      - name: Resolve dependencies
+        run: flutter pub get 2>&1 | tee /tmp/analyze.log
+
+      - name: Format
+        id: format
+        run: |
+          set +e
+          dart format lib test > /tmp/format.log 2>&1
+          git diff > /tmp/format.patch
+          if [ -s /tmp/format.patch ]; then
+            echo "::error::dart format changed files; see the report comment"
+            python3 scripts/annotate_log.py /tmp/format.log format
+            # The patch itself, base64, in annotations: the sandbox can read
+            # those even when it cannot read the log or post a comment.
+            python3 scripts/emit_patch.py /tmp/format.patch format-patch
+            exit 1
+          fi
+          exit 0
+
+      - name: Analyze
+        id: analyze
+        if: always()
+        run: |
+          set +e
+          flutter analyze --fatal-infos > /tmp/analyze.log 2>&1
+          status=$?
+          cat /tmp/analyze.log
+          # Readable from the sandbox even when issue comments are throttled.
+          if [ $status -ne 0 ]; then
+            python3 scripts/annotate_log.py /tmp/analyze.log analyze
+          fi
+          exit $status
+
+      - name: Test
+        id: test
+        if: always()
+        run: |
+          set +e
+          flutter test --reporter expanded --coverage > /tmp/test.log 2>&1
+          status=$?
+          tail -60 /tmp/test.log
+          if [ $status -ne 0 ]; then
+            python3 scripts/annotate_log.py /tmp/test.log test
+          fi
+          # Informational: the number appears in the report comment either way.
+          python3 scripts/coverage_summary.py coverage/lcov.info > /tmp/coverage.md 2>&1 || true
+          exit $status
+
+      - name: Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FORMAT_RESULT: ${{ steps.format.outcome }}
+          ANALYZE_RESULT: ${{ steps.analyze.outcome }}
+          TEST_RESULT: ${{ steps.test.outcome }}
+          JS_RESULT: success
+        run: bash scripts/ci_report.sh
+
+      - name: Fail if any verifier step failed
+        if: always()
+        run: |
+          if [ "${{ steps.format.outcome }}" != "success" ] || \
+             [ "${{ steps.analyze.outcome }}" != "success" ] || \
+             [ "${{ steps.test.outcome }}" != "success" ]; then
+            echo "One or more verification steps failed."
+            exit 1
+          fi
+
+      - name: Upload coverage
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/lcov.info
+          if-no-files-found: ignore

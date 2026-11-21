@@ -1,0 +1,71 @@
+name: aerostream
+description: >-
+  AeroStream is a cross-platform media client runtime. It ships with no
+  content of its own: everything it plays comes from plugins the user installs
+  (SkyStream, Vega and CloudStream ecosystems).
+publish_to: 'none'
+version: 0.2.0+2
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management + navigation.
+  flutter_riverpod: ^2.5.1
+  go_router: ^14.2.0
+
+  # Networking.
+  dio: ^5.4.3
+
+  # AES, for the plugins that decrypt their own API payloads.
+  pointycastle: ^3.7.0
+
+  # Structured storage.
+  sqlite3: ^2.4.0
+  sqlite3_flutter_libs: ^0.5.24
+  path_provider: ^2.1.3
+  path: ^1.9.0
+  shared_preferences: ^2.2.3
+
+  # Plugin artifacts + untrusted payloads.
+  archive: ^3.4.9
+  crypto: ^3.0.3
+  html: ^0.15.4
+
+  # The plugin sandbox. QuickJS, with the C sources vendored in the package and
+  # the memory and interrupt limits the runtime relies on.
+  #
+  # Not `flutter_qjs`: 0.3.7's binding does not survive AOT compilation
+  # (`Pointer.fromFunction` returning an IntPtr) and its bundled quickjs.c does
+  # not compile with clang 16+ (implicit pointer-to-integer conversion is an
+  # error there), while 0.4.x needs QuickJS as a git submodule that pub does not
+  # fetch. This is the maintained successor with the engine compiled from
+  # source on Android, iOS, macOS, Linux and Windows, pinned to a tag so a
+  # release build is reproducible.
+  flutter_qjs_next:
+    git:
+      url: https://github.com/NanCunChild/flutter_qjs_next.git
+      ref: v1.5.2
+
+  # Video playback. media_kit wraps libmpv and ships per-platform native
+  # libraries, which is what makes one player work on every target.
+  media_kit: ^1.2.6
+  media_kit_video: ^2.0.1
+  media_kit_libs_video: ^1.0.7
+
+  # Utilities.
+  collection: ^1.18.0
+  logger: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/js/
