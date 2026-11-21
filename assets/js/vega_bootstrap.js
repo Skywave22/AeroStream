@@ -51,6 +51,10 @@
     return text;
   }
 
+  // Providers hand links around as paths; the adapter turns them back into
+  // absolute URLs with this, so the extraction step receives a real URL.
+  global.__vegaOrigin = function () { return lastOrigin || null; };
+
   function rememberOrigin(url) {
     var match = /^(https?:\/\/[^/]+)/i.exec(String(url || ''));
     if (match) lastOrigin = match[1];
