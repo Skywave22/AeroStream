@@ -84,10 +84,19 @@ final class JsPluginHost {
     var hostCalls = 0;
     var httpCalls = 0;
 
+    // Timers wait here rather than inside the loop: a plugin races its
+    // requests against a timeout timer, and sleeping through that timer starved
+    // the request it was guarding. `subdub` schedules a 25s timeout and then
+    // fetches; the fetch only started after the host had idled for 10s, by
+    // which time the plugin's own guard had expired and reported "timeout" for
+    // a request that never ran.
+    final pending = <_PendingTimer>[];
+
     while (true) {
       if (DateTime.now().isAfter(deadline)) {
         return Err<Object?>(await _timeout());
       }
+      await _fireDueTimers(pending);
 
       String? polled;
       try {
@@ -98,7 +107,7 @@ final class JsPluginHost {
       await _drainLogs();
 
       if (polled == null || polled == 'null' || polled.isEmpty) {
-        await Future<void>.delayed(limits.pollInterval);
+        await Future<void>.delayed(_idleDelay(pending));
         continue;
       }
 
@@ -141,7 +150,13 @@ final class JsPluginHost {
       }
 
       if (call.channel == 'timer') {
-        await _fireTimer(call);
+        final delay = _timerDelay(call);
+        AppLog.debug(
+          'timer ${readInt(call.json['ms']) ?? 0}ms queued for '
+          '${delay.inMilliseconds}ms',
+          pluginId: pluginId,
+        );
+        pending.add(_PendingTimer(call, delay));
         continue;
       }
 
@@ -243,24 +258,48 @@ final class JsPluginHost {
     }
   }
 
-  Future<void> _fireTimer(JsHostCall call) async {
-    final payload = call.json;
-    final requested = readInt(payload['ms']) ?? 0;
-    final timerId = readString(payload['timerId']) ?? '';
+  /// How long the host will wait for a timer the plugin scheduled.
+  ///
+  /// Capped so one long `setTimeout` cannot park a call for minutes, and never
+  /// negative: plugins do pass `-1` (meaning "soon") by accident.
+  Duration _timerDelay(JsHostCall call) {
+    final requested = readInt(call.json['ms']) ?? 0;
     final cap = limits.maxTimerDelay.inMilliseconds;
     final bounded = requested < 0 ? 0 : (requested > cap ? cap : requested);
-    final delay = Duration(milliseconds: bounded);
-    if (delay > Duration.zero) {
-      // A plugin that asks for a long sleep is either rate-limiting or hiding a
-      // retry loop; either way the wall-clock budget is being spent here, so it
-      // is worth seeing in the log.
-      AppLog.debug(
-        'timer ${requested}ms waited ${bounded}ms',
-        pluginId: pluginId,
-      );
-      await Future<void>.delayed(delay);
-    }
+    return Duration(milliseconds: bounded);
+  }
 
+  /// Fires every pending timer whose deadline has passed.
+  Future<void> _fireDueTimers(List<_PendingTimer> pending) async {
+    if (pending.isEmpty) return;
+    final now = DateTime.now();
+    for (final timer in pending) {
+      if (timer.fired || now.isBefore(timer.due)) continue;
+      timer.fired = true;
+      await _fireTimer(timer.call);
+    }
+  }
+
+  /// How long an idle pass waits before polling again.
+  ///
+  /// Polling every 2ms is right while a plugin is working through host calls;
+  /// it is pure heat while the only thing left is a 10s timer, so wait for the
+  /// nearest deadline instead, capped so a hung call is still noticed quickly.
+  Duration _idleDelay(List<_PendingTimer> pending) {
+    var delay = limits.pollInterval;
+    for (final timer in pending) {
+      if (timer.fired) continue;
+      final remaining = timer.due.difference(DateTime.now());
+      if (remaining <= delay) continue;
+      delay = remaining > const Duration(milliseconds: 50)
+          ? const Duration(milliseconds: 50)
+          : remaining;
+    }
+    return delay;
+  }
+
+  Future<void> _fireTimer(JsHostCall call) async {
+    final timerId = readString(call.json['timerId']) ?? '';
     try {
       await _evaluate('__aeroFireTimer(${jsonEncode(timerId)})');
       await _evaluate(
@@ -375,4 +414,13 @@ final class JsPluginHost {
 
   /// Increments on every restart; used by tests and the debug console.
   int get generation => _generation;
+}
+
+/// A timer the plugin asked for, waiting for its deadline.
+final class _PendingTimer {
+  _PendingTimer(this.call, Duration delay) : due = DateTime.now().add(delay);
+
+  final JsHostCall call;
+  final DateTime due;
+  bool fired = false;
 }

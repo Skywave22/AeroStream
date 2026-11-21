@@ -41,6 +41,7 @@ Future<void> main() async {
   final bootstrap = await rootBundle.loadString('assets/js/host_bootstrap.js');
   final vegaBootstrap =
       await rootBundle.loadString('assets/js/vega_bootstrap.js');
+  final cheerioLite = await rootBundle.loadString('assets/js/cheerio_lite.js');
 
   // CloudStream extensions are Kotlin: they need the native host, which only
   // this platform (so far) has. Everywhere else the ecosystem stays visible and
@@ -54,6 +55,7 @@ Future<void> main() async {
     artifactStoreProvider.overrideWithValue(artifacts),
     hostBootstrapProvider.overrideWithValue(bootstrap),
     vegaBootstrapProvider.overrideWithValue(vegaBootstrap),
+    cheerioLiteProvider.overrideWithValue(cheerioLite),
     platformProfileProvider.overrideWithValue(platform),
     jsEngineFactoryProvider.overrideWithValue(createPlatformEngineFactory()),
     playerEngineProvider.overrideWithValue(createPlaybackEngine()),

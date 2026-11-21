@@ -50,6 +50,9 @@ final hostBootstrapProvider = Provider<String>(
 /// typed error instead of starting a provider that cannot work.
 final vegaBootstrapProvider = Provider<String>((ref) => '');
 
+/// Overridden at boot with `assets/js/cheerio_lite.js`.
+final cheerioLiteProvider = Provider<String>((ref) => '');
+
 /// The JavaScript engine for this platform. Overridden at boot by the native
 /// engine; the default fails safe with a typed error.
 final jsEngineFactoryProvider = Provider<JsEngineFactory>(
@@ -88,6 +91,7 @@ final runtimeFactoryProvider = Provider<PluginRuntimeFactory>((ref) {
     engineFactory: ref.watch(jsEngineFactoryProvider),
     hostBootstrap: ref.watch(hostBootstrapProvider),
     vegaBootstrap: ref.watch(vegaBootstrapProvider),
+    cheerioLite: ref.watch(cheerioLiteProvider),
     cloudStreamBridge: ref.watch(cloudStreamBridgeProvider),
     limits: const RuntimeLimits(),
   );

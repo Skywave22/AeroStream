@@ -37,6 +37,7 @@ final class PluginRuntimeFactory {
     required JsEngineFactory engineFactory,
     required this.hostBootstrap,
     this.vegaBootstrap = '',
+    this.cheerioLite = '',
     CloudStreamBridge? cloudStreamBridge,
     this.limits = const RuntimeLimits(),
   })  : _artifacts = artifacts,
@@ -62,6 +63,14 @@ final class PluginRuntimeFactory {
   /// this bootstrap defines; running the prelude under the SkyStream bootstrap
   /// threw `ReferenceError: '__vegaLoad' is not defined` on every provider.
   final String vegaBootstrap;
+
+  /// `assets/js/cheerio_lite.js`.
+  ///
+  /// Vega providers are written against cheerio, which is synchronous, so it
+  /// has to live inside the sandbox. Without it `require('cheerio')` fell
+  /// through to the empty-object default and the first `cheerio.load(html)`
+  /// died with "cannot read property 'load' of undefined".
+  final String cheerioLite;
 
   final RuntimeLimits limits;
 
@@ -172,7 +181,10 @@ final class PluginRuntimeFactory {
     // `__aeroPoll`, `__aeroResolve`) plus `fetch`. A provider needs both, and
     // the host half goes in the prelude so it is evaluated last: its `fetch`
     // is the one that speaks the sandbox protocol.
-    final prelude = <String>[hostBootstrap];
+    final prelude = <String>[
+      if (cheerioLite.isNotEmpty) cheerioLite,
+      hostBootstrap,
+    ];
     var loaded = 0;
     for (final module in vegaModules) {
       final source = await _artifacts.readEntry(plugin.artifactPath, module);
