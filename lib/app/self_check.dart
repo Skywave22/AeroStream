@@ -257,7 +257,15 @@ Future<void> _reportStreams(
   final streams = await provider.getStreams(item);
   final result = streams.valueOrNull;
   if (result == null) {
-    report.fail('a stream resolves', streams.errorOrNull);
+    // A SkyStream plugin is our own adapter's job; a Vega provider's link
+    // extraction is its author's, and a provider that answers its home screen
+    // but cannot extract from one host is a report, not a broken app.
+    final ours = provider.info.ecosystem == PluginEcosystem.skystream;
+    if (ours) {
+      report.fail('a stream resolves', streams.errorOrNull);
+    } else {
+      report.skip('a stream resolves', '${streams.errorOrNull}');
+    }
     return;
   }
   final sources = result.orderedSources;

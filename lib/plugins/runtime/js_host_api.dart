@@ -204,7 +204,8 @@ final class JsHostApi {
   }) async {
     final uri = _resolve(payload['url']?.toString());
     if (uri == null) {
-      return const JsHostReply.error('Invalid URL');
+      final raw = payload['url']?.toString();
+      return JsHostReply.error('Invalid URL: ${raw ?? '(none)'}');
     }
     final checked = policy.check(uri);
     if (checked is Err<Uri>) return _errorReply(checked.error);
