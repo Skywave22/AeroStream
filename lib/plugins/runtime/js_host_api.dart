@@ -163,12 +163,42 @@ final class JsHostApi {
 
   // ---- HTTP --------------------------------------------------------------
 
+  /// The origin this plugin last reached.
+  String? _origin;
+
+  /// Resolves a plugin's URL against the origin it last fetched.
+  ///
+  /// Vega providers publish links as `/download-the-good-doctor-.../` and hand
+  /// that path to the extraction step that follows. A bare path is not a URL —
+  /// the policy refuses it with `Scheme "" is not allowed` — and the site it
+  /// belongs to is the one the provider just read its catalogue from.
+  Uri? _resolve(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    final parsed = Uri.tryParse(raw);
+    if (parsed == null) return null;
+    if (parsed.hasScheme) {
+      if (parsed.host.isNotEmpty) {
+        _origin = '${parsed.scheme}://${parsed.authority}';
+      }
+      return parsed;
+    }
+    final origin = _origin;
+    if (origin == null) return parsed;
+    // `//host/path` keeps its own host and borrows only the scheme.
+    if (raw.startsWith('//')) {
+      final scheme = Uri.tryParse(origin)?.scheme;
+      if (scheme == null || scheme.isEmpty) return parsed;
+      return Uri.tryParse('$scheme:$raw') ?? parsed;
+    }
+    final path = raw.startsWith('/') ? raw : '/$raw';
+    return Uri.tryParse('$origin$path') ?? parsed;
+  }
+
   Future<JsHostReply> _httpRequest(
     Map<String, Object?> payload, {
     required String method,
   }) async {
-    final rawUrl = payload['url']?.toString();
-    final uri = rawUrl == null ? null : Uri.tryParse(rawUrl);
+    final uri = _resolve(payload['url']?.toString());
     if (uri == null) {
       return const JsHostReply.error('Invalid URL');
     }

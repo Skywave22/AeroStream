@@ -241,9 +241,8 @@ Future<void> _reportStreams(
   MediaProvider provider,
   List<HomeSection> sections,
 ) async {
-  final items = sections
-      .expand((section) => section.items)
-      .toList(growable: false);
+  final items =
+      sections.expand((section) => section.items).toList(growable: false);
   // A movie is the cheapest thing to extract; a row of series wants an
   // episode first. Falling back to the row's first entry keeps Vega covered,
   // whose entries are not typed.
