@@ -166,6 +166,10 @@ final class JsHostApi {
   /// The origin this plugin last reached.
   String? _origin;
 
+  /// The origin of the last absolute request, exposed so an adapter can turn a
+  /// provider's relative links into absolute ones.
+  String? get origin => _origin;
+
   /// Resolves a plugin's URL against the origin it last fetched.
   ///
   /// Vega providers publish links as `/download-the-good-doctor-.../` and hand

@@ -68,25 +68,20 @@ final class VegaAdapter implements MediaProvider {
     );
     return switch (response) {
       Err<Object?>(:final error) => Err<List<HomeSection>>(error),
-      Ok<Object?>(:final value) => await _home(value),
+      Ok<Object?>(:final value) => Ok<List<HomeSection>>(
+          mapHome(value, origin: _host.origin),
+        ),
     };
   }
-
-  Future<Result<List<HomeSection>>> _home(Object? value) async =>
-      Ok<List<HomeSection>>(mapHome(value, origin: await _origin()));
 
   /// The site the provider last reached.
   ///
   /// Vega providers publish links as paths (`/download-.../`). Everything
   /// downstream — details, then the extraction step that turns a page into a
-  /// playable URL — expects an absolute address, and this is the only place
-  /// that knows which host a bare path belongs to.
-  Future<String?> _origin() async {
-    final result = await _host.evaluateExpression('__vegaOrigin()');
-    final value = result.valueOrNull;
-    if (value is! String || value.isEmpty) return null;
-    return value;
-  }
+  /// playable URL — expects an absolute address, and the host already knows
+  /// which site a bare path belongs to, because it served the request that
+  /// produced it.
+  String? get _origin => _host.origin;
 
   @override
   Future<Result<SearchPage>> search(String query, {int page = 1}) async {
@@ -99,7 +94,7 @@ final class VegaAdapter implements MediaProvider {
         'providerValue': providerValue,
       },
     );
-    final origin = await _origin();
+    final origin = _origin;
     return switch (response) {
       Err<Object?>(:final error) => Err<SearchPage>(error),
       Ok<Object?>(:final value) => Ok<SearchPage>(

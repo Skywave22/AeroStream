@@ -214,6 +214,9 @@ final class JsPluginHost {
     }
   }
 
+  /// The origin the plugin last reached, or null if it has not fetched yet.
+  String? get origin => _api.origin;
+
   /// Destroys the context and releases host resources.
   Future<void> dispose() async {
     _started = false;
